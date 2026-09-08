@@ -24,6 +24,8 @@ import {
   checkBackendHealth,
   fetchDemoData,
   optimizeRoutes,
+  optimizeClassical,
+  optimizeQiskit,
   compareSolvers,
 } from './services/optimizerService';
 
@@ -68,13 +70,13 @@ export const App: React.FC = () => {
         traffic_level: 'moderate',
         time_window_mode: 'soft',
         capacity_mode: 'strict',
-        solver_type: 'quantum_inspired',
+        solver_type: 'classical',
       };
 
       try {
         const comp = await compareSolvers(initialReq);
         setComparisonResult(comp);
-        setOptimizationResult(comp.quantum_inspired);
+        setOptimizationResult(comp.classical || comp.quantum_inspired);
       } catch (err) {
         console.error('Initial route solve error:', err);
       }
@@ -94,32 +96,71 @@ export const App: React.FC = () => {
       traffic_level: 'moderate',
       time_window_mode: 'soft',
       capacity_mode: 'strict',
-      solver_type: 'quantum_inspired',
+      solver_type: deliveries.length <= 6 ? 'qiskit' : 'classical',
     };
 
-    // Simulated short delay so judges see the multi-stage animation
-    await new Promise((resolve) => setTimeout(resolve, 850));
+    // Multi-stage animation pause
+    await new Promise((resolve) => setTimeout(resolve, 1800));
 
     try {
-      const comp = await compareSolvers(optimizationReq);
-      setComparisonResult(comp);
-      setOptimizationResult(comp.quantum_inspired);
-      showToast('Optimization complete! Minimal-distance routes generated.');
+      let result: OptimizationResult;
+      if (
+        optimizationReq.solver_type === 'classical' ||
+        optimizationReq.solver_type === 'classical_baseline'
+      ) {
+        result = await optimizeClassical(optimizationReq);
+      } else if (optimizationReq.solver_type === 'qiskit') {
+        result = await optimizeQiskit(optimizationReq);
+      } else {
+        result = await optimizeRoutes(optimizationReq);
+      }
+
+      setOptimizationResult(result);
+
+      // Comparative benchmark
+      try {
+        const comp = await compareSolvers(optimizationReq);
+        setComparisonResult(comp);
+      } catch (err) {
+        console.warn('Comparison calculation skipped:', err);
+      }
+
+      showToast(`Optimization complete! Solver: ${result.solver_name}`);
       setCurrentTab('results');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Optimization error:', err);
-      showToast('Optimization failed. Using fallback solution.');
+      showToast(err?.message || 'Optimization failed. Please try again.');
     } finally {
       setIsOptimizing(false);
     }
   };
 
-  // Handler: Load Demo Data
+  // Handler: Load Demo Data (25 stops)
   const handleLoadDemo = () => {
     setDepot(DEMO_DEPOT);
     setVehicles(DEMO_VEHICLES);
     setDeliveries(DEMO_DELIVERIES);
     showToast('Loaded 25 realistic San Francisco delivery stops & 5 fleet vehicles.');
+  };
+
+  // Handler: Load Quantum Demo Data (4 stops)
+  const handleLoadQuantumDemo = async () => {
+    try {
+      const demo = await fetchDemoData();
+      if (demo.quantum_demo) {
+        setDepot(demo.quantum_demo.depot);
+        setVehicles(demo.quantum_demo.vehicles);
+        setDeliveries(demo.quantum_demo.deliveries);
+        showToast('Loaded Quantum Demo: 4 stops & 2 vehicles for Qiskit Aer simulation.');
+        return;
+      }
+    } catch {
+      // fallback
+    }
+    setDepot(DEMO_DEPOT);
+    setVehicles(DEMO_VEHICLES.slice(0, 2));
+    setDeliveries(DEMO_DELIVERIES.slice(0, 4));
+    showToast('Loaded Quantum Demo: 4 stops & 2 vehicles for Qiskit Aer simulation.');
   };
 
   // Delivery CRUD
@@ -168,6 +209,7 @@ export const App: React.FC = () => {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         onLoadDemo={handleLoadDemo}
+        onLoadQuantumDemo={handleLoadQuantumDemo}
         onQuickOptimize={() => handleRunOptimization()}
         backendOnline={backendOnline}
         totalDeliveries={deliveries.length}
@@ -234,6 +276,8 @@ export const App: React.FC = () => {
               isOptimizing={isOptimizing}
               onRunOptimization={handleRunOptimization}
               onNavigateTab={setCurrentTab}
+              onLoadQuantumDemo={handleLoadQuantumDemo}
+              onLoadFullDemo={handleLoadDemo}
             />
           )}
 

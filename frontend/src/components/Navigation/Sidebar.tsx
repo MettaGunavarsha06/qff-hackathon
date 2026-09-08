@@ -30,6 +30,7 @@ interface SidebarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   onLoadDemo: () => void;
+  onLoadQuantumDemo?: () => void;
   onQuickOptimize: () => void;
   backendOnline: boolean;
   totalDeliveries: number;
@@ -43,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
   onLoadDemo,
+  onLoadQuantumDemo,
   onQuickOptimize,
   backendOnline,
   totalDeliveries,
@@ -120,6 +122,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Database className="w-3.5 h-3.5 text-cyan-400" />
             <span>Load Demo Data (25)</span>
           </button>
+
+          {onLoadQuantumDemo && (
+            <button
+              onClick={onLoadQuantumDemo}
+              className="w-full py-1.5 px-3 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 text-cyan-300 hover:text-white text-xs font-semibold border border-cyan-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Zap className="w-3.5 h-3.5 text-cyan-400 fill-current" />
+              <span>Load Quantum Demo (4)</span>
+            </button>
+          )}
         </div>
 
         {/* Navigation Links */}

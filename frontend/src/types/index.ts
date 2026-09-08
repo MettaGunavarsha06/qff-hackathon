@@ -49,7 +49,12 @@ export type OptimizationObjective =
 
 export type TrafficLevel = 'clear' | 'moderate' | 'heavy' | 'rush_hour';
 
-export type SolverType = 'quantum_inspired' | 'classical_baseline' | 'hybrid';
+export type SolverType =
+  | 'classical'
+  | 'qiskit'
+  | 'quantum_inspired'
+  | 'classical_baseline'
+  | 'hybrid';
 
 export interface Waypoint {
   sequence_index: number;

@@ -36,6 +36,8 @@ interface OptimizationPageProps {
   isOptimizing: boolean;
   onRunOptimization: (req: OptimizationRequest) => Promise<void>;
   onNavigateTab: (tab: any) => void;
+  onLoadQuantumDemo?: () => void;
+  onLoadFullDemo?: () => void;
 }
 
 export const OptimizationPage: React.FC<OptimizationPageProps> = ({
@@ -47,16 +49,35 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   isOptimizing,
   onRunOptimization,
   onNavigateTab,
+  onLoadQuantumDemo,
+  onLoadFullDemo,
 }) => {
   const [objective, setObjective] = useState<OptimizationObjective>('balanced');
   const [trafficLevel, setTrafficLevel] = useState<TrafficLevel>('moderate');
   const [timeWindowMode, setTimeWindowMode] = useState<'strict' | 'soft' | 'ignore'>('soft');
   const [capacityMode, setCapacityMode] = useState<'strict' | 'relaxed'>('strict');
-  const [solverType, setSolverType] = useState<SolverType>('quantum_inspired');
+  const [solverType, setSolverType] = useState<SolverType>('qiskit');
   const [activeVehiclesCount, setActiveVehiclesCount] = useState<number>(vehicles.length);
 
-  // Stepper progress for animated modal
+  // Stepper progress for animated modal (5 stages)
   const [currentStage, setCurrentStage] = useState<number>(1);
+
+  React.useEffect(() => {
+    if (!isOptimizing) {
+      setCurrentStage(1);
+      return;
+    }
+    const t1 = setTimeout(() => setCurrentStage(2), 250);
+    const t2 = setTimeout(() => setCurrentStage(3), 700);
+    const t3 = setTimeout(() => setCurrentStage(4), 1150);
+    const t4 = setTimeout(() => setCurrentStage(5), 1600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [isOptimizing]);
 
   const handleStartOptimization = async () => {
     const subsetVehicles = vehicles.slice(0, activeVehiclesCount);
@@ -127,7 +148,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Studio Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-white flex items-center gap-2">
             <Cpu className="w-5 h-5 text-cyan-400" />
@@ -138,19 +159,82 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleStartOptimization}
-          disabled={isOptimizing}
-          className={`px-6 py-3 rounded-2xl text-xs font-black tracking-wide shadow-xl flex items-center gap-2.5 transition-all cursor-pointer ${
-            isOptimizing
-              ? 'bg-slate-800 text-slate-400 border border-slate-700'
-              : 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 shadow-cyan-500/25 hover:shadow-cyan-500/40'
-          }`}
-        >
-          <Play className={`w-4 h-4 fill-current ${isOptimizing ? 'animate-spin' : ''}`} />
-          <span>{isOptimizing ? 'SOLVING CVRPTW QUBO...' : 'OPTIMIZE ROUTES'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {onLoadQuantumDemo && (
+            <button
+              onClick={onLoadQuantumDemo}
+              className="px-3.5 py-2.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-cyan-500/10"
+              title="Load small 4-stop dataset optimized for Qiskit Aer quantum simulator"
+            >
+              <Zap className="w-3.5 h-3.5 text-cyan-400 fill-current" />
+              <span>Load Quantum Demo (4 stops)</span>
+            </button>
+          )}
+
+          {onLoadFullDemo && (
+            <button
+              onClick={onLoadFullDemo}
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer"
+              title="Load full 25-stop delivery dataset"
+            >
+              <Layers className="w-3.5 h-3.5 text-slate-400" />
+              <span>Full Demo (25 stops)</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleStartOptimization}
+            disabled={isOptimizing || (solverType === 'qiskit' && deliveries.length > 6)}
+            className={`px-5 py-2.5 rounded-xl text-xs font-black tracking-wide shadow-xl flex items-center gap-2 transition-all cursor-pointer ${
+              isOptimizing || (solverType === 'qiskit' && deliveries.length > 6)
+                ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                : 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 shadow-cyan-500/25 hover:shadow-cyan-500/40'
+            }`}
+          >
+            <Play className={`w-3.5 h-3.5 fill-current ${isOptimizing ? 'animate-spin' : ''}`} />
+            <span>
+              {isOptimizing
+                ? 'OPTIMIZING...'
+                : solverType === 'qiskit' && deliveries.length > 6
+                ? 'SELECT ≤ 6 STOPS FOR QISKIT'
+                : 'OPTIMIZE ROUTES'}
+            </span>
+          </button>
+        </div>
       </div>
+
+      {/* Qiskit Limit Warning Banner */}
+      {solverType === 'qiskit' && deliveries.length > 6 && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex items-start gap-3.5 text-xs text-amber-200">
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <div className="font-bold text-amber-300">
+              Qiskit Aer Simulator Scaling Limit (≤ 6 stops)
+            </div>
+            <div className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+              The Qiskit quantum simulator scales exponentially (2ⁿ Hilbert state-space) and is designed for <strong>3 to 6 delivery locations</strong>. The current dataset contains <strong>{deliveries.length} stops</strong>.
+            </div>
+            <div className="flex flex-wrap items-center gap-3 mt-3">
+              {onLoadQuantumDemo && (
+                <button
+                  onClick={onLoadQuantumDemo}
+                  className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Zap className="w-3 h-3 fill-current" />
+                  <span>Load Quantum Demo (4 stops)</span>
+                </button>
+              )}
+              <button
+                onClick={() => setSolverType('classical')}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-all cursor-pointer flex items-center gap-1.5 border border-slate-700"
+              >
+                <Cpu className="w-3 h-3 text-cyan-400" />
+                <span>Switch to Classical Optimizer (Up to 50+ stops)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Columns: Objectives & Parameters */}
@@ -310,24 +394,24 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
             <div className="space-y-2">
               {[
                 {
-                  id: 'quantum_inspired' as SolverType,
-                  name: 'Quantum-Inspired Simulated Annealing',
-                  tag: 'QUBO + SQA',
-                  desc: 'Uses transverse-field quantum barrier tunneling to escape local traps.',
+                  id: 'qiskit' as SolverType,
+                  name: 'Qiskit QAOA (Aer Simulator)',
+                  tag: 'QUBO + Aer',
+                  desc: 'CVRPTW Hamiltonian mapped to QAOA quantum circuit; simulated via local Qiskit Aer / Statevector sampler. (3–6 stops)',
                   color: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-400',
                 },
                 {
-                  id: 'classical_baseline' as SolverType,
-                  name: 'Classical Clarke-Wright Savings',
+                  id: 'classical' as SolverType,
+                  name: 'Classical Clarke-Wright + 2-Opt',
                   tag: 'Heuristic + 2-Opt',
-                  desc: 'Traditional greedy edge-merging followed by intra-route swap improvement.',
+                  desc: 'Greedy Clarke-Wright savings method followed by 2-opt swap route untangling. (Up to 50+ stops)',
                   color: 'border-blue-500/40 bg-blue-500/10 text-blue-400',
                 },
                 {
-                  id: 'hybrid' as SolverType,
-                  name: 'Hybrid Quantum-Classical Ensemble',
-                  tag: 'Ensemble',
-                  desc: 'Runs both solvers simultaneously and takes the Pareto-optimal winner.',
+                  id: 'quantum_inspired' as SolverType,
+                  name: 'Quantum-Inspired SQA',
+                  tag: 'QUBO + SQA',
+                  desc: 'Transverse-field Simulated Quantum Annealing for medium problem spaces.',
                   color: 'border-purple-500/40 bg-purple-500/10 text-purple-400',
                 },
               ].map((s) => {
@@ -430,7 +514,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
         </div>
       </div>
 
-      {/* Optimization Progress Animation Modal */}
+      {/* Optimization Progress Animation Modal (5 Stages) */}
       {isOptimizing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-cyan-500/50 p-6 shadow-2xl shadow-cyan-500/20 text-center space-y-6 animate-in fade-in zoom-in-95">
@@ -440,48 +524,70 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-white">Quantum Optimization In Progress</h3>
+              <h3 className="text-lg font-black text-white">
+                {solverType === 'qiskit'
+                  ? 'Qiskit Quantum QAOA In Progress'
+                  : 'Route Optimization In Progress'}
+              </h3>
               <p className="text-xs text-slate-400 mt-1">
-                Executing Simulated Quantum Annealing on {deliveries.length} delivery nodes...
+                {solverType === 'qiskit'
+                  ? `Simulating quantum circuit for ${deliveries.length} delivery nodes on AerSimulator...`
+                  : `Solving Clarke-Wright savings network for ${deliveries.length} delivery nodes...`}
               </p>
             </div>
 
-            {/* Stage Progress Pipeline */}
+            {/* Stage Progress Pipeline (5 Specific Stages) */}
             <div className="space-y-2.5 text-left text-xs">
-              {[
-                { stage: 1, title: 'Classical Graph & Traffic Distance Preprocessing', done: true },
-                { stage: 2, title: 'Formulating QUBO Objective & Time-Window Penalty Matrix', done: true },
-                { stage: 3, title: 'Simulated Quantum Annealing (Barrier Tunneling)', active: true },
-                { stage: 4, title: 'Classical Post-Processing & Waypoint Sequence Untangling', done: false },
-              ].map((step) => (
-                <div
-                  key={step.stage}
-                  className={`p-2.5 rounded-xl border flex items-center gap-3 ${
-                    step.active
-                      ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-300'
-                      : step.done
-                      ? 'bg-slate-800/40 border-slate-800 text-slate-400'
-                      : 'bg-slate-950/40 border-slate-900 text-slate-600'
-                  }`}
-                >
+              {(solverType === 'qiskit'
+                ? [
+                    { stage: 1, title: 'Preparing optimization problem...' },
+                    { stage: 2, title: 'Running Qiskit optimization...' },
+                    { stage: 3, title: 'Decoding solution...' },
+                    { stage: 4, title: 'Calculating route metrics...' },
+                    { stage: 5, title: 'Optimization complete' },
+                  ]
+                : [
+                    { stage: 1, title: 'Preparing optimization problem...' },
+                    { stage: 2, title: 'Running Clarke-Wright Savings...' },
+                    { stage: 3, title: 'Executing 2-Opt route refinement...' },
+                    { stage: 4, title: 'Calculating route metrics...' },
+                    { stage: 5, title: 'Optimization complete' },
+                  ]
+              ).map((step) => {
+                const isDone = step.stage < currentStage || currentStage === 5;
+                const isActive = step.stage === currentStage && currentStage < 5;
+                return (
                   <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                      step.active
-                        ? 'bg-cyan-500 text-slate-950 animate-pulse'
-                        : step.done
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-slate-800 text-slate-500'
+                    key={step.stage}
+                    className={`p-2.5 rounded-xl border flex items-center gap-3 transition-all ${
+                      isActive
+                        ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-300 shadow-sm'
+                        : isDone
+                        ? 'bg-slate-800/40 border-slate-800 text-slate-300'
+                        : 'bg-slate-950/40 border-slate-900 text-slate-600'
                     }`}
                   >
-                    {step.done ? '✓' : step.stage}
+                    <div
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        isActive
+                          ? 'bg-cyan-500 text-slate-950 animate-pulse'
+                          : isDone
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-slate-800 text-slate-500'
+                      }`}
+                    >
+                      {isDone ? '✓' : step.stage}
+                    </div>
+                    <span className="font-semibold">{step.title}</span>
                   </div>
-                  <span className="font-semibold">{step.title}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="text-[11px] text-slate-500 font-mono">
-              Solving on CPU/Accelerator simulator • Transverse field Γ(t) cooling
+              {solverType === 'qiskit'
+                ? 'Backend: Qiskit Aer / Statevector Simulator • QUBO Formulation'
+                : 'Backend: Local CPU Heuristic Engine • Deterministic Savings Matrix'}
             </div>
           </div>
         </div>

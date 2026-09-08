@@ -1,24 +1,28 @@
+import os
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from optimizer.models import (
-    OptimizationRequest, OptimizationResult, ComparisonResult,
-    Depot, Vehicle, Delivery
+from models.schemas import (
+    OptimizationRequestInput,
+    OptimizationResponseOutput,
+    DepotInput,
+    VehicleInput,
+    DeliveryInput,
 )
+from services.classical_optimizer import ClassicalOptimizer
+from services.qiskit_optimizer import QiskitVRPOptimizer, QISKIT_AVAILABLE, AER_AVAILABLE
+from services.route_optimizer import run_route_optimization, run_comparison_benchmark
 from optimizer.demo_data import get_demo_depot, get_demo_vehicles, get_demo_deliveries
-from optimizer.classical_vrp import ClassicalVRPSolver
-from optimizer.qubo_vrp import QuantumInspiredVRPSolver
-from optimizer.metrics import build_comparison_metrics
 
 app = FastAPI(
-    title="RouteQ API — Intelligent Vehicle Routing Optimizer",
-    description="Quantum-Inspired and Classical Optimization Engine for CVRPTW",
-    version="1.0.0"
+    title="RouteQ — Intelligent Vehicle Routing Optimizer (Qiskit QAOA + Classical)",
+    description="Full-stack CVRPTW optimizer powered by Qiskit Aer quantum simulation and classical heuristics.",
+    version="2.0.0"
 )
 
-# Enable CORS for frontend dev server
+# Enable CORS for localhost development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,176 +31,157 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# In-memory tracking of last optimization run status
+_last_optimization_status = {
+    "status": "idle",
+    "last_run_time": None,
+    "last_method": None,
+    "last_solver": None,
+    "last_execution_seconds": 0.0,
+    "deliveries_count": 0,
+    "vehicles_count": 0
+}
+
+# -------------------------------------------------------------------
+# Core API Endpoints (as requested)
+# -------------------------------------------------------------------
+
+@app.get("/health")
 @app.get("/api/health")
 def health_check():
+    """Returns system status, active quantum simulator backend, and available solvers."""
     return {
-        "status": "online",
+        "status": "healthy",
         "service": "RouteQ Optimization Engine",
+        "version": "2.0.0",
+        "qiskit_installed": QISKIT_AVAILABLE,
+        "qiskit_aer_installed": AER_AVAILABLE,
+        "quantum_backend": os.getenv("QUANTUM_BACKEND", "aer_simulator"),
+        "supported_methods": ["classical", "qiskit"],
         "solvers": [
             {
-                "id": "quantum_inspired",
-                "name": "Quantum-Inspired Simulated Annealing (QUBO)",
-                "type": "Quantum-Inspired Metaheuristic"
+                "id": "qiskit",
+                "name": "Qiskit QAOA Simulator",
+                "backend": "AerSimulator",
+                "algorithm": "QAOA",
+                "max_deliveries": 6,
+                "notes": "Simulated on local Qiskit Aer / Statevector quantum simulator"
             },
             {
-                "id": "classical_baseline",
-                "name": "Classical Clarke-Wright Savings + 2-Opt",
-                "type": "Classical Heuristic"
-            },
-            {
-                "id": "hybrid",
-                "name": "Hybrid Quantum-Classical Ensemble",
-                "type": "Hybrid Pipeline"
+                "id": "classical",
+                "name": "Classical Clarke-Wright + 2-Opt",
+                "backend": "Local CPU",
+                "algorithm": "Clarke-Wright Savings & 2-Opt",
+                "max_deliveries": 50,
+                "notes": "Fast classical baseline supporting full fleet sizes"
             }
-        ],
-        "version": "1.0.0"
+        ]
     }
 
+@app.get("/optimization/status")
+@app.get("/api/optimization/status")
+def get_optimization_status():
+    """Returns real-time status of the optimization engine."""
+    return _last_optimization_status
+
+@app.post("/optimize/classical", response_model=OptimizationResponseOutput)
+@app.post("/api/optimize/classical", response_model=OptimizationResponseOutput)
+def optimize_classical(req: OptimizationRequestInput):
+    """Executes the classical Clarke-Wright savings + 2-opt optimizer."""
+    req.optimization_method = "classical"
+    try:
+        _last_optimization_status["status"] = "running"
+        _last_optimization_status["last_method"] = "classical"
+        
+        optimizer = ClassicalOptimizer(req)
+        result = optimizer.optimize()
+
+        _last_optimization_status.update({
+            "status": "completed",
+            "last_run_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "last_method": "classical",
+            "last_solver": result.solver.name,
+            "last_execution_seconds": result.execution_time_seconds,
+            "deliveries_count": len(req.deliveries),
+            "vehicles_count": len(req.vehicles)
+        })
+        return result
+    except Exception as e:
+        _last_optimization_status["status"] = "error"
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/optimize/qiskit", response_model=OptimizationResponseOutput)
+@app.post("/api/optimize/qiskit", response_model=OptimizationResponseOutput)
+def optimize_qiskit(req: OptimizationRequestInput):
+    """
+    Executes the Qiskit QAOA / QUBO quantum optimizer using AerSimulator.
+    Demonstration supports small instances (3 to 6 delivery locations).
+    """
+    req.optimization_method = "qiskit"
+    try:
+        _last_optimization_status["status"] = "running"
+        _last_optimization_status["last_method"] = "qiskit"
+
+        optimizer = QiskitVRPOptimizer(req)
+        result = optimizer.optimize()
+
+        _last_optimization_status.update({
+            "status": "completed",
+            "last_run_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "last_method": "qiskit",
+            "last_solver": result.solver.name,
+            "last_execution_seconds": result.execution_time_seconds,
+            "deliveries_count": len(req.deliveries),
+            "vehicles_count": len(req.vehicles)
+        })
+        return result
+    except ValueError as ve:
+        _last_optimization_status["status"] = "error"
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        _last_optimization_status["status"] = "error"
+        raise HTTPException(status_code=500, detail=f"Quantum optimization error: {str(e)}")
+
+@app.post("/optimize", response_model=OptimizationResponseOutput)
+@app.post("/api/optimize", response_model=OptimizationResponseOutput)
+def optimize_generic(req: OptimizationRequestInput):
+    """
+    Unified optimize endpoint. Dispatches to either Classical or Qiskit
+    based on the 'optimization_method' field in the request.
+    """
+    method = (req.optimization_method or "classical").lower()
+    if method == "qiskit":
+        return optimize_qiskit(req)
+    else:
+        return optimize_classical(req)
+
+@app.post("/compare")
+@app.post("/api/compare")
+def compare_endpoints(req: OptimizationRequestInput):
+    """Runs head-to-head empirical comparison between Classical and Qiskit."""
+    return run_comparison_benchmark(req)
+
+# Demo data endpoint for instant 1-click loading
 @app.get("/api/demo-data")
-def get_demo():
-    """Returns realistic 25 delivery stops, 5 vehicles, and central hub depot."""
+def get_demo_datasets():
+    """Returns both full classical demo dataset (25 stops) and small quantum demo dataset (4 stops)."""
+    depot = get_demo_depot()
+    vehicles = get_demo_vehicles()
+    deliveries = get_demo_deliveries()
+
+    # Small 4-stop quantum demo dataset
+    quantum_deliveries = deliveries[:4]
+
     return {
-        "depot": get_demo_depot(),
-        "vehicles": get_demo_vehicles(),
-        "deliveries": get_demo_deliveries()
+        "depot": depot,
+        "vehicles": vehicles,
+        "deliveries": deliveries,
+        "quantum_demo": {
+            "depot": depot,
+            "vehicles": vehicles[:2],
+            "deliveries": quantum_deliveries
+        }
     }
-
-@app.post("/api/optimize", response_model=OptimizationResult)
-def optimize_routes(req: OptimizationRequest):
-    depot = req.depot or get_demo_depot()
-    
-    if not req.vehicles:
-        raise HTTPException(status_code=400, detail="At least one vehicle must be provided.")
-    if not req.deliveries:
-        raise HTTPException(status_code=400, detail="At least one delivery must be provided.")
-
-    if req.solver_type == "classical_baseline":
-        solver = ClassicalVRPSolver(
-            depot=depot,
-            vehicles=req.vehicles,
-            deliveries=req.deliveries,
-            objective=req.objective,
-            traffic_level=req.traffic_level
-        )
-        return solver.solve()
-    elif req.solver_type == "hybrid":
-        # Run quantum-inspired, then compare with classical and return the strictly best result
-        q_solver = QuantumInspiredVRPSolver(
-            depot=depot,
-            vehicles=req.vehicles,
-            deliveries=req.deliveries,
-            objective=req.objective,
-            traffic_level=req.traffic_level,
-            random_seed=req.random_seed
-        )
-        c_solver = ClassicalVRPSolver(
-            depot=depot,
-            vehicles=req.vehicles,
-            deliveries=req.deliveries,
-            objective=req.objective,
-            traffic_level=req.traffic_level
-        )
-        q_res = q_solver.solve()
-        c_res = c_solver.solve()
-        # Return best
-        if q_res.total_distance_km <= c_res.total_distance_km:
-            q_res.solver_name = "Hybrid Quantum-Classical (Quantum Winner)"
-            return q_res
-        else:
-            c_res.solver_name = "Hybrid Quantum-Classical (Classical Winner)"
-            return c_res
-    else:  # quantum_inspired default
-        solver = QuantumInspiredVRPSolver(
-            depot=depot,
-            vehicles=req.vehicles,
-            deliveries=req.deliveries,
-            objective=req.objective,
-            traffic_level=req.traffic_level,
-            random_seed=req.random_seed
-        )
-        return solver.solve()
-
-@app.post("/api/compare", response_model=ComparisonResult)
-def compare_solvers(req: OptimizationRequest):
-    depot = req.depot or get_demo_depot()
-
-    if not req.vehicles:
-        raise HTTPException(status_code=400, detail="At least one vehicle must be provided.")
-    if not req.deliveries:
-        raise HTTPException(status_code=400, detail="At least one delivery must be provided.")
-
-    # 1. Unoptimized baseline
-    c_solver = ClassicalVRPSolver(
-        depot=depot,
-        vehicles=req.vehicles,
-        deliveries=req.deliveries,
-        objective=req.objective,
-        traffic_level=req.traffic_level
-    )
-    unopt_res = c_solver.generate_unoptimized_baseline()
-
-    # 2. Classical baseline
-    classic_res = c_solver.solve()
-
-    # 3. Quantum-Inspired solver
-    q_solver = QuantumInspiredVRPSolver(
-        depot=depot,
-        vehicles=req.vehicles,
-        deliveries=req.deliveries,
-        objective=req.objective,
-        traffic_level=req.traffic_level,
-        random_seed=req.random_seed
-    )
-    q_res = q_solver.solve()
-
-    unopt_dict = {
-        "total_distance_km": unopt_res.total_distance_km,
-        "total_time_mins": unopt_res.total_time_mins,
-        "total_fuel_l": unopt_res.total_fuel_l,
-        "total_co2_kg": unopt_res.total_co2_kg,
-        "late_deliveries_count": float(unopt_res.late_deliveries_count),
-        "fleet_utilization_pct": unopt_res.fleet_utilization_pct,
-    }
-
-    classic_dict = {
-        "total_distance_km": classic_res.total_distance_km,
-        "total_time_mins": classic_res.total_time_mins,
-        "total_fuel_l": classic_res.total_fuel_l,
-        "total_co2_kg": classic_res.total_co2_kg,
-        "late_deliveries_count": float(classic_res.late_deliveries_count),
-        "fleet_utilization_pct": classic_res.fleet_utilization_pct,
-    }
-
-    q_dict = {
-        "total_distance_km": q_res.total_distance_km,
-        "total_time_mins": q_res.total_time_mins,
-        "total_fuel_l": q_res.total_fuel_l,
-        "total_co2_kg": q_res.total_co2_kg,
-        "late_deliveries_count": float(q_res.late_deliveries_count),
-        "fleet_utilization_pct": q_res.fleet_utilization_pct,
-    }
-
-    improvements_over_unopt = build_comparison_metrics(unopt_dict, q_dict)
-    improvements_over_classic = build_comparison_metrics(classic_dict, q_dict)
-
-    dist_saved_km = round(unopt_res.total_distance_km - q_res.total_distance_km, 1)
-    fuel_saved_l = round(unopt_res.total_fuel_l - q_res.total_fuel_l, 1)
-    co2_saved_kg = round(unopt_res.total_co2_kg - q_res.total_co2_kg, 1)
-
-    summary_msg = (
-        f"Quantum-Inspired QUBO Optimization yielded a {dist_saved_km} km reduction in total travel distance, "
-        f"saving approximately {fuel_saved_l} L of fuel and cutting {co2_saved_kg} kg of CO2 emissions compared "
-        f"to unoptimized logistics operations. On-time delivery compliance reached {q_res.on_time_percentage}%."
-    )
-
-    return ComparisonResult(
-        classical=classic_res,
-        quantum_inspired=q_res,
-        improvements_over_classical=improvements_over_classic,
-        improvements_over_unoptimized=improvements_over_unopt,
-        unoptimized_summary=unopt_dict,
-        summary_analysis=summary_msg
-    )
 
 if __name__ == "__main__":
     import uvicorn

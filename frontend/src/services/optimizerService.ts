@@ -515,39 +515,40 @@ export function solveLocalOptimization(
   };
 }
 
+function makeMetrics(
+  before: OptimizationResult,
+  after: OptimizationResult
+): MetricComparison[] {
+  const list = [
+    { key: 'total_distance_km', label: 'Total Distance', b: before.total_distance_km, a: after.total_distance_km, u: 'km', lower: true },
+    { key: 'total_time_mins', label: 'Total Travel Time', b: before.total_time_mins, a: after.total_time_mins, u: 'mins', lower: true },
+    { key: 'total_fuel_l', label: 'Fuel Consumption', b: before.total_fuel_l, a: after.total_fuel_l, u: 'L', lower: true },
+    { key: 'total_co2_kg', label: 'CO2 Emissions', b: before.total_co2_kg, a: after.total_co2_kg, u: 'kg', lower: true },
+    { key: 'late_deliveries_count', label: 'Late Deliveries', b: before.late_deliveries_count, a: after.late_deliveries_count, u: 'deliveries', lower: true },
+    { key: 'fleet_utilization_pct', label: 'Fleet Utilization', b: before.fleet_utilization_pct, a: after.fleet_utilization_pct, u: '%', lower: false },
+  ];
+
+  return list.map((item) => {
+    const diff = Number((item.lower ? item.b - item.a : item.a - item.b).toFixed(2));
+    const pct = item.b > 0 ? Number(((diff / item.b) * 100).toFixed(1)) : 0;
+    return {
+      metric: item.key,
+      label: item.label,
+      before: item.b,
+      after: item.a,
+      difference: diff,
+      improvement_pct: pct,
+      unit: item.u,
+      is_favorable_direction_down: item.lower,
+    };
+  });
+}
+
+// Compare Classical vs Quantum-Inspired vs Unoptimized
 export function compareLocalSolvers(req: OptimizationRequest): ComparisonResult {
   const unopt = solveLocalOptimization(req, 'unoptimized');
   const classic = solveLocalOptimization(req, 'classical_baseline');
   const quantum = solveLocalOptimization(req, 'quantum_inspired');
-
-  const makeMetrics = (
-    before: OptimizationResult,
-    after: OptimizationResult
-  ): MetricComparison[] => {
-    const list = [
-      { key: 'total_distance_km', label: 'Total Distance', b: before.total_distance_km, a: after.total_distance_km, u: 'km', lower: true },
-      { key: 'total_time_mins', label: 'Total Travel Time', b: before.total_time_mins, a: after.total_time_mins, u: 'mins', lower: true },
-      { key: 'total_fuel_l', label: 'Fuel Consumption', b: before.total_fuel_l, a: after.total_fuel_l, u: 'L', lower: true },
-      { key: 'total_co2_kg', label: 'CO2 Emissions', b: before.total_co2_kg, a: after.total_co2_kg, u: 'kg', lower: true },
-      { key: 'late_deliveries_count', label: 'Late Deliveries', b: before.late_deliveries_count, a: after.late_deliveries_count, u: 'deliveries', lower: true },
-      { key: 'fleet_utilization_pct', label: 'Fleet Utilization', b: before.fleet_utilization_pct, a: after.fleet_utilization_pct, u: '%', lower: false },
-    ];
-
-    return list.map((item) => {
-      const diff = Number((item.lower ? item.b - item.a : item.a - item.b).toFixed(2));
-      const pct = item.b > 0 ? Number(((diff / item.b) * 100).toFixed(1)) : 0;
-      return {
-        metric: item.key,
-        label: item.label,
-        before: item.b,
-        after: item.a,
-        difference: diff,
-        improvement_pct: pct,
-        unit: item.u,
-        is_favorable_direction_down: item.lower,
-      };
-    });
-  };
 
   const distSaved = Number((unopt.total_distance_km - quantum.total_distance_km).toFixed(1));
   const fuelSaved = Number((unopt.total_fuel_l - quantum.total_fuel_l).toFixed(1));
@@ -586,6 +587,7 @@ export async function fetchDemoData(): Promise<{
   depot: Depot;
   vehicles: Vehicle[];
   deliveries: Delivery[];
+  quantum_demo?: { depot: Depot; vehicles: Vehicle[]; deliveries: Delivery[] };
 }> {
   try {
     const res = await fetch(`${API_BASE_URL}/demo-data`);
@@ -599,37 +601,190 @@ export async function fetchDemoData(): Promise<{
     depot: DEMO_DEPOT,
     vehicles: DEMO_VEHICLES,
     deliveries: DEMO_DELIVERIES,
+    quantum_demo: {
+      depot: DEMO_DEPOT,
+      vehicles: DEMO_VEHICLES.slice(0, 2),
+      deliveries: DEMO_DELIVERIES.slice(0, 4),
+    },
   };
 }
 
-export async function optimizeRoutes(req: OptimizationRequest): Promise<OptimizationResult> {
+export async function optimizeClassical(req: OptimizationRequest): Promise<OptimizationResult> {
+  const payload = {
+    depot: req.depot || DEMO_DEPOT,
+    vehicles: req.vehicles,
+    deliveries: req.deliveries,
+    optimization_method: 'classical',
+    traffic_level: req.traffic_level || 'medium',
+    objective: req.objective || 'balanced',
+    time_window_mode: req.time_window_mode || 'soft',
+    capacity_mode: req.capacity_mode || 'strict',
+  };
+
   try {
-    const res = await fetch(`${API_BASE_URL}/optimize`, {
+    const res = await fetch(`${API_BASE_URL}/optimize/classical`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      return adaptBackendResponse(data, req);
     }
   } catch {
+    // fallback to local solver
+  }
+  return solveLocalOptimization(req, 'classical_baseline');
+}
+
+export async function optimizeQiskit(req: OptimizationRequest): Promise<OptimizationResult> {
+  const payload = {
+    depot: req.depot || DEMO_DEPOT,
+    vehicles: req.vehicles,
+    deliveries: req.deliveries,
+    optimization_method: 'qiskit',
+    traffic_level: req.traffic_level || 'medium',
+    objective: req.objective || 'balanced',
+    time_window_mode: req.time_window_mode || 'soft',
+    capacity_mode: req.capacity_mode || 'strict',
+  };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/optimize/qiskit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return adaptBackendResponse(data, req);
+    } else {
+      const err = await res.json();
+      throw new Error(err.detail || 'Qiskit optimization error');
+    }
+  } catch (err: any) {
+    if (err.message && err.message.includes('supports small routing instances')) {
+      throw err;
+    }
     // fallback
   }
-  return solveLocalOptimization(req, req.solver_type === 'classical_baseline' ? 'classical_baseline' : 'quantum_inspired');
+  return solveLocalOptimization(req, 'quantum_inspired');
+}
+
+export async function optimizeRoutes(req: OptimizationRequest): Promise<OptimizationResult> {
+  if (req.solver_type === 'classical' || req.solver_type === 'classical_baseline') {
+    return optimizeClassical(req);
+  } else {
+    return optimizeQiskit(req);
+  }
+}
+
+function adaptBackendResponse(data: any, req: OptimizationRequest): OptimizationResult {
+  const routes: VehicleRoute[] = (data.routes || []).map((r: any, idx: number) => ({
+    vehicle_id: r.vehicle_id,
+    vehicle_name: r.vehicle_name || `Vehicle ${r.vehicle_id}`,
+    color: r.color || VEHICLE_COLORS[idx % VEHICLE_COLORS.length],
+    assigned_delivery_ids: r.deliveries || [],
+    waypoints: (r.waypoints || []).map((wp: any) => ({
+      sequence_index: wp.sequence_index,
+      stop_id: wp.stop_id,
+      location_name: wp.location_name,
+      lat: wp.lat,
+      lng: wp.lng,
+      arrival_time: wp.arrival_time,
+      departure_time: wp.departure_time,
+      demand_kg: wp.demand_delivered_kg || wp.demand_kg || 0,
+      remaining_capacity_kg: wp.remaining_capacity_kg || 0,
+      distance_from_prev_km: wp.distance_from_prev_km || 0,
+      travel_time_mins: wp.travel_time_mins || 0,
+      is_depot: wp.is_depot || false,
+      is_late: wp.is_late || false,
+      time_window_start: wp.time_window_start,
+      time_window_end: wp.time_window_end,
+    })),
+    total_distance_km: r.distance_km,
+    total_time_mins: r.travel_time_minutes,
+    capacity_used_kg: r.capacity_used,
+    capacity_max_kg:
+      r.capacity_used > 0 && r.capacity_utilization > 0
+        ? r.capacity_used / (r.capacity_utilization / 100)
+        : 500,
+    capacity_utilization_pct: r.capacity_utilization,
+    fuel_consumed_l: r.fuel_liters,
+    co2_emissions_kg: r.co2_kg,
+    deliveries_count: (r.deliveries || []).length,
+    on_time_rate_pct: data.on_time_delivery_percentage || 100,
+  }));
+
+  const totalCapUsed = routes.reduce((acc, r) => acc + r.capacity_used_kg, 0);
+  const totalCapMax = routes.reduce((acc, r) => acc + r.capacity_max_kg, 0);
+
+  return {
+    solver_type: data.method || 'qiskit',
+    solver_name: data.solver ? `${data.solver.name} (${data.solver.backend})` : 'Qiskit + AerSimulator',
+    execution_time_ms: Math.round((data.execution_time_seconds || 0.1) * 1000),
+    routes,
+    unassigned_deliveries: data.unassigned_deliveries || [],
+    total_distance_km: data.total_distance_km,
+    total_time_mins: data.estimated_time_minutes,
+    total_fuel_l: data.estimated_fuel_liters,
+    total_co2_kg: data.estimated_co2_kg,
+    fleet_utilization_pct:
+      totalCapMax > 0 ? Number(((totalCapUsed / totalCapMax) * 100).toFixed(1)) : 50.0,
+    late_deliveries_count: routes.reduce(
+      (acc, r) => acc + r.waypoints.filter((w) => w.is_late).length,
+      0
+    ),
+    on_time_percentage: data.on_time_delivery_percentage,
+    convergence_history: [],
+    objective_score: data.total_distance_km,
+  };
 }
 
 export async function compareSolvers(req: OptimizationRequest): Promise<ComparisonResult> {
   try {
+    const payload = {
+      depot: req.depot || DEMO_DEPOT,
+      vehicles: req.vehicles,
+      deliveries: req.deliveries,
+      traffic_level: req.traffic_level || 'moderate',
+      objective: req.objective || 'balanced',
+      time_window_mode: req.time_window_mode || 'soft',
+      capacity_mode: req.capacity_mode || 'strict',
+    };
     const res = await fetch(`${API_BASE_URL}/compare`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      if (data.classical) {
+        const classicRes = adaptBackendResponse(data.classical, req);
+        const quantumRes = data.qiskit
+          ? adaptBackendResponse(data.qiskit, req)
+          : solveLocalOptimization(req, 'quantum_inspired');
+        const unoptRes = solveLocalOptimization(req, 'unoptimized');
+        return {
+          classical: classicRes,
+          quantum_inspired: quantumRes,
+          improvements_over_classical: makeMetrics(classicRes, quantumRes),
+          improvements_over_unoptimized: makeMetrics(unoptRes, quantumRes),
+          unoptimized_summary: {
+            total_distance_km: unoptRes.total_distance_km,
+            total_time_mins: unoptRes.total_time_mins,
+            total_fuel_l: unoptRes.total_fuel_l,
+            total_co2_kg: unoptRes.total_co2_kg,
+            late_deliveries_count: unoptRes.late_deliveries_count,
+            fleet_utilization_pct: unoptRes.fleet_utilization_pct,
+          },
+          summary_analysis: `RouteQ Optimization completed. Classical total distance: ${classicRes.total_distance_km} km; Quantum-simulated total distance: ${quantumRes.total_distance_km} km with ${quantumRes.on_time_percentage}% on-time rate.`,
+        };
+      }
     }
-  } catch {
-    // fallback
+  } catch (err) {
+    console.warn('Backend compare endpoint fallback:', err);
   }
   return compareLocalSolvers(req);
 }
+

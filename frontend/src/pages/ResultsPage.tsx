@@ -44,6 +44,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
 }) => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [expandedVehicleId, setExpandedVehicleId] = useState<string | null>(null);
+  const [comparisonMode, setComparisonMode] = useState<'unoptimized' | 'classical'>('unoptimized');
 
   if (!optimizationResult) {
     return (
@@ -53,7 +54,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
         </div>
         <h3 className="text-lg font-black text-white">No Active Optimization Run</h3>
         <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 mb-6">
-          Routes have not yet been generated for the current fleet. Navigate to the Optimization Studio to run the quantum-inspired solver.
+          Routes have not yet been generated for the current fleet. Navigate to the Optimization Studio to run the solver.
         </p>
         <button
           onClick={() => onNavigateTab('optimize')}
@@ -66,14 +67,17 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   }
 
   // Improvements data
-  const improvements = comparisonResult?.improvements_over_unoptimized || [
-    { label: 'Total Travel Distance', before: 167.9, after: optimizationResult.total_distance_km, unit: 'km', improvement_pct: 46.9, difference: 78.7, is_favorable_direction_down: true },
-    { label: 'Travel & Service Time', before: 285.0, after: optimizationResult.total_time_mins, unit: 'mins', improvement_pct: 35.4, difference: 101.0, is_favorable_direction_down: true },
-    { label: 'Fuel Consumption', before: 9.2, after: optimizationResult.total_fuel_l, unit: 'L', improvement_pct: 50.3, difference: 4.6, is_favorable_direction_down: true },
-    { label: 'Carbon (CO2) Footprint', before: 27.7, after: optimizationResult.total_co2_kg, unit: 'kg', improvement_pct: 50.5, difference: 14.0, is_favorable_direction_down: true },
-    { label: 'Late Delivery Violations', before: 2, after: optimizationResult.late_deliveries_count, unit: 'stops', improvement_pct: 100.0, difference: 2, is_favorable_direction_down: true },
-    { label: 'Vehicle Fleet Utilization', before: 32.0, after: optimizationResult.fleet_utilization_pct, unit: '%', improvement_pct: 49.7, difference: 15.9, is_favorable_direction_down: false },
-  ];
+  const improvements =
+    comparisonMode === 'classical' && comparisonResult?.improvements_over_classical
+      ? comparisonResult.improvements_over_classical
+      : comparisonResult?.improvements_over_unoptimized || [
+          { label: 'Total Travel Distance', before: 167.9, after: optimizationResult.total_distance_km, unit: 'km', improvement_pct: 46.9, difference: 78.7, is_favorable_direction_down: true },
+          { label: 'Travel & Service Time', before: 285.0, after: optimizationResult.total_time_mins, unit: 'mins', improvement_pct: 35.4, difference: 101.0, is_favorable_direction_down: true },
+          { label: 'Fuel Consumption', before: 9.2, after: optimizationResult.total_fuel_l, unit: 'L', improvement_pct: 50.3, difference: 4.6, is_favorable_direction_down: true },
+          { label: 'Carbon (CO2) Footprint', before: 27.7, after: optimizationResult.total_co2_kg, unit: 'kg', improvement_pct: 50.5, difference: 14.0, is_favorable_direction_down: true },
+          { label: 'Late Delivery Violations', before: 2, after: optimizationResult.late_deliveries_count, unit: 'stops', improvement_pct: 100.0, difference: 2, is_favorable_direction_down: true },
+          { label: 'Vehicle Fleet Utilization', before: 32.0, after: optimizationResult.fleet_utilization_pct, unit: '%', improvement_pct: 49.7, difference: 15.9, is_favorable_direction_down: false },
+        ];
 
   const handleExportJson = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(optimizationResult, null, 2));
@@ -89,22 +93,33 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
     setExpandedVehicleId(expandedVehicleId === vId ? null : vId);
   };
 
+  const isClassical =
+    optimizationResult.solver_type === 'classical' ||
+    optimizationResult.solver_name.toLowerCase().includes('clarke') ||
+    optimizationResult.solver_name.toLowerCase().includes('classical');
+
   return (
     <div className="space-y-8 pb-16">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h2 className="text-xl font-black text-white flex items-center gap-2">
               <Route className="w-5 h-5 text-cyan-400" />
               <span>Optimized Routes Manifest</span>
             </h2>
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-              {optimizationResult.solver_name}
+            <span
+              className={`text-xs font-extrabold px-3 py-1 rounded-full border ${
+                isClassical
+                  ? 'bg-blue-500/15 text-blue-300 border-blue-500/40'
+                  : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+              }`}
+            >
+              {isClassical ? 'Classical Solver (Clarke-Wright + 2-Opt)' : 'Qiskit + Aer Simulator (QAOA)'}
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Computed in <strong className="text-slate-200">{optimizationResult.execution_time_ms} ms</strong> • On-Time Compliance: <strong className="text-emerald-400">{optimizationResult.on_time_percentage}%</strong>
+            Computed in <strong className="text-slate-200">{optimizationResult.execution_time_ms} ms</strong> • On-Time Compliance: <strong className="text-emerald-400">{optimizationResult.on_time_percentage}%</strong> • Deliveries Routed: <strong className="text-cyan-400">{deliveries.length} stops</strong>
           </p>
         </div>
 
@@ -125,15 +140,43 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
           <div>
             <h3 className="text-base font-extrabold text-white flex items-center gap-2">
               <TrendingDown className="w-4 h-4 text-emerald-400" />
-              <span>Before Optimization vs After Optimization Scorecard</span>
+              <span>
+                {comparisonMode === 'classical'
+                  ? 'Classical vs Qiskit Quantum Comparison Scorecard'
+                  : 'Before vs After Optimization Performance Scorecard'}
+              </span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Quantifiable operational improvements achieved through Quantum-Inspired Hamiltonian minimization.
+              {comparisonMode === 'classical'
+                ? 'Head-to-head empirical comparison of Clarke-Wright vs Qiskit QAOA Simulator.'
+                : 'Operational savings calculated relative to unoptimized arbitrary routing.'}
             </p>
           </div>
-          <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30 self-start sm:self-auto">
-            Green Logistics Benchmark
-          </span>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setComparisonMode('unoptimized')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                comparisonMode === 'unoptimized'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                  : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Vs Unoptimized
+            </button>
+            {comparisonResult?.improvements_over_classical && (
+              <button
+                onClick={() => setComparisonMode('classical')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  comparisonMode === 'classical'
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                    : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Classical vs Quantum
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5">
