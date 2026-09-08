@@ -103,3 +103,85 @@ def get_demo_deliveries() -> List[Delivery]:
             address=item[9]
         ))
     return deliveries
+
+def get_india_demo_depot() -> Depot:
+    """Central logistics depot at Koramangala, Bengaluru, India."""
+    return Depot(
+        id="DEPOT-BLR",
+        name="RouteQ Bengaluru Central Hub (Koramangala)",
+        lat=12.9279,
+        lng=77.6271,
+        operating_hours_start="08:30",
+        operating_hours_end="18:30"
+    )
+
+def get_india_demo_vehicles() -> List[Vehicle]:
+    """Urban delivery fleet tailored for Indian traffic and road conditions."""
+    return [
+        Vehicle(
+            id="IND-V01",
+            name="Tata Ace EV Express",
+            capacity_kg=500.0,
+            starting_depot_id="DEPOT-BLR",
+            max_route_distance_km=110.0,
+            fuel_efficiency_km_per_l=19.0,
+            fuel_type="electric"
+        ),
+        Vehicle(
+            id="IND-V02",
+            name="Mahindra Bolero Maxi",
+            capacity_kg=650.0,
+            starting_depot_id="DEPOT-BLR",
+            max_route_distance_km=140.0,
+            fuel_efficiency_km_per_l=11.5,
+            fuel_type="diesel"
+        ),
+        Vehicle(
+            id="IND-V03",
+            name="Ashok Leyland Bada Dost",
+            capacity_kg=750.0,
+            starting_depot_id="DEPOT-BLR",
+            max_route_distance_km=150.0,
+            fuel_efficiency_km_per_l=10.0,
+            fuel_type="diesel"
+        ),
+        Vehicle(
+            id="IND-V04",
+            name="Euler HiLoad EV Delivery",
+            capacity_kg=480.0,
+            starting_depot_id="DEPOT-BLR",
+            max_route_distance_km=100.0,
+            fuel_efficiency_km_per_l=18.0,
+            fuel_type="electric"
+        ),
+    ]
+
+def get_india_demo_deliveries() -> List[Delivery]:
+    """10 realistic delivery stops across major Bengaluru commercial and tech corridors."""
+    raw_india = [
+        ("BLR-D01", "Indiranagar 100ft Road Retail Hub", 12.9716, 77.6412, 45.0, "urgent", "09:00", "11:30", 15, "100 Feet Rd, HAL 2nd Stage, Indiranagar"),
+        ("BLR-D02", "HSR Layout Sector 2 Tech Office", 12.9121, 77.6446, 60.0, "high", "09:30", "12:00", 20, "27th Main Rd, HSR Layout Sector 2"),
+        ("BLR-D03", "MG Road Commercial Plaza", 12.9756, 77.6066, 35.0, "urgent", "10:00", "12:30", 15, "Mahatma Gandhi Rd, Central Business District"),
+        ("BLR-D04", "Bellandur EcoSpace Tech Park", 12.9304, 77.6784, 80.0, "high", "10:30", "13:30", 25, "Outer Ring Rd, Bellandur"),
+        ("BLR-D05", "Marathahalli Multiplex & Market", 12.9591, 77.6974, 55.0, "medium", "11:00", "14:00", 15, "Varthur Rd, Marathahalli"),
+        ("BLR-D06", "Whitefield ITPL Main Gate", 12.9863, 77.7314, 90.0, "medium", "11:30", "14:30", 25, "International Tech Park, Whitefield"),
+        ("BLR-D07", "Jayanagar 4th Block Market", 12.9308, 77.5838, 40.0, "medium", "12:00", "15:00", 15, "11th Main Rd, Jayanagar 4th Block"),
+        ("BLR-D08", "Electronic City Phase 1 Infosys Gate", 12.8452, 77.6602, 70.0, "low", "13:00", "16:30", 20, "Hosur Rd, Electronic City Phase 1"),
+        ("BLR-D09", "Sarjapur Road Wipro Campus", 12.9102, 77.6835, 65.0, "high", "13:30", "16:30", 20, "Sarjapur Main Rd, Kaikondrahalli"),
+        ("BLR-D10", "Hebbal Manyata Tech Park", 13.0458, 77.6201, 50.0, "low", "14:00", "17:30", 20, "Outer Ring Rd, Nagavara, Hebbal")
+    ]
+    deliveries = []
+    for item in raw_india:
+        deliveries.append(Delivery(
+            id=item[0],
+            customer_name=item[1],
+            lat=item[2],
+            lng=item[3],
+            demand_kg=item[4],
+            priority=item[5],
+            time_window_start=item[6],
+            time_window_end=item[7],
+            service_time_mins=item[8],
+            address=item[9]
+        ))
+    return deliveries

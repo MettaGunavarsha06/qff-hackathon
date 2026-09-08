@@ -124,13 +124,13 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
   const getPriorityBadge = (p: Priority) => {
     switch (p) {
       case 'urgent':
-        return 'bg-red-500/15 text-red-400 border border-red-500/30';
+        return 'fluid-glass-pill fluid-glass-pill-cyan text-[#ff6b77] border border-red-500/40 shadow-xs';
       case 'high':
-        return 'bg-amber-500/15 text-amber-400 border border-amber-500/30';
+        return 'fluid-glass-pill fluid-glass-pill-amber text-amber-300 border border-amber-500/40 shadow-xs';
       case 'medium':
-        return 'bg-blue-500/15 text-blue-400 border border-blue-500/30';
+        return 'fluid-glass-pill fluid-glass-pill-clear text-slate-200 border border-white/20 shadow-xs';
       case 'low':
-        return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+        return 'fluid-glass-pill fluid-glass-pill-mint text-emerald-300 border border-emerald-500/40 shadow-xs';
     }
   };
 
@@ -140,10 +140,10 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <Package className="w-5 h-5 text-cyan-400" />
+            <Package className="w-5 h-5 text-[#ff2a3a]" />
             <span>Delivery Management ({deliveries.length} Total)</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-400 font-medium mt-1">
             Configure delivery stops, package demands, service durations, and customer time windows.
           </p>
         </div>
@@ -151,24 +151,24 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={onResetDemo}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700/60 transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 rounded-full fluid-glass-pill fluid-glass-pill-clear text-slate-300 hover:text-white text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+            <RotateCcw className="w-3.5 h-3.5 text-[#ff2a3a]" />
             <span>Reload 25 Demo Stops</span>
           </button>
 
           <button
             onClick={openAddModal}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 text-xs font-bold transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer"
+            className="px-5 py-2.5 rounded-full fluid-glass-pill fluid-glass-pill-violet text-white text-xs font-black transition-all shadow-lg hover:shadow-red-500/40 flex items-center gap-1.5 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-white" />
             <span>Add Delivery</span>
           </button>
         </div>
       </div>
 
       {/* Search & Filter Toolbar */}
-      <div className="p-4 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="p-4 rounded-3xl fluid-glass-panel border border-white/10 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -176,22 +176,22 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
             placeholder="Search by customer, ID, or street..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white placeholder-slate-400 text-xs focus:outline-none focus:border-cyan-500"
+            className="w-full pl-10 pr-4 py-2 fluid-glass-input text-xs font-medium"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 shrink-0">
-            <Filter className="w-3.5 h-3.5" /> Priority:
+          <span className="text-xs text-slate-400 font-bold flex items-center gap-1 shrink-0">
+            <Filter className="w-3.5 h-3.5 text-[#ff2a3a]" /> Priority:
           </span>
           {['all', 'urgent', 'high', 'medium', 'low'].map((p) => (
             <button
               key={p}
               onClick={() => setPriorityFilter(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold capitalize transition-all cursor-pointer ${
                 priorityFilter === p
-                  ? 'bg-cyan-500 text-slate-950 font-bold'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                  ? 'fluid-glass-pill fluid-glass-pill-violet text-white shadow-sm border border-red-400/40'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
               {p}
@@ -201,10 +201,10 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
       </div>
 
       {/* Deliveries Table */}
-      <div className="overflow-hidden rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-800 shadow-xl">
+      <div className="overflow-hidden rounded-3xl fluid-glass-panel border border-white/10 shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-800/60 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-700/60">
+          <table className="w-full text-left text-xs fluid-glass-table">
+            <thead>
               <tr>
                 <th className="py-3.5 px-4">Stop ID</th>
                 <th className="py-3.5 px-4">Customer / Destination</th>
@@ -215,15 +215,15 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            <tbody className="text-slate-300 font-medium">
               {filteredDeliveries.map((del) => (
-                <tr key={del.id} className="hover:bg-slate-800/30 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-bold text-cyan-400">
+                <tr key={del.id}>
+                  <td className="py-3.5 px-4 font-mono font-black text-[#ff2a3a]">
                     {del.id}
                   </td>
                   <td className="py-3.5 px-4">
-                    <div className="font-bold text-white">{del.customer_name}</div>
-                    <div className="text-[11px] text-slate-400 truncate max-w-xs">
+                    <div className="font-extrabold text-white">{del.customer_name}</div>
+                    <div className="text-[11px] text-slate-400 font-medium truncate max-w-xs">
                       {del.address || 'San Francisco Metro'}
                     </div>
                   </td>
@@ -231,8 +231,8 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     {del.lat.toFixed(4)}, {del.lng.toFixed(4)}
                   </td>
                   <td className="py-3.5 px-4">
-                    <div className="flex items-center gap-1.5 font-bold text-slate-200">
-                      <Weight className="w-3.5 h-3.5 text-slate-400" />
+                    <div className="flex items-center gap-1.5 font-bold text-white">
+                      <Weight className="w-3.5 h-3.5 text-[#ff2a3a]" />
                       <span>{del.demand_kg} kg</span>
                     </div>
                     <div className="text-[10px] text-slate-400">
@@ -240,14 +240,14 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     </div>
                   </td>
                   <td className="py-3.5 px-4 font-mono">
-                    <div className="flex items-center gap-1 text-slate-200">
-                      <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                    <div className="flex items-center gap-1 text-slate-200 font-bold">
+                      <Clock className="w-3.5 h-3.5 text-[#ff2a3a]" />
                       <span>{del.time_window_start} – {del.time_window_end}</span>
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${getPriorityBadge(
+                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${getPriorityBadge(
                         del.priority
                       )}`}
                     >
@@ -259,14 +259,14 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                       <button
                         onClick={() => openEditModal(del)}
                         title="Edit Delivery"
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                        className="p-1.5 rounded-full fluid-glass-pill fluid-glass-pill-clear text-slate-300 hover:text-white border border-white/10 cursor-pointer shadow-xs"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => onDeleteDelivery(del.id)}
                         title="Delete Delivery"
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-full fluid-glass-pill text-slate-400 hover:text-red-400 hover:bg-red-500/10 border border-white/10 cursor-pointer transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -277,7 +277,7 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
 
               {filteredDeliveries.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={7} className="text-center py-12 text-slate-500 font-medium">
                     No deliveries match your search query or filter.
                   </td>
                 </tr>
@@ -289,24 +289,24 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
 
       {/* Add / Edit Delivery Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl p-6 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                <Package className="w-4 h-4 text-cyan-400" />
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-3xl fluid-glass-panel border border-white/15 shadow-2xl p-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#ff2a3a]" />
                 <span>{editingDelivery ? 'Edit Delivery Stop' : 'Add New Delivery Stop'}</span>
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {formError && (
-              <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="mt-4 p-3 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs flex items-center gap-2 font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0 text-[#ff2a3a]" />
                 <span>{formError}</span>
               </div>
             )}
@@ -314,7 +314,7 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     Stop ID
                   </label>
                   <input
@@ -322,17 +322,17 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     value={formData.id}
                     disabled={!!editingDelivery}
                     onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-cyan-500 disabled:opacity-60"
+                    className="w-full px-3 py-2 fluid-glass-input font-mono text-xs font-bold disabled:opacity-60"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     Priority
                   </label>
                   <select
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 fluid-glass-input text-xs font-bold bg-[#0d0e15]"
                   >
                     <option value="urgent">Urgent</option>
                     <option value="high">High</option>
@@ -343,7 +343,7 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                   Customer / Business Name
                 </label>
                 <input
@@ -351,12 +351,12 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                   placeholder="e.g. Apex BioTech Labs"
                   value={formData.customer_name}
                   onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 fluid-glass-input text-xs font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                   Street Address
                 </label>
                 <input
@@ -364,13 +364,13 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                   placeholder="e.g. 550 Howard St, Financial District"
                   value={formData.address || ''}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 fluid-glass-input text-xs font-semibold"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     Latitude
                   </label>
                   <input
@@ -378,11 +378,11 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     step="0.0001"
                     value={formData.lat}
                     onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 fluid-glass-input font-mono text-xs font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     Longitude
                   </label>
                   <input
@@ -390,14 +390,14 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     step="0.0001"
                     value={formData.lng}
                     onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 fluid-glass-input font-mono text-xs font-bold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     Package Demand (kg)
                   </label>
                   <input
@@ -406,11 +406,11 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     max="1000"
                     value={formData.demand_kg}
                     onChange={(e) => setFormData({ ...formData, demand_kg: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 fluid-glass-input font-mono text-xs font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     Service Time (mins)
                   </label>
                   <input
@@ -419,14 +419,14 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     max="120"
                     value={formData.service_time_mins}
                     onChange={(e) => setFormData({ ...formData, service_time_mins: parseInt(e.target.value) || 15 })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 fluid-glass-input font-mono text-xs font-bold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     Window Start (HH:MM)
                   </label>
                   <input
@@ -434,11 +434,11 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     placeholder="09:00"
                     value={formData.time_window_start}
                     onChange={(e) => setFormData({ ...formData, time_window_start: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 fluid-glass-input font-mono text-xs font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     Window End (HH:MM)
                   </label>
                   <input
@@ -446,22 +446,22 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                     placeholder="12:00"
                     value={formData.time_window_end}
                     onChange={(e) => setFormData({ ...formData, time_window_end: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 fluid-glass-input font-mono text-xs font-bold"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer"
+                  className="px-4 py-2 rounded-full fluid-glass-pill fluid-glass-pill-clear text-slate-300 hover:text-white text-xs font-bold border border-white/10 cursor-pointer shadow-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-lg shadow-cyan-500/20 cursor-pointer"
+                  className="px-6 py-2.5 rounded-full fluid-glass-pill fluid-glass-pill-violet text-white text-xs font-black shadow-lg hover:shadow-red-500/40 cursor-pointer"
                 >
                   {editingDelivery ? 'Save Changes' : 'Create Delivery'}
                 </button>

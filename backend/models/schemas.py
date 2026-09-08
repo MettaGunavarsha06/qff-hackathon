@@ -39,6 +39,14 @@ class DeliveryInput(BaseModel):
             return float(self.demand_kg)
         return float(self.demand or 5.0)
 
+class TrafficStatusResponse(BaseModel):
+    status: str  # "live_connected" or "traffic_unavailable"
+    provider: str = "Mappls"
+    is_live: bool = False
+    message: str
+    last_updated: Optional[str] = None
+    api_configured: bool = False
+
 class OptimizationRequestInput(BaseModel):
     depot: Optional[DepotInput] = None
     vehicles: List[VehicleInput]
@@ -49,6 +57,11 @@ class OptimizationRequestInput(BaseModel):
     time_window_mode: Optional[str] = "soft"       # "strict", "soft", "ignore"
     capacity_mode: Optional[str] = "strict"        # "strict", "relaxed"
     quantum_backend: Optional[str] = "aer_simulator"
+    use_live_traffic: Optional[bool] = True
+    distance_weight: Optional[float] = 1.0
+    time_weight: Optional[float] = 1.0
+    fuel_weight: Optional[float] = 1.0
+    co2_weight: Optional[float] = 1.0
 
 class RouteWaypoint(BaseModel):
     sequence_index: int
@@ -101,3 +114,7 @@ class OptimizationResponseOutput(BaseModel):
     solver: SolverInfo
     unassigned_deliveries: Optional[List[str]] = []
     comparison: Optional[Dict[str, Any]] = None
+    traffic_status: Optional[str] = "unavailable"  # "live_connected" or "unavailable"
+    traffic_provider: Optional[str] = "Mappls"
+    traffic_last_updated: Optional[str] = None
+    is_live_traffic_used: bool = False

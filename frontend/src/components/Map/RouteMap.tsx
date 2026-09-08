@@ -44,7 +44,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
       // Sleek Dark Matter tile layer for premium AI/logistics feel
       L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
         {
           attribution: '&copy; <a href="https://carto.com/">CARTO</a>, &copy; OpenStreetMap',
           maxZoom: 19,
@@ -87,8 +87,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       html: `
         <div style="
           width: 38px; height: 38px; border-radius: 50%;
-          background: linear-gradient(135deg, #06b6d4, #2563eb);
-          border: 3px solid #ffffff; box-shadow: 0 0 16px rgba(6,182,212,0.8);
+          background: linear-gradient(135deg, #ff2a3a, #b91c1c);
+          border: 3px solid #ffffff; box-shadow: 0 0 20px rgba(255,42,58,0.85);
           display: flex; align-items: center; justify-content: center; color: white;
         ">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -103,11 +103,11 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
     const depotMarker = L.marker([depot.lat, depot.lng], { icon: depotIcon });
     depotMarker.bindPopup(`
-      <div style="padding: 6px 2px; min-width: 180px;">
-        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #06b6d4; letter-spacing: 0.5px;">Central Logistics Hub</div>
-        <div style="font-weight: 700; font-size: 14px; margin-top: 2px; color: #1e293b;">${depot.name}</div>
-        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">ID: ${depot.id}</div>
-        <div style="font-size: 12px; color: #64748b;">Operating Hours: ${depot.operating_hours_start} – ${depot.operating_hours_end}</div>
+      <div style="padding: 6px 2px; min-width: 180px; color: #ffffff;">
+        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #ff2a3a; letter-spacing: 0.5px;">Central Logistics Hub</div>
+        <div style="font-weight: 700; font-size: 14px; margin-top: 2px; color: #ffffff;">${depot.name}</div>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">ID: ${depot.id}</div>
+        <div style="font-size: 12px; color: #94a3b8;">Operating Hours: ${depot.operating_hours_start} – ${depot.operating_hours_end}</div>
       </div>
     `);
     group.addLayer(depotMarker);
@@ -149,10 +149,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         });
 
         polyline.bindPopup(`
-          <div style="padding: 6px 2px;">
+          <div style="padding: 6px 2px; color: #ffffff;">
             <div style="font-weight: 700; color: ${route.color}; font-size: 13px;">${route.vehicle_name}</div>
-            <div style="font-size: 12px; color: #475569; margin-top: 2px;">Stops: ${route.deliveries_count} | Distance: ${route.total_distance_km} km</div>
-            <div style="font-size: 12px; color: #475569;">Travel Time: ${route.total_time_mins} mins | Fuel: ${route.fuel_consumed_l} L</div>
+            <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Stops: ${route.deliveries_count} | Distance: ${route.total_distance_km} km</div>
+            <div style="font-size: 12px; color: #94a3b8;">Travel Time: ${route.total_time_mins} mins | Fuel: ${route.fuel_consumed_l} L</div>
           </div>
         `);
         group.addLayer(polyline);
@@ -176,7 +176,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       const seqText = assignment ? assignment.seq.toString() : '•';
       const priorityColor =
         del.priority === 'urgent'
-          ? '#ef4444'
+          ? '#ff2a3a'
           : del.priority === 'high'
           ? '#f59e0b'
           : del.priority === 'medium'
@@ -189,7 +189,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           <div style="
             width: 28px; height: 28px; border-radius: 50%;
             background: ${markerBg}; border: 2px solid #ffffff;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             display: flex; align-items: center; justify-content: center;
             color: white; font-weight: 700; font-size: 11px;
             position: relative;
@@ -197,7 +197,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             ${seqText}
             ${
               assignment?.isLate
-                ? `<div style="position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #ef4444; border: 1.5px solid white;"></div>`
+                ? `<div style="position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #ff2a3a; border: 1.5px solid white;"></div>`
                 : ''
             }
           </div>
@@ -208,14 +208,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
       const delMarker = L.marker([del.lat, del.lng], { icon: delIcon });
       delMarker.bindPopup(`
-        <div style="padding: 6px 2px; min-width: 210px; color: #1e293b;">
+        <div style="padding: 6px 2px; min-width: 210px; color: #ffffff;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <span style="font-size: 11px; font-weight: 700; color: #06b6d4;">${del.id}</span>
-            <span style="background: ${priorityColor}20; color: ${priorityColor}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase;">${del.priority}</span>
+            <span style="font-size: 11px; font-weight: 700; color: #ff2a3a;">${del.id}</span>
+            <span style="background: ${priorityColor}25; color: ${priorityColor}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase; border: 1px solid ${priorityColor}40;">${del.priority}</span>
           </div>
-          <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">${del.customer_name}</div>
-          <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">📍 ${del.address || 'San Francisco, CA'}</div>
-          <div style="font-size: 12px; color: #475569; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0;">
+          <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #ffffff;">${del.customer_name}</div>
+          <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">📍 ${del.address || 'San Francisco, CA'}</div>
+          <div style="font-size: 12px; color: #cbd5e1; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">
             <div><strong>Demand:</strong> ${del.demand_kg} kg</div>
             <div><strong>Service:</strong> ${del.service_time_mins} min</div>
             <div style="grid-column: span 2;"><strong>Time Window:</strong> ${del.time_window_start} – ${del.time_window_end}</div>
@@ -223,13 +223,13 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           ${
             assignment
               ? `
-            <div style="margin-top: 8px; padding: 6px 8px; border-radius: 6px; background: ${assignment.color}15; border-left: 3px solid ${assignment.color};">
+            <div style="margin-top: 8px; padding: 6px 8px; border-radius: 8px; background: ${assignment.color}15; border-left: 3px solid ${assignment.color};">
               <div style="font-size: 11px; font-weight: 700; color: ${assignment.color};">Assigned to: ${assignment.vehicleName}</div>
-              <div style="font-size: 11px; color: #475569;">Estimated Arrival: <strong>${assignment.arrival}</strong> (Stop #${assignment.seq})</div>
-              ${assignment.isLate ? `<div style="font-size: 11px; color: #ef4444; font-weight: 700; margin-top: 2px;">⚠️ Late Delivery Warning</div>` : `<div style="font-size: 11px; color: #10b981; font-weight: 600; margin-top: 2px;">✓ On-Time Delivery</div>`}
+              <div style="font-size: 11px; color: #cbd5e1;">Estimated Arrival: <strong>${assignment.arrival}</strong> (Stop #${assignment.seq})</div>
+              ${assignment.isLate ? `<div style="font-size: 11px; color: #ff2a3a; font-weight: 700; margin-top: 2px;">⚠️ Late Delivery Warning</div>` : `<div style="font-size: 11px; color: #34d399; font-weight: 600; margin-top: 2px;">✓ On-Time Delivery</div>`}
             </div>
           `
-              : `<div style="margin-top: 6px; font-size: 11px; color: #94a3b8; font-style: italic;">Unassigned</div>`
+              : `<div style="margin-top: 6px; font-size: 11px; color: #64748b; font-style: italic;">Unassigned</div>`
           }
         </div>
       `);
@@ -256,18 +256,18 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   };
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl bg-slate-900" style={{ height }}>
+    <div className="relative w-full rounded-3xl overflow-hidden border border-white/10 shadow-2xl" style={{ height }}>
       {/* Route Filter Pills Header */}
-      <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-1.5 p-1.5 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-700/60 shadow-lg text-xs">
+      <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-1.5 p-1.5 rounded-full bg-[#0d0e15]/85 backdrop-blur-2xl border border-white/10 shadow-xl text-xs">
         <button
           onClick={() => handleSelectRoute(null)}
-          className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+          className={`px-3.5 py-1.5 rounded-full font-black transition-all flex items-center gap-1.5 cursor-pointer ${
             activeFilter === null
-              ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              ? 'fluid-glass-pill fluid-glass-pill-violet text-white shadow-md border-red-400/40'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <Layers className="w-3.5 h-3.5" />
+          <Layers className="w-3.5 h-3.5 text-[#ff2a3a]" />
           All Routes ({routes.length})
         </button>
 
@@ -275,17 +275,17 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           <button
             key={r.vehicle_id}
             onClick={() => handleSelectRoute(r.vehicle_id)}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-full font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
               activeFilter === r.vehicle_id
-                ? 'text-white font-bold shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                ? 'text-white font-extrabold shadow-md border-white/40'
+                : 'text-slate-300 hover:text-white hover:bg-white/10 border-white/10 bg-white/5'
             }`}
             style={{
               backgroundColor: activeFilter === r.vehicle_id ? r.color : undefined,
             }}
           >
             <span
-              className="w-2.5 h-2.5 rounded-full"
+              className="w-2.5 h-2.5 rounded-full border border-white"
               style={{ backgroundColor: r.color }}
             />
             {r.vehicle_id} ({r.deliveries_count})
@@ -298,38 +298,38 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         <button
           onClick={handleZoomIn}
           title="Zoom In"
-          className="p-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 shadow-lg transition-all"
+          className="p-2.5 rounded-2xl bg-[#0d0e15]/85 backdrop-blur-2xl border border-white/10 text-slate-300 hover:text-white hover:border-red-500/40 shadow-lg transition-all cursor-pointer"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           onClick={handleZoomOut}
           title="Zoom Out"
-          className="p-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 shadow-lg transition-all"
+          className="p-2.5 rounded-2xl bg-[#0d0e15]/85 backdrop-blur-2xl border border-white/10 text-slate-300 hover:text-white hover:border-red-500/40 shadow-lg transition-all cursor-pointer"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
         <button
           onClick={handleResetBounds}
           title="Fit All Locations"
-          className="p-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800 shadow-lg transition-all"
+          className="p-2.5 rounded-2xl bg-[#0d0e15]/85 backdrop-blur-2xl border border-white/10 text-slate-300 hover:text-white hover:border-red-500/40 shadow-lg transition-all cursor-pointer"
         >
           <Maximize2 className="w-4 h-4" />
         </button>
       </div>
 
       {/* Map Bottom Legend */}
-      <div className="absolute bottom-3 left-3 z-[1000] hidden md:flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-700/60 shadow-lg text-[11px] text-slate-300">
+      <div className="absolute bottom-3 left-3 z-[1000] hidden md:flex items-center gap-3.5 px-4 py-2 rounded-full bg-[#0d0e15]/85 backdrop-blur-2xl border border-white/10 shadow-xl text-[11px] text-slate-300 font-bold">
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-cyan-500 border border-white" />
+          <span className="w-3 h-3 rounded-full bg-[#ff2a3a] border border-white shadow-sm" />
           <span>Central Depot</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-emerald-500 border border-white" />
+          <span className="w-3 h-3 rounded-full bg-emerald-500 border border-white shadow-sm" />
           <span>Delivery Stop</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm" />
           <span>Late Window Alert</span>
         </div>
       </div>

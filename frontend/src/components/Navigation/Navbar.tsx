@@ -104,42 +104,42 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/80 px-4 lg:px-8 py-3.5">
+    <header className="sticky top-0 z-30 bg-[#0d0e14]/75 backdrop-blur-2xl border-b border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5)] px-4 lg:px-8 py-3.5 transition-all">
       <div className="flex items-center justify-between gap-4">
         {/* Left Side: Mobile Menu & Page Title */}
         <div className="flex items-center gap-3">
           <button
             onClick={onOpenMobile}
-            className="lg:hidden p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white"
+            className="lg:hidden p-2 rounded-xl fluid-glass-pill fluid-glass-pill-clear text-slate-300 hover:text-white border border-white/10 shadow-sm"
           >
             <Menu className="w-5 h-5" />
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-extrabold text-white tracking-tight">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
                 {title}
               </h1>
               {isOptimized ? (
-                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  <CheckCircle2 className="w-3 h-3" />
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full fluid-glass-pill fluid-glass-pill-mint text-emerald-300 border border-emerald-500/40 shadow-sm">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                   Optimized
                 </span>
               ) : (
-                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                  <AlertTriangle className="w-3 h-3" />
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full fluid-glass-pill fluid-glass-pill-amber text-amber-300 border border-amber-500/40 shadow-sm">
+                  <AlertTriangle className="w-3 h-3 text-amber-400" />
                   Pending Optimization
                 </span>
               )}
             </div>
-            <p className="hidden md:block text-xs text-slate-400 mt-0.5">{subtitle}</p>
+            <p className="hidden md:block text-xs text-slate-400 font-medium mt-0.5">{subtitle}</p>
           </div>
         </div>
 
         {/* Right Side: Hackathon Tag, Quick Optimize Button, Notifications */}
         <div className="flex items-center gap-3">
           {/* Hackathon Badge */}
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-950/40 to-slate-900 border border-purple-800/40 text-purple-300 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full fluid-glass-pill fluid-glass-pill-clear text-slate-300 text-xs font-semibold shadow-sm border border-white/10">
+            <Sparkles className="w-3.5 h-3.5 text-[#ff2a3a]" />
             <span>Hackathon Use Case 04</span>
           </div>
 
@@ -147,15 +147,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onOptimizeClick}
             disabled={isOptimizing}
-            className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg cursor-pointer ${
+            className={`px-4 sm:px-5 py-2.5 rounded-full text-xs font-black transition-all flex items-center gap-2 shadow-lg cursor-pointer fluid-glass-pill ${
               isOptimizing
-                ? 'bg-slate-800 text-slate-400 border border-slate-700'
-                : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-cyan-500/20'
+                ? 'fluid-glass-pill-clear text-slate-400 opacity-80'
+                : 'fluid-glass-pill-violet text-white hover:brightness-110 shadow-red-500/30'
             }`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isOptimizing ? 'animate-spin text-cyan-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isOptimizing ? 'animate-spin text-white' : 'text-white'}`} />
             <span className="hidden sm:inline">
-              {isOptimizing ? 'Solving...' : 'Optimize Routes'}
+              {isOptimizing ? 'Solving Matrix...' : 'Optimize Routes'}
             </span>
           </button>
 
@@ -163,23 +163,23 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700/60 relative cursor-pointer"
+              className="p-2.5 rounded-full fluid-glass-pill fluid-glass-pill-clear text-slate-300 hover:text-white border border-white/10 shadow-sm relative cursor-pointer"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#ff2a3a] ring-2 ring-[#0d0e14] animate-pulse" />
             </button>
 
             {/* Notifications Dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-slate-900 border border-slate-700/80 shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="absolute right-0 mt-2 w-80 rounded-3xl fluid-glass-panel shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 border border-white/15">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
                   <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <Bell className="w-3.5 h-3.5 text-cyan-400" />
+                    <Bell className="w-3.5 h-3.5 text-[#ff2a3a]" />
                     <span>System Notifications</span>
                   </div>
                   <button
                     onClick={() => setShowNotifications(false)}
-                    className="p-1 rounded-md text-slate-400 hover:text-white"
+                    className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -191,15 +191,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     return (
                       <div
                         key={n.id}
-                        className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800 flex items-start gap-2.5 hover:bg-slate-800/70 transition-colors"
+                        className="p-3 rounded-2xl fluid-glass-card flex items-start gap-3 border border-white/10 hover:border-white/20 transition-all shadow-sm"
                       >
                         <NIcon className={`w-4 h-4 mt-0.5 shrink-0 ${n.color}`} />
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold text-slate-200">{n.title}</div>
-                          <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                          <div className="text-xs font-bold text-white">{n.title}</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed font-medium">
                             {n.desc}
                           </div>
-                          <div className="text-[10px] text-slate-500 mt-1">{n.time}</div>
+                          <div className="text-[10px] text-slate-500 mt-1 font-semibold">{n.time}</div>
                         </div>
                       </div>
                     );

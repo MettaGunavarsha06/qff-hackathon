@@ -4,94 +4,287 @@
 
 @layer base {
   :root {
-    --bg-main: #0b0f19;
-    --bg-card: rgba(17, 24, 39, 0.85);
-    --border-card: rgba(255, 255, 255, 0.08);
-    --accent-quantum: #06b6d4;
-    --accent-emerald: #10b981;
-    --accent-violet: #8b5cf6;
+    --bg-studio: #08090d;
+    --bg-glass: rgba(18, 19, 27, 0.75);
+    --bg-glass-heavy: rgba(13, 14, 20, 0.88);
+    --bg-glass-subtle: rgba(255, 255, 255, 0.04);
+    --border-glass: rgba(255, 255, 255, 0.09);
+    --border-glass-specular: rgba(255, 255, 255, 0.16);
+    --shadow-caustic: 0 16px 36px -10px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-caustic-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.85), 0 0 30px rgba(255, 42, 58, 0.08);
+    --text-primary: #ffffff;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --neon-crimson: #ff2a3a;
+    --neon-crimson-glow: 0 0 24px rgba(255, 42, 58, 0.45);
   }
 
   body {
     margin: 0;
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background-color: #0b0f19;
-    color: #f3f4f6;
+    background-color: #08090d;
+    color: #f1f5f9;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(6, 182, 212, 0.6);
+/* Dark Obsidian Canvas with Radiant Neon Crimson Caustic Orbs */
+.fluid-glass-bg {
+  background-color: #08090d;
+  background-image:
+    /* Top-right vibrant crimson ambient orb */
+    radial-gradient(circle at 82% 16%, rgba(255, 35, 55, 0.18) 0%, transparent 45%),
+    /* Bottom-left crimson depth glow */
+    radial-gradient(circle at 16% 82%, rgba(255, 35, 55, 0.13) 0%, transparent 48%),
+    /* Central soft crimson dispersion */
+    radial-gradient(circle at 50% 50%, rgba(255, 25, 45, 0.05) 0%, transparent 60%),
+    /* Base dark obsidian vignette */
+    linear-gradient(180deg, #090a0f 0%, #06070a 100%);
+  background-attachment: fixed;
 }
 
-/* Leaflet Map Customizations */
+/* Custom Dark Frosted Glass Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 42, 58, 0.5);
+}
+
+/* --- Dark Obsidian & Neon Crimson Glass System Classes --- */
+
+/* Main Container Panel */
+.fluid-glass-panel {
+  position: relative;
+  background: linear-gradient(145deg, rgba(20, 21, 30, 0.82) 0%, rgba(13, 14, 20, 0.72) 100%);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.4),
+    0 24px 60px -12px rgba(0, 0, 0, 0.85);
+  border-radius: 28px;
+}
+
+/* Card Container */
+.fluid-glass-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(22, 24, 34, 0.75) 0%, rgba(15, 16, 23, 0.65) 100%);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    0 10px 30px rgba(0, 0, 0, 0.6);
+  border-radius: 20px;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.fluid-glass-card:hover {
+  background: linear-gradient(135deg, rgba(26, 28, 40, 0.85) 0%, rgba(18, 19, 28, 0.75) 100%);
+  border-color: rgba(255, 42, 58, 0.4);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    0 16px 40px rgba(0, 0, 0, 0.8),
+    0 0 25px rgba(255, 42, 58, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Base Capsule / Pill Shape */
+.fluid-glass-pill {
+  position: relative;
+  border-radius: 9999px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Specular Glint Sheen on Top of Glass Pills */
+.fluid-glass-pill::before,
+.fluid-glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 35%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 9999px 9999px 0 0;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+/* Primary Action Pill: Neon Crimson Red Glass (matches reference focal accent) */
+.fluid-glass-pill-violet {
+  background: linear-gradient(135deg, #ff2a3a 0%, #dc1424 100%);
+  border: 1px solid rgba(255, 120, 130, 0.5);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.4),
+    0 0 24px rgba(255, 42, 58, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.fluid-glass-pill-violet:hover {
+  background: linear-gradient(135deg, #ff3f4e 0%, #eb1929 100%);
+  border-color: rgba(255, 160, 170, 0.7);
+  box-shadow:
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.6),
+    0 0 34px rgba(255, 42, 58, 0.75),
+    0 6px 18px rgba(0, 0, 0, 0.5);
+  transform: translateY(-1.5px);
+}
+
+/* Secondary Frosted Dark Obsidian Glass Pill */
+.fluid-glass-pill-clear {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.fluid-glass-pill-clear:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 42, 58, 0.5);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    0 0 18px rgba(255, 42, 58, 0.25);
+  transform: translateY(-1.5px);
+}
+
+/* Emerald Eco Glass Pill */
+.fluid-glass-pill-mint {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 0 16px rgba(16, 185, 129, 0.2);
+}
+.fluid-glass-pill-mint:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(52, 211, 153, 0.6);
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.35);
+  transform: translateY(-1.5px);
+}
+
+/* Crimson Soft Glass Pill / Badge */
+.fluid-glass-pill-cyan {
+  background: rgba(255, 42, 58, 0.14);
+  border: 1px solid rgba(255, 42, 58, 0.4);
+  color: #ff6b77;
+  box-shadow: 0 0 16px rgba(255, 42, 58, 0.2);
+}
+.fluid-glass-pill-cyan:hover {
+  background: rgba(255, 42, 58, 0.22);
+  border-color: rgba(255, 75, 90, 0.6);
+  box-shadow: 0 0 24px rgba(255, 42, 58, 0.35);
+  transform: translateY(-1.5px);
+}
+
+/* Amber Warning Glass Pill */
+.fluid-glass-pill-amber {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
+}
+
+/* Glass Circle Lens */
+.fluid-glass-circle {
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.2),
+    0 10px 24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(18px);
+}
+
+/* Translucent Dark Glass Input */
+.fluid-glass-input {
+  background: rgba(15, 16, 24, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border-radius: 14px;
+  transition: all 0.2s ease;
+}
+.fluid-glass-input:focus {
+  background: rgba(20, 22, 32, 0.9);
+  border-color: #ff2a3a;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.1),
+    0 0 0 3px rgba(255, 42, 58, 0.25),
+    0 0 20px rgba(255, 42, 58, 0.2);
+  outline: none;
+}
+.fluid-glass-input::placeholder {
+  color: #64748b;
+}
+
+/* Dark Glass Table Styles */
+.fluid-glass-table th {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(10px);
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fluid-glass-table tr {
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.fluid-glass-table tr:hover {
+  background: rgba(255, 42, 58, 0.05);
+}
+
+/* Leaflet Map Customizations in Dark Obsidian Theme */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  background: #0f172a !important;
+  background: #090a0f !important;
   font-family: inherit;
   z-index: 10;
+  border-radius: 20px;
 }
 
 .leaflet-popup-content-wrapper {
-  background: rgba(15, 23, 42, 0.95) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px !important;
-  color: #f1f5f9 !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+  background: rgba(14, 15, 22, 0.94) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 42, 58, 0.45) !important;
+  border-radius: 18px !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    0 20px 40px rgba(0, 0, 0, 0.85),
+    0 0 20px rgba(255, 42, 58, 0.2) !important;
 }
 
 .leaflet-popup-tip {
-  background: rgba(15, 23, 42, 0.95) !important;
-}
-
-/* Glassmorphism Classes */
-.glass-panel {
-  background: rgba(17, 24, 39, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.glass-card {
-  background: rgba(30, 41, 59, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  transition: all 0.2s ease-in-out;
-}
-
-.glass-card:hover {
-  border-color: rgba(6, 182, 212, 0.35);
-  box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.1);
-}
-
-/* Quantum Neon Glows */
-.glow-cyan {
-  box-shadow: 0 0 20px -3px rgba(6, 182, 212, 0.35);
-}
-
-.glow-emerald {
-  box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.35);
-}
-
-.glow-violet {
-  box-shadow: 0 0 20px -3px rgba(139, 92, 246, 0.35);
+  background: rgba(14, 15, 22, 0.94) !important;
 }
 
 /* Custom Marker Styles */
@@ -99,14 +292,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, #06b6d4, #3b82f6);
-  border: 3px solid #ffffff;
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, #ff2a3a, #990012);
+  border: 2.5px solid #ffffff;
   border-radius: 50%;
   color: white;
   font-weight: 800;
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.8);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.6),
+    0 0 22px rgba(255, 42, 58, 0.6);
 }
 
 .custom-delivery-marker {
@@ -120,27 +315,44 @@
   color: white;
   font-size: 11px;
   font-weight: 700;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-  transition: transform 0.15s ease;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    0 4px 12px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .custom-delivery-marker:hover {
   transform: scale(1.25);
+  box-shadow: 0 0 20px rgba(255, 42, 58, 0.7);
   z-index: 999 !important;
 }
 
-/* Pulse Animation */
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.05);
-  }
+/* Aliases & Glow Utilities */
+.glass-panel {
+  background: linear-gradient(145deg, rgba(20, 21, 30, 0.82) 0%, rgba(13, 14, 20, 0.72) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-caustic);
 }
 
-.animate-pulse-glow {
-  animation: pulseGlow 2.5s infinite ease-in-out;
+.glass-card {
+  background: linear-gradient(135deg, rgba(22, 24, 34, 0.75) 0%, rgba(15, 16, 23, 0.65) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow-caustic);
+  transition: all 0.2s ease-in-out;
+}
+.glass-card:hover {
+  border-color: rgba(255, 42, 58, 0.45);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 42, 58, 0.2);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(255, 42, 58, 0.3);
+}
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+.glow-violet {
+  box-shadow: 0 0 24px rgba(255, 42, 58, 0.45);
 }

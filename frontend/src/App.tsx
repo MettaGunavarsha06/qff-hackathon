@@ -196,11 +196,11 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex">
+    <div className="min-h-screen fluid-glass-bg text-slate-100 flex relative selection:bg-[#ff2a3a] selection:text-white">
       {/* Toast Notification Banner */}
       {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 px-4 py-3 rounded-2xl bg-cyan-500 text-slate-950 font-bold text-xs shadow-2xl shadow-cyan-500/40 animate-in slide-in-from-top-4">
-          {toastMessage}
+        <div className="fixed top-4 right-4 z-50 px-5 py-3 rounded-full fluid-glass-pill fluid-glass-pill-violet text-white font-bold text-xs shadow-2xl border border-red-400/40 animate-in slide-in-from-top-4 backdrop-blur-xl">
+          ✨ {toastMessage}
         </div>
       )}
 

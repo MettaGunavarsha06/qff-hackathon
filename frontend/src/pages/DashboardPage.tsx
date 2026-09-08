@@ -147,21 +147,23 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Banner / Hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border border-slate-700/60 p-6 lg:p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Top Banner / Hero in Dark Obsidian Glass */}
+      <div className="relative overflow-hidden rounded-3xl fluid-glass-panel p-6 lg:p-8 shadow-2xl border border-white/10">
+        {/* Neon Crimson Ambient Spotlights */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#ff2a3a]/12 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-72 h-72 bg-[#ff2a3a]/08 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-red-600/05 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full fluid-glass-pill fluid-glass-pill-cyan text-[#ff6b77] text-xs font-black mb-3 shadow-sm border border-red-500/30">
+              <Sparkles className="w-3.5 h-3.5 text-[#ff2a3a]" />
               Quantum-Inspired CVRPTW Solver Active
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               RouteQ Vehicle Routing Optimizer
             </h2>
-            <p className="text-sm text-slate-300 mt-2 leading-relaxed">
+            <p className="text-sm text-slate-400 mt-2 leading-relaxed font-medium">
               Minimizing last-mile delivery mileage, fuel consumption, and carbon emissions using
               Simulated Quantum Annealing (QUBO) and dynamic traffic modeling.
             </p>
@@ -172,15 +174,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             <button
               onClick={onOptimizeClick}
               disabled={isOptimizing}
-              className="flex-1 sm:flex-none px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-xl shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+              className="flex-1 sm:flex-none px-6 py-3.5 rounded-full fluid-glass-pill fluid-glass-pill-violet text-white font-black text-xs sm:text-sm tracking-wide shadow-xl hover:shadow-red-500/40 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
             >
-              <Cpu className={`w-4 h-4 ${isOptimizing ? 'animate-spin' : ''}`} />
+              <Cpu className={`w-4 h-4 text-white ${isOptimizing ? 'animate-spin' : ''}`} />
               <span>{isOptimizing ? 'ANNEALING ROUTES...' : 'OPTIMIZE ROUTES NOW'}</span>
             </button>
 
             <button
               onClick={onLoadDemo}
-              className="px-4 py-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-5 py-3.5 rounded-full fluid-glass-pill fluid-glass-pill-clear text-slate-300 hover:text-white border border-white/10 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
               Load Demo (25 Stops)
             </button>
@@ -188,27 +190,29 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
       </div>
 
-      {/* 6 Key Performance Metric Cards */}
+      {/* 6 Key Performance Metric Cards in Dark Obsidian Glass */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5">
         {kpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
             <div
               key={idx}
-              className={`relative overflow-hidden p-4 rounded-2xl bg-gradient-to-b ${kpi.color} bg-slate-900/80 backdrop-blur-md border shadow-lg transition-transform hover:-translate-y-1`}
+              className="relative overflow-hidden p-4 rounded-3xl fluid-glass-card border border-white/10 shadow-lg transition-transform hover:-translate-y-1"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                   {kpi.title}
                 </span>
-                <Icon className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-full fluid-glass-pill fluid-glass-pill-clear flex items-center justify-center border border-white/10">
+                  <Icon className="w-3.5 h-3.5 text-[#ff2a3a]" />
+                </div>
               </div>
 
-              <div className="text-xl font-extrabold text-white tracking-tight">{kpi.value}</div>
-              <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
-                <span>{kpi.sub}</span>
+              <div className="text-xl font-black text-white tracking-tight">{kpi.value}</div>
+              <div className="text-[11px] text-slate-400 font-medium mt-1 flex items-center justify-between">
+                <span className="truncate mr-1">{kpi.sub}</span>
                 {kpi.badge && (
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-xs">
                     {kpi.badge}
                   </span>
                 )}
@@ -220,13 +224,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
       {/* Interactive Map & Route Preview */}
       <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
           <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Navigation className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <Navigation className="w-4 h-4 text-[#ff2a3a]" />
               <span>Fleet Dispatch Map — San Francisco Hub</span>
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 font-medium">
               {isOptimized
                 ? `Displaying ${optimizationResult?.routes.length} vehicle routes with ${deliveries.length} delivery waypoints.`
                 : `Deliveries loaded. Click "Optimize Routes" to calculate minimal-distance Hamiltonian paths.`}
@@ -236,7 +240,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => onNavigateTab('results')}
-              className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 cursor-pointer"
+              className="text-xs text-[#ff6b77] hover:text-white font-bold flex items-center gap-1 cursor-pointer transition-colors"
             >
               View Route Manifest <ArrowRight className="w-3.5 h-3.5" />
             </button>
@@ -251,21 +255,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         />
       </div>
 
-      {/* 4 Performance Charts: Before vs After + Utilization */}
+      {/* 2 Performance Charts: Before vs After + Utilization */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart 1: Before vs After Optimization */}
-        <div className="p-5 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-800 shadow-xl space-y-4">
+        <div className="p-6 rounded-3xl fluid-glass-panel border border-white/10 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-emerald-400" />
+              <h4 className="text-sm font-black text-white flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-[#ff2a3a]" />
                 <span>Before vs After Optimization Impact</span>
               </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
                 Savings generated by Quantum-Inspired CVRPTW Solver
               </p>
             </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <span className="text-[11px] font-black px-3 py-1 rounded-full fluid-glass-pill fluid-glass-pill-cyan text-[#ff6b77] border border-red-500/30 shadow-xs">
               ~49% Avg Improvement
             </span>
           </div>
@@ -277,34 +281,37 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '12px',
-                    color: '#f8fafc',
+                    backgroundColor: 'rgba(14, 15, 22, 0.95)',
+                    borderColor: 'rgba(255, 42, 58, 0.4)',
+                    backdropFilter: 'blur(16px)',
+                    borderRadius: '16px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
+                    color: '#ffffff',
                     fontSize: '12px',
+                    fontWeight: '600',
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Bar dataKey="Before" fill="#ef4444" radius={[6, 6, 0, 0]} name="Before Optimization" />
-                <Bar dataKey="After" fill="#10b981" radius={[6, 6, 0, 0]} name="After Optimization (RouteQ)" />
+                <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '600', color: '#cbd5e1' }} />
+                <Bar dataKey="Before" fill="#64748b" radius={[8, 8, 0, 0]} name="Before Optimization" />
+                <Bar dataKey="After" fill="#ff2a3a" radius={[8, 8, 0, 0]} name="After Optimization (RouteQ)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Chart 2: Vehicle Capacity Utilization */}
-        <div className="p-5 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-800 shadow-xl space-y-4">
+        <div className="p-6 rounded-3xl fluid-glass-panel border border-white/10 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <Truck className="w-4 h-4 text-cyan-400" />
+              <h4 className="text-sm font-black text-white flex items-center gap-2">
+                <Truck className="w-4 h-4 text-[#ff2a3a]" />
                 <span>Vehicle Fleet Capacity Utilization</span>
               </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
                 Cargo weight vs maximum vehicle payload limit
               </p>
             </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+            <span className="text-[11px] font-black px-3 py-1 rounded-full fluid-glass-pill fluid-glass-pill-clear text-slate-300 border border-white/10 shadow-xs">
               Balanced Packing
             </span>
           </div>
@@ -317,16 +324,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <Tooltip
                   formatter={(val: any) => [`${val}%`, 'Capacity Used']}
                   contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '12px',
-                    color: '#f8fafc',
+                    backgroundColor: 'rgba(14, 15, 22, 0.95)',
+                    borderColor: 'rgba(255, 42, 58, 0.4)',
+                    backdropFilter: 'blur(16px)',
+                    borderRadius: '16px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
+                    color: '#ffffff',
                     fontSize: '12px',
+                    fontWeight: '600',
                   }}
                 />
-                <Bar dataKey="utilization" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="utilization" radius={[8, 8, 0, 0]}>
                   {vehicleUtilData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || '#06b6d4'} />
+                    <Cell key={`cell-${index}`} fill={entry.color || '#ff2a3a'} />
                   ))}
                 </Bar>
               </BarChart>

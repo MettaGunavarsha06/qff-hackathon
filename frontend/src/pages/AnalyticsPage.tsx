@@ -85,64 +85,72 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
       {/* Header */}
       <div>
         <h2 className="text-xl font-black text-white flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-cyan-400" />
+          <BarChart3 className="w-5 h-5 text-[#ff2a3a]" />
           <span>Analytics & ESG Sustainability Intelligence</span>
         </h2>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-slate-400 font-medium mt-1">
           Tracking fleet carbon offsets, fuel expense reductions, and quantum routing efficiency metrics.
         </p>
       </div>
 
       {/* ESG Green Impact Highlight Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/30 shadow-xl space-y-2 relative overflow-hidden">
+        <div className="p-6 rounded-3xl fluid-glass-card border border-white/10 shadow-lg space-y-2 relative overflow-hidden hover:-translate-y-1 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+            <span className="text-xs font-black text-emerald-400 uppercase tracking-wider">
               CO2 Abatement
             </span>
-            <Leaf className="w-5 h-5 text-emerald-400" />
+            <div className="w-8 h-8 rounded-full fluid-glass-pill fluid-glass-pill-mint flex items-center justify-center shadow-xs">
+              <Leaf className="w-4 h-4 text-emerald-300" />
+            </div>
           </div>
           <div className="text-2xl font-black text-white font-mono">{co2SavedKg} kg</div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 font-medium leading-relaxed">
             Carbon emissions prevented today compared to unoptimized logistics baseline.
           </p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-900 border border-cyan-500/30 shadow-xl space-y-2 relative overflow-hidden">
+        <div className="p-6 rounded-3xl fluid-glass-card border border-white/10 shadow-lg space-y-2 relative overflow-hidden hover:-translate-y-1 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
+            <span className="text-xs font-black text-[#ff6b77] uppercase tracking-wider">
               Tree Offset Equiv.
             </span>
-            <TreePine className="w-5 h-5 text-cyan-400" />
+            <div className="w-8 h-8 rounded-full fluid-glass-pill fluid-glass-pill-cyan flex items-center justify-center shadow-xs">
+              <TreePine className="w-4 h-4 text-[#ff2a3a]" />
+            </div>
           </div>
           <div className="text-2xl font-black text-white font-mono">{treesEquivalent} Trees/Yr</div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 font-medium leading-relaxed">
             Equivalent annual carbon sequestration capacity of mature urban trees.
           </p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/30 shadow-xl space-y-2 relative overflow-hidden">
+        <div className="p-6 rounded-3xl fluid-glass-card border border-white/10 shadow-lg space-y-2 relative overflow-hidden hover:-translate-y-1 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+            <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
               Fuel Conserved
             </span>
-            <Fuel className="w-5 h-5 text-amber-400" />
+            <div className="w-8 h-8 rounded-full fluid-glass-pill fluid-glass-pill-amber flex items-center justify-center shadow-xs">
+              <Fuel className="w-4 h-4 text-amber-300" />
+            </div>
           </div>
           <div className="text-2xl font-black text-white font-mono">{fuelSavedL} Liters</div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 font-medium leading-relaxed">
             Diesel and gasoline fuel saved through optimal Hamiltonian pathing.
           </p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-900 border border-purple-500/30 shadow-xl space-y-2 relative overflow-hidden">
+        <div className="p-6 rounded-3xl fluid-glass-card border border-white/10 shadow-lg space-y-2 relative overflow-hidden hover:-translate-y-1 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
+            <span className="text-xs font-black text-[#ff2a3a] uppercase tracking-wider">
               Financial Fuel Savings
             </span>
-            <DollarSign className="w-5 h-5 text-purple-400" />
+            <div className="w-8 h-8 rounded-full fluid-glass-pill fluid-glass-pill-violet flex items-center justify-center shadow-xs">
+              <DollarSign className="w-4 h-4 text-white" />
+            </div>
           </div>
           <div className="text-2xl font-black text-white font-mono">${dollarsSaved} / Day</div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 font-medium leading-relaxed">
             Daily direct operational fuel savings (~${(dollarsSaved * 300).toFixed(0)}/year per depot).
           </p>
         </div>
@@ -151,13 +159,13 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
       {/* Dual Interactive Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Radar Chart: Operational Balance */}
-        <div className="p-6 rounded-3xl bg-slate-900/80 backdrop-blur-md border border-slate-800 shadow-xl space-y-4">
+        <div className="p-6 rounded-3xl fluid-glass-panel border border-white/10 shadow-xl space-y-4">
           <div>
-            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-              <Award className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <Award className="w-4 h-4 text-[#ff2a3a]" />
               <span>Multi-Dimensional Efficiency Radar</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-400 font-medium mt-0.5">
               Comparing Classical Clarke-Wright Heuristic vs Quantum-Inspired SQA.
             </p>
           </div>
@@ -165,31 +173,34 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                <PolarGrid stroke="#334155" />
-                <PolarAngleAxis dataKey="metric" stroke="#94a3b8" fontSize={11} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#475569" fontSize={10} />
+                <PolarGrid stroke="rgba(255, 255, 255, 0.1)" />
+                <PolarAngleAxis dataKey="metric" stroke="#94a3b8" fontSize={11} fontWeight={600} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#64748b" fontSize={10} />
                 <Radar
                   name="Classical Baseline"
                   dataKey="Classical"
-                  stroke="#f59e0b"
-                  fill="#f59e0b"
+                  stroke="#64748b"
+                  fill="#64748b"
                   fillOpacity={0.25}
                 />
                 <Radar
                   name="RouteQ (Quantum-Inspired)"
                   dataKey="Quantum"
-                  stroke="#06b6d4"
-                  fill="#06b6d4"
+                  stroke="#ff2a3a"
+                  fill="#ff2a3a"
                   fillOpacity={0.35}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '12px',
-                    color: '#f8fafc',
+                    backgroundColor: 'rgba(14, 15, 22, 0.95)',
+                    borderColor: 'rgba(255, 42, 58, 0.4)',
+                    backdropFilter: 'blur(16px)',
+                    borderRadius: '16px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
+                    color: '#ffffff',
                     fontSize: '12px',
+                    fontWeight: 600,
                   }}
                 />
               </RadarChart>
@@ -198,13 +209,13 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
         </div>
 
         {/* Bar Chart: Vehicle Payload vs Capacity */}
-        <div className="p-6 rounded-3xl bg-slate-900/80 backdrop-blur-md border border-slate-800 shadow-xl space-y-4">
+        <div className="p-6 rounded-3xl fluid-glass-panel border border-white/10 shadow-xl space-y-4">
           <div>
-            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-              <Truck className="w-4 h-4 text-emerald-400" />
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <Truck className="w-4 h-4 text-[#ff2a3a]" />
               <span>Fleet Payload vs Available Capacity</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-400 font-medium mt-0.5">
               Even load balancing prevents vehicle overloading while maximizing capacity utility.
             </p>
           </div>
@@ -216,15 +227,18 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} unit="kg" />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '12px',
-                    color: '#f8fafc',
+                    backgroundColor: 'rgba(14, 15, 22, 0.95)',
+                    borderColor: 'rgba(255, 42, 58, 0.4)',
+                    backdropFilter: 'blur(16px)',
+                    borderRadius: '16px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
+                    color: '#ffffff',
                     fontSize: '12px',
+                    fontWeight: 600,
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Bar dataKey="Payload" fill="#06b6d4" radius={[6, 6, 0, 0]} name="Assigned Cargo Payload (kg)" />
+                <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }} />
+                <Bar dataKey="Payload" fill="#ff2a3a" radius={[6, 6, 0, 0]} name="Assigned Cargo Payload (kg)" />
                 <Bar dataKey="Capacity" fill="#334155" radius={[6, 6, 0, 0]} name="Vehicle Capacity Limit (kg)" />
               </BarChart>
             </ResponsiveContainer>
