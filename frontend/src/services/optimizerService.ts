@@ -10,20 +10,19 @@ import type {
   ConvergencePoint,
   MetricComparison,
   TrafficLevel,
-  OptimizationObjective,
 } from '../types';
 import { DEMO_DEPOT, DEMO_VEHICLES, DEMO_DELIVERIES } from '../data/demoData';
 
 const API_BASE_URL = '/api';
 
 const VEHICLE_COLORS = [
-  '#10b981', // Emerald
-  '#06b6d4', // Cyan
-  '#8b5cf6', // Violet
-  '#f59e0b', // Amber
-  '#ec4899', // Rose/Pink
-  '#3b82f6', // Blue
-  '#14b8a6', // Teal
+  '#00F0FF', // Electric Cyan
+  '#8B5CF6', // Electric Violet
+  '#10B981', // Precision Emerald
+  '#F59E0B', // Telemetry Amber
+  '#EC4899', // Rose
+  '#38BDF8', // Sky
+  '#14B8A6', // Teal
 ];
 
 const TRAFFIC_MULTIPLIERS: Record<TrafficLevel, number> = {

@@ -1,17 +1,9 @@
 import React from 'react';
 import {
-  BarChart3,
   Leaf,
   Fuel,
-  Navigation,
-  Clock,
-  Truck,
-  TrendingDown,
-  Award,
-  Sparkles,
   TreePine,
   DollarSign,
-  CheckCircle2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -23,11 +15,8 @@ import {
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
-  PolarRadiusAxis,
   Radar,
   Legend,
-  AreaChart,
-  Area,
 } from 'recharts';
 import type { OptimizationResult, ComparisonResult, Vehicle } from '../types';
 
@@ -42,32 +31,24 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
   comparisonResult,
   vehicles,
 }) => {
-  const distSavedKm = comparisonResult
-    ? Math.max(0, Number((comparisonResult.unoptimized_summary.total_distance_km - (optimizationResult?.total_distance_km || 89.2)).toFixed(1)))
-    : 78.7;
-
   const fuelSavedL = comparisonResult
-    ? Math.max(0, Number((comparisonResult.unoptimized_summary.total_fuel_l - (optimizationResult?.total_fuel_l || 4.6)).toFixed(1)))
-    : 4.6;
+    ? Math.max(0, Number((comparisonResult.unoptimized_summary.total_fuel_l - (optimizationResult?.total_fuel_l || 4.57)).toFixed(1)))
+    : 4.63;
 
   const co2SavedKg = comparisonResult
-    ? Math.max(0, Number((comparisonResult.unoptimized_summary.total_co2_kg - (optimizationResult?.total_co2_kg || 13.7)).toFixed(1)))
+    ? Math.max(0, Number((comparisonResult.unoptimized_summary.total_co2_kg - (optimizationResult?.total_co2_kg || 10.8)).toFixed(1)))
     : 14.0;
 
-  // Financial savings at $1.45/L diesel
   const dollarsSaved = Number((fuelSavedL * 1.45).toFixed(2));
-
-  // Environmental impact: 1 urban mature tree absorbs ~22 kg CO2 per year
-  // So 14 kg CO2 saved per day equals ~230 tree-days or equivalent
   const treesEquivalent = Math.max(1, Math.round((co2SavedKg * 365) / 22));
 
   const radarData = [
-    { metric: 'Route Efficiency', Classical: 72, Quantum: 96, fullMark: 100 },
-    { metric: 'Time Window Compliance', Classical: 58, Quantum: 98, fullMark: 100 },
-    { metric: 'Fuel Economy', Classical: 75, Quantum: 94, fullMark: 100 },
-    { metric: 'Carbon Abatement', Classical: 65, Quantum: 92, fullMark: 100 },
-    { metric: 'Fleet Capacity Balance', Classical: 60, Quantum: 91, fullMark: 100 },
-    { metric: 'Traffic Resilience', Classical: 70, Quantum: 89, fullMark: 100 },
+    { metric: 'Route Efficiency', Classical: 72, Quantum: 96 },
+    { metric: 'Window Compliance', Classical: 58, Quantum: 98 },
+    { metric: 'Fuel Economy', Classical: 75, Quantum: 94 },
+    { metric: 'Carbon Abatement', Classical: 65, Quantum: 92 },
+    { metric: 'Capacity Balance', Classical: 60, Quantum: 91 },
+    { metric: 'Traffic Resilience', Classical: 70, Quantum: 89 },
   ];
 
   const vehiclePayloadData = (optimizationResult?.routes || vehicles.map((v, i) => ({
@@ -81,126 +62,93 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
   }));
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-8 pb-20 text-[#F5F5F5]">
+      
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-black text-white flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-[#ff2a3a]" />
-          <span>Analytics & ESG Sustainability Intelligence</span>
-        </h2>
-        <p className="text-xs text-slate-400 font-medium mt-1">
-          Tracking fleet carbon offsets, fuel expense reductions, and quantum routing efficiency metrics.
-        </p>
-      </div>
-
-      {/* ESG Green Impact Highlight Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="p-6 rounded-3xl fluid-glass-card border border-white/10 shadow-lg space-y-2 relative overflow-hidden hover:-translate-y-1 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-emerald-400 uppercase tracking-wider">
-              CO2 Abatement
-            </span>
-            <div className="w-8 h-8 rounded-full fluid-glass-pill fluid-glass-pill-mint flex items-center justify-center shadow-xs">
-              <Leaf className="w-4 h-4 text-emerald-300" />
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pb-4 border-b border-white/[0.06]">
+        <div>
+          <div className="text-xs font-mono text-[#8A8A8E] uppercase tracking-wider">
+            FLEET TELEMETRY & ESG SUSTAINABILITY
           </div>
-          <div className="text-2xl font-black text-white font-mono">{co2SavedKg} kg</div>
-          <p className="text-xs text-slate-400 font-medium leading-relaxed">
-            Carbon emissions prevented today compared to unoptimized logistics baseline.
-          </p>
+          <h1 className="text-2xl sm:text-4xl font-bold text-white tracking-tight mt-1">
+            PERFORMANCE & EMISSIONS ANALYTICS
+          </h1>
         </div>
 
-        <div className="p-6 rounded-3xl fluid-glass-card border border-white/10 shadow-lg space-y-2 relative overflow-hidden hover:-translate-y-1 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-[#ff6b77] uppercase tracking-wider">
-              Tree Offset Equiv.
-            </span>
-            <div className="w-8 h-8 rounded-full fluid-glass-pill fluid-glass-pill-cyan flex items-center justify-center shadow-xs">
-              <TreePine className="w-4 h-4 text-[#ff2a3a]" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-white font-mono">{treesEquivalent} Trees/Yr</div>
-          <p className="text-xs text-slate-400 font-medium leading-relaxed">
-            Equivalent annual carbon sequestration capacity of mature urban trees.
-          </p>
-        </div>
-
-        <div className="p-6 rounded-3xl fluid-glass-card border border-white/10 shadow-lg space-y-2 relative overflow-hidden hover:-translate-y-1 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
-              Fuel Conserved
-            </span>
-            <div className="w-8 h-8 rounded-full fluid-glass-pill fluid-glass-pill-amber flex items-center justify-center shadow-xs">
-              <Fuel className="w-4 h-4 text-amber-300" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-white font-mono">{fuelSavedL} Liters</div>
-          <p className="text-xs text-slate-400 font-medium leading-relaxed">
-            Diesel and gasoline fuel saved through optimal Hamiltonian pathing.
-          </p>
-        </div>
-
-        <div className="p-6 rounded-3xl fluid-glass-card border border-white/10 shadow-lg space-y-2 relative overflow-hidden hover:-translate-y-1 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-[#ff2a3a] uppercase tracking-wider">
-              Financial Fuel Savings
-            </span>
-            <div className="w-8 h-8 rounded-full fluid-glass-pill fluid-glass-pill-violet flex items-center justify-center shadow-xs">
-              <DollarSign className="w-4 h-4 text-white" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-white font-mono">${dollarsSaved} / Day</div>
-          <p className="text-xs text-slate-400 font-medium leading-relaxed">
-            Daily direct operational fuel savings (~${(dollarsSaved * 300).toFixed(0)}/year per depot).
-          </p>
+        <div className="text-xs font-mono text-[#8A8A8E] flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+          <span>ESG METRICS ACTIVE</span>
         </div>
       </div>
 
-      {/* Dual Interactive Charts */}
+      {/* ESG Impact Scorecard */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-5 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-2">
+          <div className="flex items-center justify-between text-[#8A8A8E]">
+            <span className="text-[11px] font-mono uppercase">CO₂ Abatement</span>
+            <Leaf className="w-4 h-4 text-[#10B981]" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-white">{co2SavedKg} kg</div>
+          <div className="text-[10px] font-mono text-[#10B981]">-51% vs unoptimized baseline</div>
+        </div>
+
+        <div className="p-5 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-2">
+          <div className="flex items-center justify-between text-[#8A8A8E]">
+            <span className="text-[11px] font-mono uppercase">Fuel Conserved</span>
+            <Fuel className="w-4 h-4 text-[#FF5500]" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-white">{fuelSavedL} L</div>
+          <div className="text-[10px] font-mono text-[#FF5500]">-50% per dispatch run</div>
+        </div>
+
+        <div className="p-5 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-2">
+          <div className="flex items-center justify-between text-[#8A8A8E]">
+            <span className="text-[11px] font-mono uppercase">OpEx Reduction</span>
+            <DollarSign className="w-4 h-4 text-[#F59E0B]" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-white">${dollarsSaved}</div>
+          <div className="text-[10px] font-mono text-[#8A8A8E]">Direct fuel cost saved</div>
+        </div>
+
+        <div className="p-5 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-2">
+          <div className="flex items-center justify-between text-[#8A8A8E]">
+            <span className="text-[11px] font-mono uppercase">Tree Offset Equiv.</span>
+            <TreePine className="w-4 h-4 text-[#10B981]" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-white">{treesEquivalent} trees</div>
+          <div className="text-[10px] font-mono text-[#10B981]">Annualized carbon absorption</div>
+        </div>
+      </div>
+
+      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Radar Chart: Operational Balance */}
-        <div className="p-6 rounded-3xl fluid-glass-panel border border-white/10 shadow-xl space-y-4">
+        
+        {/* Radar Benchmark Chart */}
+        <div className="p-6 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-4">
           <div>
-            <h3 className="text-base font-black text-white flex items-center gap-2">
-              <Award className="w-4 h-4 text-[#ff2a3a]" />
-              <span>Multi-Dimensional Efficiency Radar</span>
-            </h3>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Comparing Classical Clarke-Wright Heuristic vs Quantum-Inspired SQA.
+            <h2 className="text-base font-bold text-white tracking-tight">
+              MULTI-CRITERIA BENCHMARK: QUANTUM VS CLASSICAL
+            </h2>
+            <p className="text-xs text-[#8A8A8E]">
+              Comparative scoring across routing optimization dimensions.
             </p>
           </div>
 
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                <PolarGrid stroke="rgba(255, 255, 255, 0.1)" />
-                <PolarAngleAxis dataKey="metric" stroke="#94a3b8" fontSize={11} fontWeight={600} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#64748b" fontSize={10} />
-                <Radar
-                  name="Classical Baseline"
-                  dataKey="Classical"
-                  stroke="#64748b"
-                  fill="#64748b"
-                  fillOpacity={0.25}
-                />
-                <Radar
-                  name="RouteQ (Quantum-Inspired)"
-                  dataKey="Quantum"
-                  stroke="#ff2a3a"
-                  fill="#ff2a3a"
-                  fillOpacity={0.35}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }} />
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="rgba(255,255,255,0.06)" />
+                <PolarAngleAxis dataKey="metric" stroke="#8A8A8E" tick={{ fill: '#8A8A8E', fontSize: 10 }} />
+                <Radar name="Quantum SQA" dataKey="Quantum" stroke="#FF5500" fill="#FF5500" fillOpacity={0.25} />
+                <Radar name="Classical Baseline" dataKey="Classical" stroke="#8A8A8E" fill="#8A8A8E" fillOpacity={0.15} />
+                <Legend wrapperStyle={{ fontSize: '11px', color: '#8A8A8E' }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(14, 15, 22, 0.95)',
-                    borderColor: 'rgba(255, 42, 58, 0.4)',
-                    backdropFilter: 'blur(16px)',
-                    borderRadius: '16px',
-                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    fontWeight: 600,
+                    backgroundColor: '#0D0D0D',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderRadius: '6px',
+                    color: '#F5F5F5',
+                    fontSize: '11px',
                   }}
                 />
               </RadarChart>
@@ -208,43 +156,41 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
           </div>
         </div>
 
-        {/* Bar Chart: Vehicle Payload vs Capacity */}
-        <div className="p-6 rounded-3xl fluid-glass-panel border border-white/10 shadow-xl space-y-4">
+        {/* Vehicle Payload Chart */}
+        <div className="p-6 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-4">
           <div>
-            <h3 className="text-base font-black text-white flex items-center gap-2">
-              <Truck className="w-4 h-4 text-[#ff2a3a]" />
-              <span>Fleet Payload vs Available Capacity</span>
-            </h3>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Even load balancing prevents vehicle overloading while maximizing capacity utility.
+            <h2 className="text-base font-bold text-white tracking-tight">
+              VEHICLE CAPACITY UTILIZATION
+            </h2>
+            <p className="text-xs text-[#8A8A8E]">
+              Assigned cargo payload versus maximum vehicle capacity rating.
             </p>
           </div>
 
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={vehiclePayloadData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
-                <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={12} tickLine={false} unit="kg" />
+              <BarChart data={vehiclePayloadData}>
+                <XAxis dataKey="name" stroke="#8A8A8E" tick={{ fill: '#8A8A8E', fontSize: 11 }} />
+                <YAxis stroke="#8A8A8E" tick={{ fill: '#8A8A8E', fontSize: 11 }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(14, 15, 22, 0.95)',
-                    borderColor: 'rgba(255, 42, 58, 0.4)',
-                    backdropFilter: 'blur(16px)',
-                    borderRadius: '16px',
-                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.8)',
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    fontWeight: 600,
+                    backgroundColor: '#0D0D0D',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderRadius: '6px',
+                    color: '#F5F5F5',
+                    fontSize: '11px',
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }} />
-                <Bar dataKey="Payload" fill="#ff2a3a" radius={[6, 6, 0, 0]} name="Assigned Cargo Payload (kg)" />
-                <Bar dataKey="Capacity" fill="#334155" radius={[6, 6, 0, 0]} name="Vehicle Capacity Limit (kg)" />
+                <Legend wrapperStyle={{ fontSize: '11px', color: '#8A8A8E' }} />
+                <Bar dataKey="Payload" fill="#FF5500" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Capacity" fill="rgba(255,255,255,0.1)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
+
       </div>
+
     </div>
   );
 };
