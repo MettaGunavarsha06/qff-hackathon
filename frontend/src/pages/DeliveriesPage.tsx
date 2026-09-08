@@ -34,8 +34,8 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
   const [formData, setFormData] = useState<Delivery>({
     id: '',
     customer_name: '',
-    lat: 37.7749,
-    lng: -122.4194,
+    lat: 12.9279,
+    lng: 77.6271,
     demand_kg: 25.0,
     priority: 'medium',
     time_window_start: '09:00',
@@ -48,13 +48,16 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
 
   const openAddModal = () => {
     const nextNum = deliveries.length + 1;
-    const newId = `DEL-${nextNum < 10 ? '0' + nextNum : nextNum}`;
+    const prefix = deliveries[0]?.id ? deliveries[0].id.split('-')[0] : 'BLR';
+    const newId = `${prefix}-D${nextNum < 10 ? '0' + nextNum : nextNum}`;
+    const baseLat = deliveries[0]?.lat || 12.9279;
+    const baseLng = deliveries[0]?.lng || 77.6271;
     setEditingDelivery(null);
     setFormData({
       id: newId,
       customer_name: '',
-      lat: 37.775 + (Math.random() - 0.5) * 0.04,
-      lng: -122.42 + (Math.random() - 0.5) * 0.06,
+      lat: Number((baseLat + (Math.random() - 0.5) * 0.05).toFixed(4)),
+      lng: Number((baseLng + (Math.random() - 0.5) * 0.05).toFixed(4)),
       demand_kg: 25.0,
       priority: 'medium',
       time_window_start: '10:00',
@@ -204,7 +207,7 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                   <td className="py-3 px-4">
                     <div className="font-semibold text-white text-xs">{del.customer_name}</div>
                     <div className="text-[11px] text-[#8A8A8E] truncate max-w-xs font-sans">
-                      {del.address || 'San Francisco Corridor'}
+                      {del.address || 'Bengaluru Logistics Corridor, India'}
                     </div>
                   </td>
                   <td className="py-3 px-4 text-[#8A8A8E] text-[11px]">
@@ -312,9 +315,22 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Apex BioTech Labs"
+                  placeholder="e.g. Apex BioTech Labs India"
                   value={formData.customer_name}
                   onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                  className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
+                  Delivery Address (India / Pincode)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 100 Feet Rd, Indiranagar, Bengaluru, Karnataka 560038"
+                  value={formData.address || ''}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30 font-sans"
                 />
               </div>

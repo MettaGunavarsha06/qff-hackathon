@@ -35,7 +35,13 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     setActiveFilter(selectedVehicleId);
   }, [selectedVehicleId]);
 
-  // Initialize Map with dark cartographic styling
+  // India Bounding Box coordinates
+  const INDIA_BOUNDS = L.latLngBounds([
+    [6.5, 68.0],   // Southwest corner of India
+    [37.5, 97.5],  // Northeast corner of India
+  ]);
+
+  // Initialize Map with dark cartographic styling constrained to India
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -43,6 +49,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       const map = L.map(mapContainerRef.current, {
         center: [depot.lat, depot.lng],
         zoom: 13,
+        minZoom: 4,
+        maxBounds: INDIA_BOUNDS,
+        maxBoundsViscosity: 0.85,
         zoomControl: false,
         attributionControl: false,
       });
@@ -58,9 +67,20 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
       layerGroupRef.current = L.layerGroup().addTo(map);
       mapInstanceRef.current = map;
+
+      // Delayed resize invalidation to ensure Leaflet renders properly inside dynamic layouts
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
     }
 
+    const handleResize = () => {
+      mapInstanceRef.current?.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      window.removeEventListener('resize', handleResize);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -70,9 +90,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
   useEffect(() => {
     if (mapInstanceRef.current) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         mapInstanceRef.current?.invalidateSize();
       }, 150);
+      return () => clearTimeout(timer);
     }
   }, [height]);
 
@@ -220,7 +241,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             <span style="background: rgba(255,255,255,0.06); color: #8A8A8E; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; font-family: 'JetBrains Mono';">${del.priority}</span>
           </div>
           <div style="font-weight: 600; font-size: 13px; color: #FFFFFF; margin-bottom: 2px;">${del.customer_name}</div>
-          <div style="font-size: 11px; color: #8A8A8E; margin-bottom: 4px;">${del.address || 'San Francisco Delivery'}</div>
+          <div style="font-size: 11px; color: #8A8A8E; margin-bottom: 4px;">${del.address || 'Bengaluru Logistics Corridor, India'}</div>
           <div style="font-size: 11px; color: #8A8A8E; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.08); font-family: 'JetBrains Mono';">
             <div>LOAD: ${del.demand_kg} kg</div>
             <div>SERVICE: ${del.service_time_mins}m</div>
@@ -233,6 +254,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
     if (deliveries.length > 0) {
       mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    } else {
+      mapInstanceRef.current.setView([depot.lat, depot.lng], 13);
     }
   }, [depot, deliveries, routes, activeFilter]);
 
@@ -242,7 +265,11 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     if (!mapInstanceRef.current) return;
     const bounds = L.latLngBounds([[depot.lat, depot.lng]]);
     deliveries.forEach((d) => bounds.extend([d.lat, d.lng]));
-    mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    if (deliveries.length > 0) {
+      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    } else {
+      mapInstanceRef.current.setView([depot.lat, depot.lng], 13);
+    }
   };
 
   return (
@@ -250,6 +277,20 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       className="relative w-full h-full rounded-lg overflow-hidden border border-white/[0.06] bg-[#080808]"
       style={{ minHeight: '480px' }}
     >
+      {/* Top Left: India Hub Badge */}
+      <div className="absolute top-3 left-3 z-[1000] flex items-center gap-2.5 px-3 py-1.5 rounded bg-[#080808]/90 backdrop-blur-md border border-white/[0.08] shadow-xl pointer-events-none">
+        <span className="text-base leading-none select-none">🇮🇳</span>
+        <div className="flex flex-col">
+          <div className="font-mono text-[10px] font-bold text-white tracking-wide flex items-center gap-1.5">
+            <span>INDIA LOGISTICS CORRIDOR</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+          </div>
+          <div className="text-[9px] text-[#8A8A8E] font-mono truncate max-w-[220px]">
+            {depot.name}
+          </div>
+        </div>
+      </div>
+
       {/* Top Right: Minimal Zoom Controls */}
       <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-1">
         <button

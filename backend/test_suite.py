@@ -13,22 +13,22 @@ from services.qiskit_optimizer import QiskitVRPOptimizer
 class TestRouteQBackend(unittest.TestCase):
 
     def setUp(self):
-        self.depot = DepotInput(id="DEPOT", lat=37.7685, lng=-122.4140, name="Central Hub")
+        self.depot = DepotInput(id="DEPOT-BLR", lat=12.9279, lng=77.6271, name="RouteQ Bengaluru Central Hub")
         self.vehicles = [
-            VehicleInput(id="V1", capacity=100.0, fuel_efficiency=12.0, fuel_type="diesel"),
-            VehicleInput(id="V2", capacity=100.0, fuel_efficiency=18.0, fuel_type="electric"),
+            VehicleInput(id="IND-V01", capacity=100.0, fuel_efficiency=12.0, fuel_type="diesel"),
+            VehicleInput(id="IND-V02", capacity=100.0, fuel_efficiency=18.0, fuel_type="electric"),
         ]
         self.deliveries_small = [
-            DeliveryInput(id="D1", customer="Customer 1", lat=37.7885, lng=-122.3995, demand=20.0, time_window_start="09:00", time_window_end="12:00"),
-            DeliveryInput(id="D2", customer="Customer 2", lat=37.7897, lng=-122.3972, demand=25.0, time_window_start="09:30", time_window_end="12:30"),
-            DeliveryInput(id="D3", customer="Customer 3", lat=37.7925, lng=-122.4345, demand=15.0, time_window_start="10:00", time_window_end="13:00"),
-            DeliveryInput(id="D4", customer="Customer 4", lat=37.7989, lng=-122.4542, demand=30.0, time_window_start="10:30", time_window_end="14:00"),
+            DeliveryInput(id="BLR-D01", customer="Indiranagar Tech Lab", lat=12.9716, lng=77.6412, demand=20.0, time_window_start="09:00", time_window_end="12:00"),
+            DeliveryInput(id="BLR-D02", customer="HSR Layout Campus", lat=12.9121, lng=77.6446, demand=25.0, time_window_start="09:30", time_window_end="12:30"),
+            DeliveryInput(id="BLR-D03", customer="MG Road Commercial Plaza", lat=12.9756, lng=77.6066, demand=15.0, time_window_start="10:00", time_window_end="13:00"),
+            DeliveryInput(id="BLR-D04", customer="Bellandur EcoSpace Tech", lat=12.9304, lng=77.6784, demand=30.0, time_window_start="10:30", time_window_end="14:00"),
         ]
 
     def test_01_distance_calculation(self):
         """Test Haversine distance calculation is non-zero and symmetric."""
-        d1 = haversine_distance(37.7685, -122.4140, 37.7885, -122.3995)
-        d2 = haversine_distance(37.7885, -122.3995, 37.7685, -122.4140)
+        d1 = haversine_distance(12.9279, 77.6271, 12.9716, 77.6412)
+        d2 = haversine_distance(12.9716, 77.6412, 12.9279, 77.6271)
         self.assertGreater(d1, 1.0)
         self.assertAlmostEqual(d1, d2, places=2)
 
@@ -59,9 +59,9 @@ class TestRouteQBackend(unittest.TestCase):
         visited = []
         for r in res.routes:
             visited.extend(r.deliveries)
-            self.assertEqual(r.stops[0], "DEPOT")
-            self.assertEqual(r.stops[-1], "DEPOT")
-        self.assertEqual(set(visited), {"D1", "D2", "D3", "D4"})
+            self.assertEqual(r.stops[0], self.depot.id)
+            self.assertEqual(r.stops[-1], self.depot.id)
+        self.assertEqual(set(visited), {"BLR-D01", "BLR-D02", "BLR-D03", "BLR-D04"})
 
     def test_03_qiskit_optimization(self):
         """Test Qiskit QAOA / QUBO Optimizer execution."""
@@ -85,12 +85,12 @@ class TestRouteQBackend(unittest.TestCase):
         visited = []
         for r in res.routes:
             visited.extend(r.deliveries)
-            self.assertEqual(r.stops[0], "DEPOT")
-            self.assertEqual(r.stops[-1], "DEPOT")
+            self.assertEqual(r.stops[0], self.depot.id)
+            self.assertEqual(r.stops[-1], self.depot.id)
             # Capacity check
             self.assertLessEqual(r.capacity_used, self.vehicles[0].capacity)
 
-        self.assertEqual(set(visited), {"D1", "D2", "D3", "D4"})
+        self.assertEqual(set(visited), {"BLR-D01", "BLR-D02", "BLR-D03", "BLR-D04"})
 
     def test_04_qiskit_problem_size_limit(self):
         """Test that Qiskit raises a clear message when >6 deliveries are submitted."""

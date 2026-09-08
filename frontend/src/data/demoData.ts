@@ -1,86 +1,243 @@
 import type { Depot, Vehicle, Delivery } from '../types';
 
-export const DEMO_DEPOT: Depot = {
-  id: 'DEPOT-01',
-  name: 'RouteQ Bay Logistics Hub',
-  lat: 37.7685,
-  lng: -122.4140,
-  operating_hours_start: '08:00',
-  operating_hours_end: '18:00',
+// ============================================================================
+// 1. BENGALURU LOGISTICS CORRIDOR (Karnataka, India)
+// ============================================================================
+export const BLR_DEPOT: Depot = {
+  id: 'DEPOT-BLR',
+  name: 'RouteQ Bengaluru Central Hub (Koramangala)',
+  lat: 12.9279,
+  lng: 77.6271,
+  operating_hours_start: '08:30',
+  operating_hours_end: '18:30',
 };
 
-export const DEMO_VEHICLES: Vehicle[] = [
+export const BLR_VEHICLES: Vehicle[] = [
   {
-    id: 'V-01',
-    name: 'VoltExpress Cargo E1',
+    id: 'IND-V01',
+    name: 'Tata Ace EV Express',
+    capacity_kg: 500.0,
+    starting_depot_id: 'DEPOT-BLR',
+    max_route_distance_km: 120.0,
+    fuel_efficiency_km_per_l: 19.0,
+    fuel_type: 'electric',
+  },
+  {
+    id: 'IND-V02',
+    name: 'Mahindra Bolero Maxi Truck',
+    capacity_kg: 650.0,
+    starting_depot_id: 'DEPOT-BLR',
+    max_route_distance_km: 150.0,
+    fuel_efficiency_km_per_l: 11.5,
+    fuel_type: 'diesel',
+  },
+  {
+    id: 'IND-V03',
+    name: 'Ashok Leyland Bada Dost',
+    capacity_kg: 750.0,
+    starting_depot_id: 'DEPOT-BLR',
+    max_route_distance_km: 160.0,
+    fuel_efficiency_km_per_l: 10.0,
+    fuel_type: 'diesel',
+  },
+  {
+    id: 'IND-V04',
+    name: 'Euler HiLoad EV Delivery',
     capacity_kg: 480.0,
-    starting_depot_id: 'DEPOT-01',
-    max_route_distance_km: 130.0,
+    starting_depot_id: 'DEPOT-BLR',
+    max_route_distance_km: 110.0,
     fuel_efficiency_km_per_l: 18.0,
     fuel_type: 'electric',
   },
   {
-    id: 'V-02',
-    name: 'EcoTransit Sprinter Alpha',
-    capacity_kg: 550.0,
-    starting_depot_id: 'DEPOT-01',
-    max_route_distance_km: 150.0,
-    fuel_efficiency_km_per_l: 9.5,
-    fuel_type: 'diesel',
-  },
-  {
-    id: 'V-03',
-    name: 'UrbanHybrid Courier H1',
+    id: 'IND-V05',
+    name: 'Piaggio Ape E-City Cargo',
     capacity_kg: 420.0,
-    starting_depot_id: 'DEPOT-01',
-    max_route_distance_km: 120.0,
-    fuel_efficiency_km_per_l: 14.0,
-    fuel_type: 'hybrid',
-  },
-  {
-    id: 'V-04',
-    name: 'EcoTransit Sprinter Beta',
-    capacity_kg: 580.0,
-    starting_depot_id: 'DEPOT-01',
-    max_route_distance_km: 160.0,
-    fuel_efficiency_km_per_l: 9.0,
-    fuel_type: 'diesel',
-  },
-  {
-    id: 'V-05',
-    name: 'VoltExpress Cargo E2',
-    capacity_kg: 500.0,
-    starting_depot_id: 'DEPOT-01',
-    max_route_distance_km: 130.0,
-    fuel_efficiency_km_per_l: 18.5,
+    starting_depot_id: 'DEPOT-BLR',
+    max_route_distance_km: 95.0,
+    fuel_efficiency_km_per_l: 21.0,
     fuel_type: 'electric',
   },
 ];
 
-export const DEMO_DELIVERIES: Delivery[] = [
-  { id: 'DEL-01', customer_name: 'Apex BioTech Labs', lat: 37.7885, lng: -122.3995, demand_kg: 38.0, priority: 'urgent', time_window_start: '08:30', time_window_end: '10:30', service_time_mins: 15, address: '550 Howard St, Financial District' },
-  { id: 'DEL-02', customer_name: 'Salesforce Tower Reception', lat: 37.7897, lng: -122.3972, demand_kg: 45.0, priority: 'high', time_window_start: '09:00', time_window_end: '11:30', service_time_mins: 20, address: '415 Mission St, SoMa' },
-  { id: 'DEL-03', customer_name: 'Pacific Heights Medical', lat: 37.7925, lng: -122.4345, demand_kg: 25.0, priority: 'urgent', time_window_start: '09:00', time_window_end: '11:00', service_time_mins: 15, address: '2340 Clay St, Pacific Heights' },
-  { id: 'DEL-04', customer_name: 'Presidio Design Studio', lat: 37.7989, lng: -122.4542, demand_kg: 62.0, priority: 'medium', time_window_start: '10:00', time_window_end: '13:00', service_time_mins: 20, address: '101 Montgomery St, Presidio' },
-  { id: 'DEL-05', customer_name: "Fisherman's Wharf Provisions", lat: 37.8080, lng: -122.4177, demand_kg: 85.0, priority: 'high', time_window_start: '08:30', time_window_end: '11:00', service_time_mins: 25, address: '2800 Leavenworth St, North Beach' },
-  { id: 'DEL-06', customer_name: 'Embarcadero Tech Center', lat: 37.7955, lng: -122.3937, demand_kg: 30.0, priority: 'medium', time_window_start: '11:00', time_window_end: '14:00', service_time_mins: 15, address: '1 Market St, Financial District' },
-  { id: 'DEL-07', customer_name: 'Nob Hill Boutique Hotel', lat: 37.7915, lng: -122.4150, demand_kg: 40.0, priority: 'high', time_window_start: '09:30', time_window_end: '12:00', service_time_mins: 15, address: '905 California St, Nob Hill' },
-  { id: 'DEL-08', customer_name: 'Mission Community Health', lat: 37.7599, lng: -122.4148, demand_kg: 55.0, priority: 'urgent', time_window_start: '10:00', time_window_end: '12:00', service_time_mins: 20, address: '2401 Mission St, Mission' },
-  { id: 'DEL-09', customer_name: 'Castro Artisan Foods', lat: 37.7609, lng: -122.4350, demand_kg: 48.0, priority: 'medium', time_window_start: '11:00', time_window_end: '14:30', service_time_mins: 15, address: '400 Castro St, Castro' },
-  { id: 'DEL-10', customer_name: 'Noe Valley Organic Mart', lat: 37.7502, lng: -122.4332, demand_kg: 68.0, priority: 'low', time_window_start: '13:00', time_window_end: '16:30', service_time_mins: 20, address: '3900 24th St, Noe Valley' },
-  { id: 'DEL-11', customer_name: 'Potrero Hill Creative Hub', lat: 37.7580, lng: -122.4010, demand_kg: 32.0, priority: 'medium', time_window_start: '12:00', time_window_end: '15:00', service_time_mins: 15, address: '1695 18th St, Potrero Hill' },
-  { id: 'DEL-12', customer_name: 'Dogpatch Hardware & Craft', lat: 37.7562, lng: -122.3879, demand_kg: 90.0, priority: 'high', time_window_start: '09:00', time_window_end: '12:00', service_time_mins: 25, address: '2298 3rd St, Dogpatch' },
-  { id: 'DEL-13', customer_name: 'Mission Bay Biotech Incubator', lat: 37.7675, lng: -122.3910, demand_kg: 35.0, priority: 'urgent', time_window_start: '09:30', time_window_end: '11:30', service_time_mins: 15, address: '1700 4th St, Mission Bay' },
-  { id: 'DEL-14', customer_name: 'Inner Sunset Pharmacy', lat: 37.7635, lng: -122.4660, demand_kg: 22.0, priority: 'urgent', time_window_start: '10:30', time_window_end: '12:30', service_time_mins: 15, address: '1200 9th Ave, Inner Sunset' },
-  { id: 'DEL-15', customer_name: 'Outer Sunset Surf Supplies', lat: 37.7535, lng: -122.5050, demand_kg: 75.0, priority: 'low', time_window_start: '13:30', time_window_end: '17:00', service_time_mins: 20, address: '3800 Judah St, Outer Sunset' },
-  { id: 'DEL-16', customer_name: 'Richmond District Books', lat: 37.7802, lng: -122.4820, demand_kg: 28.0, priority: 'medium', time_window_start: '11:30', time_window_end: '15:00', service_time_mins: 15, address: '5400 Geary Blvd, Central Richmond' },
-  { id: 'DEL-17', customer_name: 'Golden Gate Park Science Ctr', lat: 37.7699, lng: -122.4661, demand_kg: 50.0, priority: 'medium', time_window_start: '10:00', time_window_end: '13:30', service_time_mins: 20, address: '55 Music Concourse Dr, GGP' },
-  { id: 'DEL-18', customer_name: 'Marina Green Yacht Supply', lat: 37.8045, lng: -122.4380, demand_kg: 65.0, priority: 'high', time_window_start: '09:00', time_window_end: '12:30', service_time_mins: 20, address: '3950 Scott St, Marina' },
-  { id: 'DEL-19', customer_name: 'Cow Hollow Wine Merchants', lat: 37.7975, lng: -122.4350, demand_kg: 42.0, priority: 'medium', time_window_start: '12:30', time_window_end: '16:00', service_time_mins: 15, address: '2100 Union St, Cow Hollow' },
-  { id: 'DEL-20', customer_name: 'Chinatown Heritage Market', lat: 37.7941, lng: -122.4078, demand_kg: 58.0, priority: 'high', time_window_start: '09:00', time_window_end: '11:30', service_time_mins: 20, address: '700 Grant Ave, Chinatown' },
-  { id: 'DEL-21', customer_name: 'Civic Center Municipal Library', lat: 37.7792, lng: -122.4158, demand_kg: 30.0, priority: 'low', time_window_start: '13:00', time_window_end: '17:00', service_time_mins: 15, address: '100 Larkin St, Civic Center' },
-  { id: 'DEL-22', customer_name: 'Twin Peaks View Observatory', lat: 37.7544, lng: -122.4477, demand_kg: 18.0, priority: 'low', time_window_start: '14:00', time_window_end: '17:30', service_time_mins: 15, address: '501 Twin Peaks Blvd' },
-  { id: 'DEL-23', customer_name: 'Glen Park Village Bakery', lat: 37.7345, lng: -122.4335, demand_kg: 40.0, priority: 'medium', time_window_start: '11:00', time_window_end: '14:30', service_time_mins: 15, address: '2800 Diamond St, Glen Park' },
-  { id: 'DEL-24', customer_name: 'Bernal Heights Hardware', lat: 37.7420, lng: -122.4180, demand_kg: 52.0, priority: 'medium', time_window_start: '12:00', time_window_end: '15:30', service_time_mins: 15, address: '400 Cortland Ave, Bernal Heights' },
-  { id: 'DEL-25', customer_name: 'Oracle Park Event Logistics', lat: 37.7786, lng: -122.3893, demand_kg: 80.0, priority: 'urgent', time_window_start: '08:30', time_window_end: '10:30', service_time_mins: 25, address: '24 Willie Mays Plaza, South Beach' },
+export const BLR_DELIVERIES: Delivery[] = [
+  { id: 'BLR-D01', customer_name: 'Apex BioTech Labs India', lat: 12.9716, lng: 77.6412, demand_kg: 38.0, priority: 'urgent', time_window_start: '08:30', time_window_end: '10:30', service_time_mins: 15, address: '100 Feet Rd, HAL 2nd Stage, Indiranagar, Bengaluru, Karnataka 560038' },
+  { id: 'BLR-D02', customer_name: 'Flipkart Internet Campus', lat: 12.9121, lng: 77.6446, demand_kg: 45.0, priority: 'high', time_window_start: '09:00', time_window_end: '11:30', service_time_mins: 20, address: '27th Main Rd, HSR Layout Sector 2, Bengaluru, Karnataka 560102' },
+  { id: 'BLR-D03', customer_name: 'MG Road Commercial Plaza', lat: 12.9756, lng: 77.6066, demand_kg: 25.0, priority: 'urgent', time_window_start: '09:00', time_window_end: '11:00', service_time_mins: 15, address: 'Mahatma Gandhi Rd, Central Business District, Bengaluru, Karnataka 560001' },
+  { id: 'BLR-D04', customer_name: 'Bellandur EcoSpace Tech Park', lat: 12.9304, lng: 77.6784, demand_kg: 62.0, priority: 'medium', time_window_start: '10:00', time_window_end: '13:00', service_time_mins: 20, address: 'Outer Ring Rd, Bellandur, Bengaluru, Karnataka 560103' },
+  { id: 'BLR-D05', customer_name: 'Marathahalli Multiplex & Market', lat: 12.9591, lng: 77.6974, demand_kg: 55.0, priority: 'high', time_window_start: '08:30', time_window_end: '11:00', service_time_mins: 25, address: 'Varthur Rd, Marathahalli, Bengaluru, Karnataka 560037' },
+  { id: 'BLR-D06', customer_name: 'Whitefield ITPL Main Gate', lat: 12.9863, lng: 77.7314, demand_kg: 90.0, priority: 'medium', time_window_start: '11:00', time_window_end: '14:00', service_time_mins: 25, address: 'International Tech Park, Whitefield, Bengaluru, Karnataka 560066' },
+  { id: 'BLR-D07', customer_name: 'Jayanagar 4th Block Market', lat: 12.9308, lng: 77.5838, demand_kg: 40.0, priority: 'high', time_window_start: '09:30', time_window_end: '12:00', service_time_mins: 15, address: '11th Main Rd, Jayanagar 4th Block, Bengaluru, Karnataka 560011' },
+  { id: 'BLR-D08', customer_name: 'Electronic City Infosys Gate 1', lat: 12.8452, lng: 77.6602, demand_kg: 70.0, priority: 'urgent', time_window_start: '10:00', time_window_end: '12:00', service_time_mins: 20, address: 'Hosur Rd, Electronic City Phase 1, Bengaluru, Karnataka 560100' },
+  { id: 'BLR-D09', customer_name: 'Sarjapur Road Wipro Campus', lat: 12.9102, lng: 77.6835, demand_kg: 65.0, priority: 'medium', time_window_start: '11:00', time_window_end: '14:30', service_time_mins: 15, address: 'Sarjapur Main Rd, Kaikondrahalli, Bengaluru, Karnataka 560035' },
+  { id: 'BLR-D10', customer_name: 'Hebbal Manyata Tech Park', lat: 13.0458, lng: 77.6201, demand_kg: 50.0, priority: 'low', time_window_start: '13:00', time_window_end: '16:30', service_time_mins: 20, address: 'Outer Ring Rd, Nagavara, Hebbal, Bengaluru, Karnataka 560045' },
+  { id: 'BLR-D11', customer_name: 'Malleshwaram 8th Cross Retail', lat: 12.9984, lng: 77.5714, demand_kg: 32.0, priority: 'medium', time_window_start: '12:00', time_window_end: '15:00', service_time_mins: 15, address: 'Margosa Rd, Malleshwaram, Bengaluru, Karnataka 560003' },
+  { id: 'BLR-D12', customer_name: 'Rajajinagar Industrial Estate', lat: 12.9892, lng: 77.5539, demand_kg: 85.0, priority: 'high', time_window_start: '09:00', time_window_end: '12:00', service_time_mins: 25, address: 'West of Chord Rd, Rajajinagar, Bengaluru, Karnataka 560010' },
+  { id: 'BLR-D13', customer_name: 'Peenya 1st Stage Manufacturing', lat: 13.0285, lng: 77.5195, demand_kg: 95.0, priority: 'urgent', time_window_start: '09:30', time_window_end: '11:30', service_time_mins: 20, address: 'Peenya Industrial Area, Bengaluru, Karnataka 560058' },
+  { id: 'BLR-D14', customer_name: 'BTM Layout 2nd Stage Commerce', lat: 12.9165, lng: 77.6101, demand_kg: 28.0, priority: 'urgent', time_window_start: '10:30', time_window_end: '12:30', service_time_mins: 15, address: 'Outer Ring Rd, BTM 2nd Stage, Bengaluru, Karnataka 560076' },
+  { id: 'BLR-D15', customer_name: 'JP Nagar 6th Phase Cultural Hub', lat: 12.9063, lng: 77.5855, demand_kg: 45.0, priority: 'low', time_window_start: '13:30', time_window_end: '17:00', service_time_mins: 20, address: '15th Cross Rd, JP Nagar 6th Phase, Bengaluru, Karnataka 560078' },
+  { id: 'BLR-D16', customer_name: 'Banashankari 3rd Stage Mart', lat: 12.9255, lng: 77.5467, demand_kg: 35.0, priority: 'medium', time_window_start: '11:30', time_window_end: '15:00', service_time_mins: 15, address: 'Kathreguppe Main Rd, Banashankari, Bengaluru, Karnataka 560085' },
+  { id: 'BLR-D17', customer_name: 'Domlur Intermediate Ring Rd Hub', lat: 12.9609, lng: 77.6387, demand_kg: 48.0, priority: 'medium', time_window_start: '10:00', time_window_end: '13:30', service_time_mins: 20, address: 'Intermediate Ring Rd, Domlur, Bengaluru, Karnataka 560071' },
+  { id: 'BLR-D18', customer_name: 'Richmond Town Commercial Zone', lat: 12.9634, lng: 77.6022, demand_kg: 52.0, priority: 'high', time_window_start: '09:00', time_window_end: '12:30', service_time_mins: 20, address: 'Richmond Rd, Richmond Town, Bengaluru, Karnataka 560025' },
+  { id: 'BLR-D19', customer_name: 'Commercial Street Fashion Arcade', lat: 12.9822, lng: 77.6083, demand_kg: 42.0, priority: 'medium', time_window_start: '12:30', time_window_end: '16:00', service_time_mins: 15, address: 'Tasker Town, Shivajinagar, Bengaluru, Karnataka 560051' },
+  { id: 'BLR-D20', customer_name: 'Frazer Town Gourmet Emporium', lat: 12.9968, lng: 77.6133, demand_kg: 58.0, priority: 'high', time_window_start: '09:00', time_window_end: '11:30', service_time_mins: 20, address: 'Mosque Rd, Pulikeshi Nagar, Bengaluru, Karnataka 560005' },
+  { id: 'BLR-D21', customer_name: 'Kalyan Nagar CMR Road Tech Hub', lat: 13.0218, lng: 77.6436, demand_kg: 30.0, priority: 'low', time_window_start: '13:00', time_window_end: '17:00', service_time_mins: 15, address: 'CMR Main Rd, HRBR Layout, Kalyan Nagar, Bengaluru, Karnataka 560043' },
+  { id: 'BLR-D22', customer_name: 'Yeshwanthpur Wholesale Yard', lat: 13.0210, lng: 77.5480, demand_kg: 75.0, priority: 'low', time_window_start: '14:00', time_window_end: '17:30', service_time_mins: 20, address: 'Tumkur Rd, Yeshwanthpur, Bengaluru, Karnataka 560022' },
+  { id: 'BLR-D23', customer_name: 'Bannerghatta Apollo Hospital', lat: 12.8943, lng: 77.5995, demand_kg: 35.0, priority: 'urgent', time_window_start: '11:00', time_window_end: '13:30', service_time_mins: 15, address: 'Bannerghatta Main Rd, Arakere, Bengaluru, Karnataka 560076' },
+  { id: 'BLR-D24', customer_name: 'Yelahanka New Town Complex', lat: 13.1007, lng: 77.5963, demand_kg: 52.0, priority: 'medium', time_window_start: '12:00', time_window_end: '15:30', service_time_mins: 15, address: 'Major Sandeep Unnikrishnan Rd, Yelahanka, Bengaluru, Karnataka 560064' },
+  { id: 'BLR-D25', customer_name: 'KR Puram Railway Cargo Logistics', lat: 13.0039, lng: 77.6953, demand_kg: 80.0, priority: 'urgent', time_window_start: '08:30', time_window_end: '10:30', service_time_mins: 25, address: 'Old Madras Rd, KR Puram, Bengaluru, Karnataka 560036' },
 ];
+
+// ============================================================================
+// 2. DELHI-NCR LOGISTICS CORRIDOR (Northern India)
+// ============================================================================
+export const DEL_DEPOT: Depot = {
+  id: 'DEPOT-DEL',
+  name: 'RouteQ Delhi-NCR Central Hub (Connaught Place)',
+  lat: 28.6315,
+  lng: 77.2167,
+  operating_hours_start: '08:00',
+  operating_hours_end: '19:00',
+};
+
+export const DEL_VEHICLES: Vehicle[] = [
+  {
+    id: 'DEL-V01',
+    name: 'Tata Ace EV Express',
+    capacity_kg: 500.0,
+    starting_depot_id: 'DEPOT-DEL',
+    max_route_distance_km: 130.0,
+    fuel_efficiency_km_per_l: 19.0,
+    fuel_type: 'electric',
+  },
+  {
+    id: 'DEL-V02',
+    name: 'Mahindra Bolero Maxi Truck',
+    capacity_kg: 650.0,
+    starting_depot_id: 'DEPOT-DEL',
+    max_route_distance_km: 150.0,
+    fuel_efficiency_km_per_l: 11.5,
+    fuel_type: 'diesel',
+  },
+  {
+    id: 'DEL-V03',
+    name: 'Euler HiLoad EV Delivery',
+    capacity_kg: 480.0,
+    starting_depot_id: 'DEPOT-DEL',
+    max_route_distance_km: 110.0,
+    fuel_efficiency_km_per_l: 18.0,
+    fuel_type: 'electric',
+  },
+];
+
+export const DEL_DELIVERIES: Delivery[] = [
+  { id: 'DEL-D01', customer_name: 'Gurugram Cyber City Tower B', lat: 28.4950, lng: 77.0895, demand_kg: 65.0, priority: 'urgent', time_window_start: '09:00', time_window_end: '11:30', service_time_mins: 20, address: 'DLF Cyber City, Phase 2, Gurugram, Haryana 122002' },
+  { id: 'DEL-D02', customer_name: 'Noida Sector 62 Electronic City', lat: 28.6280, lng: 77.3649, demand_kg: 50.0, priority: 'high', time_window_start: '09:30', time_window_end: '12:00', service_time_mins: 20, address: 'Sector 62, Noida, Uttar Pradesh 201309' },
+  { id: 'DEL-D03', customer_name: 'Okhla Phase 3 Industrial Area', lat: 28.5355, lng: 77.2730, demand_kg: 85.0, priority: 'urgent', time_window_start: '10:00', time_window_end: '12:30', service_time_mins: 25, address: 'Okhla Industrial Estate Phase III, New Delhi 110020' },
+  { id: 'DEL-D04', customer_name: 'Nehru Place Commercial Center', lat: 28.5494, lng: 77.2514, demand_kg: 40.0, priority: 'medium', time_window_start: '10:30', time_window_end: '13:00', service_time_mins: 15, address: 'Nehru Place Market, New Delhi 110019' },
+  { id: 'DEL-D05', customer_name: 'Karol Bagh Retail Arcade', lat: 28.6517, lng: 77.1906, demand_kg: 55.0, priority: 'medium', time_window_start: '11:00', time_window_end: '13:30', service_time_mins: 15, address: 'Ajmal Khan Rd, Karol Bagh, New Delhi 110005' },
+  { id: 'DEL-D06', customer_name: 'Saket Select Citywalk Logistics', lat: 28.5284, lng: 77.2185, demand_kg: 45.0, priority: 'high', time_window_start: '11:30', time_window_end: '14:00', service_time_mins: 20, address: 'District Centre, Saket, New Delhi 110017' },
+  { id: 'DEL-D07', customer_name: 'Janakpuri District Centre', lat: 28.6297, lng: 77.0782, demand_kg: 35.0, priority: 'low', time_window_start: '13:00', time_window_end: '16:00', service_time_mins: 15, address: 'Janakpuri District Centre, New Delhi 110058' },
+  { id: 'DEL-D08', customer_name: 'Faridabad Industrial Sector 15', lat: 28.4089, lng: 77.3178, demand_kg: 70.0, priority: 'high', time_window_start: '12:00', time_window_end: '15:30', service_time_mins: 20, address: 'Mathura Rd, Sector 15, Faridabad, Haryana 121007' },
+];
+
+// ============================================================================
+// 3. MUMBAI MMR LOGISTICS CORRIDOR (Western India)
+// ============================================================================
+export const BOM_DEPOT: Depot = {
+  id: 'DEPOT-BOM',
+  name: 'RouteQ Mumbai Central Hub (BKC G-Block)',
+  lat: 19.0657,
+  lng: 72.8687,
+  operating_hours_start: '08:00',
+  operating_hours_end: '19:00',
+};
+
+export const BOM_VEHICLES: Vehicle[] = [
+  {
+    id: 'BOM-V01',
+    name: 'Tata Ace EV Express',
+    capacity_kg: 500.0,
+    starting_depot_id: 'DEPOT-BOM',
+    max_route_distance_km: 120.0,
+    fuel_efficiency_km_per_l: 19.0,
+    fuel_type: 'electric',
+  },
+  {
+    id: 'BOM-V02',
+    name: 'Mahindra Bolero Maxi Truck',
+    capacity_kg: 650.0,
+    starting_depot_id: 'DEPOT-BOM',
+    max_route_distance_km: 140.0,
+    fuel_efficiency_km_per_l: 11.5,
+    fuel_type: 'diesel',
+  },
+  {
+    id: 'BOM-V03',
+    name: 'Piaggio Ape E-City Cargo',
+    capacity_kg: 420.0,
+    starting_depot_id: 'DEPOT-BOM',
+    max_route_distance_km: 90.0,
+    fuel_efficiency_km_per_l: 21.0,
+    fuel_type: 'electric',
+  },
+];
+
+export const BOM_DELIVERIES: Delivery[] = [
+  { id: 'BOM-D01', customer_name: 'BKC Financial Towers', lat: 19.0607, lng: 72.8654, demand_kg: 55.0, priority: 'urgent', time_window_start: '09:00', time_window_end: '11:00', service_time_mins: 20, address: 'G Block, Bandra Kurla Complex, Mumbai, Maharashtra 400051' },
+  { id: 'BOM-D02', customer_name: 'Andheri East MIDC Tech Park', lat: 19.1197, lng: 72.8797, demand_kg: 70.0, priority: 'high', time_window_start: '09:30', time_window_end: '12:00', service_time_mins: 25, address: 'Central Rd, MIDC, Andheri East, Mumbai, Maharashtra 400093' },
+  { id: 'BOM-D03', customer_name: 'Lower Parel High Street Phoenix', lat: 18.9953, lng: 72.8242, demand_kg: 40.0, priority: 'urgent', time_window_start: '10:00', time_window_end: '12:30', service_time_mins: 15, address: 'Senapati Bapat Marg, Lower Parel, Mumbai, Maharashtra 400013' },
+  { id: 'BOM-D04', customer_name: 'Nariman Point Financial District', lat: 18.9260, lng: 72.8238, demand_kg: 35.0, priority: 'high', time_window_start: '10:30', time_window_end: '13:00', service_time_mins: 15, address: 'Free Press Journal Marg, Nariman Point, Mumbai, Maharashtra 400021' },
+  { id: 'BOM-D05', customer_name: 'Powai Hiranandani Business Park', lat: 19.1176, lng: 72.9060, demand_kg: 60.0, priority: 'medium', time_window_start: '11:00', time_window_end: '14:00', service_time_mins: 20, address: 'Hiranandani Gardens, Powai, Mumbai, Maharashtra 400076' },
+  { id: 'BOM-D06', customer_name: 'Vashi APMC Agricultural Market', lat: 19.0760, lng: 72.9986, demand_kg: 95.0, priority: 'urgent', time_window_start: '08:30', time_window_end: '11:00', service_time_mins: 25, address: 'APMC Market, Sector 19, Vashi, Navi Mumbai, Maharashtra 400705' },
+  { id: 'BOM-D07', customer_name: 'Bandra West Linking Road Stores', lat: 19.0600, lng: 72.8360, demand_kg: 30.0, priority: 'medium', time_window_start: '12:00', time_window_end: '15:00', service_time_mins: 15, address: 'Linking Rd, Bandra West, Mumbai, Maharashtra 400050' },
+  { id: 'BOM-D08', customer_name: 'Thane Wagle Industrial Estate', lat: 19.1914, lng: 72.9525, demand_kg: 80.0, priority: 'low', time_window_start: '13:00', time_window_end: '16:30', service_time_mins: 20, address: 'Road No. 16, Wagle Estate, Thane, Maharashtra 400604' },
+];
+
+// ============================================================================
+// Multi-Hub Indian Directory
+// ============================================================================
+export interface IndiaHubInfo {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  depot: Depot;
+  vehicles: Vehicle[];
+  deliveries: Delivery[];
+}
+
+export const INDIA_HUBS: Record<string, IndiaHubInfo> = {
+  bengaluru: {
+    id: 'bengaluru',
+    name: 'Bengaluru Logistics Corridor',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    depot: BLR_DEPOT,
+    vehicles: BLR_VEHICLES,
+    deliveries: BLR_DELIVERIES,
+  },
+  delhi: {
+    id: 'delhi',
+    name: 'Delhi-NCR Logistics Corridor',
+    city: 'Delhi-NCR',
+    state: 'Delhi / Haryana',
+    depot: DEL_DEPOT,
+    vehicles: DEL_VEHICLES,
+    deliveries: DEL_DELIVERIES,
+  },
+  mumbai: {
+    id: 'mumbai',
+    name: 'Mumbai MMR Logistics Corridor',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    depot: BOM_DEPOT,
+    vehicles: BOM_VEHICLES,
+    deliveries: BOM_DELIVERIES,
+  },
+};
+
+// Default export compatibility (Bengaluru Primary)
+export const DEMO_DEPOT: Depot = BLR_DEPOT;
+export const DEMO_VEHICLES: Vehicle[] = BLR_VEHICLES;
+export const DEMO_DELIVERIES: Delivery[] = BLR_DELIVERIES;

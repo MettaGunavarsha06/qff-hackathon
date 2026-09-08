@@ -23,7 +23,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   backendOnline,
 }) => {
   const [formData, setFormData] = useState<Depot>({ ...depot });
-  const [fuelPrice, setFuelPrice] = useState<number>(1.45);
+  const [fuelPrice, setFuelPrice] = useState<number>(96.50);
   const [co2Factor, setCo2Factor] = useState<number>(2.68);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -116,7 +116,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
             <div>
-              <label className="block text-[10px] text-[#8A8A8E] uppercase mb-1">Fuel Price ($ / L)</label>
+              <label className="block text-[10px] text-[#8A8A8E] uppercase mb-1">Fuel Price (₹ / L - INR)</label>
               <input
                 type="number"
                 step="0.01"

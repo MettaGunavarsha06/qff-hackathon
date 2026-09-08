@@ -62,11 +62,14 @@ def build_route_details(
     depot: DepotInput,
     deliveries_map: Dict[str, DeliveryInput],
     traffic_level: str = "medium",
-    color: str = "#06b6d4"
+    color: str = "#06b6d4",
+    distance_matrix: Optional[Dict[Tuple[str, str], float]] = None,
+    time_matrix: Optional[Dict[Tuple[str, str], float]] = None,
 ) -> RouteOutput:
     """
     Builds structured RouteOutput and turn-by-turn waypoints from a stop sequence.
-    Example stop_ids: ["DEPOT", "D1", "D2", "DEPOT"]
+    When distance_matrix and time_matrix (from Mappls / routing API) are provided,
+    exact real-road distance and live traffic travel times are used.
     """
     coords: Dict[str, Tuple[float, float]] = {
         depot.id: (depot.lat, depot.lng)
@@ -109,8 +112,13 @@ def build_route_details(
         p1 = coords.get(prev_id, (depot.lat, depot.lng))
         p2 = coords.get(curr_id, (depot.lat, depot.lng))
 
-        leg_dist = haversine_distance(p1[0], p1[1], p2[0], p2[1])
-        leg_time = calculate_travel_time(leg_dist, traffic_level)
+        # Check for real road matrix first
+        if distance_matrix and (prev_id, curr_id) in distance_matrix:
+            leg_dist = distance_matrix[(prev_id, curr_id)]
+            leg_time = time_matrix.get((prev_id, curr_id), calculate_travel_time(leg_dist, traffic_level)) if time_matrix else calculate_travel_time(leg_dist, traffic_level)
+        else:
+            leg_dist = haversine_distance(p1[0], p1[1], p2[0], p2[1]) * 1.3  # Road network factor
+            leg_time = calculate_travel_time(leg_dist, traffic_level)
 
         total_dist_km += leg_dist
         total_time_mins += leg_time

@@ -10,10 +10,12 @@ import type {
   ConvergencePoint,
   MetricComparison,
   TrafficLevel,
+  TrafficStatus,
 } from '../types';
 import { DEMO_DEPOT, DEMO_VEHICLES, DEMO_DELIVERIES } from '../data/demoData';
 
 const API_BASE_URL = '/api';
+
 
 const VEHICLE_COLORS = [
   '#00F0FF', // Electric Cyan
@@ -608,6 +610,54 @@ export async function fetchDemoData(): Promise<{
   };
 }
 
+export async function fetchTrafficStatus(): Promise<TrafficStatus> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/traffic/status`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // offline
+  }
+  return {
+    status: 'traffic_unavailable',
+    message: 'Live traffic data is currently unavailable.',
+    provider: 'Mappls',
+    is_live: false,
+  };
+}
+
+export async function refreshLiveTraffic(
+  depot?: Depot,
+  deliveries?: Delivery[]
+): Promise<{ status: string; message: string; last_updated?: string; is_live: boolean; provider: string }> {
+  const d = depot || DEMO_DEPOT;
+  const delivs = deliveries || DEMO_DELIVERIES;
+  const locations = [
+    { id: d.id, lat: d.lat, lng: d.lng },
+    ...delivs.map((it) => ({ id: it.id, lat: it.lat, lng: it.lng })),
+  ];
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/traffic/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // offline
+  }
+  return {
+    status: 'traffic_unavailable',
+    message: 'Live traffic data is currently unavailable.',
+    provider: 'Mappls',
+    is_live: false,
+  };
+}
+
 export async function optimizeClassical(req: OptimizationRequest): Promise<OptimizationResult> {
   const payload = {
     depot: req.depot || DEMO_DEPOT,
@@ -618,6 +668,12 @@ export async function optimizeClassical(req: OptimizationRequest): Promise<Optim
     objective: req.objective || 'balanced',
     time_window_mode: req.time_window_mode || 'soft',
     capacity_mode: req.capacity_mode || 'strict',
+    use_live_traffic: req.use_live_traffic ?? true,
+    allow_non_traffic_fallback: req.allow_non_traffic_fallback ?? true,
+    distance_weight: req.distance_weight ?? 1.0,
+    time_weight: req.time_weight ?? 1.0,
+    fuel_weight: req.fuel_weight ?? 1.0,
+    co2_weight: req.co2_weight ?? 1.0,
   };
 
   try {
@@ -646,6 +702,12 @@ export async function optimizeQiskit(req: OptimizationRequest): Promise<Optimiza
     objective: req.objective || 'balanced',
     time_window_mode: req.time_window_mode || 'soft',
     capacity_mode: req.capacity_mode || 'strict',
+    use_live_traffic: req.use_live_traffic ?? true,
+    allow_non_traffic_fallback: req.allow_non_traffic_fallback ?? true,
+    distance_weight: req.distance_weight ?? 1.0,
+    time_weight: req.time_weight ?? 1.0,
+    fuel_weight: req.fuel_weight ?? 1.0,
+    co2_weight: req.co2_weight ?? 1.0,
   };
 
   try {
@@ -737,8 +799,13 @@ function adaptBackendResponse(data: any, req: OptimizationRequest): Optimization
     on_time_percentage: data.on_time_delivery_percentage,
     convergence_history: [],
     objective_score: data.total_distance_km,
+    traffic_status: data.traffic_status || (data.is_live_traffic_used ? 'live_connected' : 'traffic_unavailable'),
+    traffic_provider: data.traffic_provider || 'Mappls',
+    traffic_last_updated: data.traffic_last_updated,
+    is_live_traffic_used: Boolean(data.is_live_traffic_used),
   };
 }
+
 
 export async function compareSolvers(req: OptimizationRequest): Promise<ComparisonResult> {
   try {

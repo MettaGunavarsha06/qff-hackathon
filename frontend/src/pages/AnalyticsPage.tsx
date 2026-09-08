@@ -3,7 +3,7 @@ import {
   Leaf,
   Fuel,
   TreePine,
-  DollarSign,
+  IndianRupee,
 } from 'lucide-react';
 import {
   BarChart,
@@ -39,7 +39,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
     ? Math.max(0, Number((comparisonResult.unoptimized_summary.total_co2_kg - (optimizationResult?.total_co2_kg || 10.8)).toFixed(1)))
     : 14.0;
 
-  const dollarsSaved = Number((fuelSavedL * 1.45).toFixed(2));
+  // Indian commercial diesel / fuel benchmark tariff: ₹96.50 / Liter
+  const rupeesSaved = Math.round(fuelSavedL * 96.50);
   const treesEquivalent = Math.max(1, Math.round((co2SavedKg * 365) / 22));
 
   const radarData = [
@@ -68,7 +69,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pb-4 border-b border-white/[0.06]">
         <div>
           <div className="text-xs font-mono text-[#8A8A8E] uppercase tracking-wider">
-            FLEET TELEMETRY & ESG SUSTAINABILITY
+            FLEET TELEMETRY & ESG SUSTAINABILITY &bull; INDIA OPERATIONS
           </div>
           <h1 className="text-2xl sm:text-4xl font-bold text-white tracking-tight mt-1">
             PERFORMANCE & EMISSIONS ANALYTICS
@@ -77,7 +78,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
 
         <div className="text-xs font-mono text-[#8A8A8E] flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-          <span>ESG METRICS ACTIVE</span>
+          <span>ESG METRICS ACTIVE (INR / IST)</span>
         </div>
       </div>
 
@@ -104,10 +105,10 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
         <div className="p-5 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-2">
           <div className="flex items-center justify-between text-[#8A8A8E]">
             <span className="text-[11px] font-mono uppercase">OpEx Reduction</span>
-            <DollarSign className="w-4 h-4 text-[#F59E0B]" />
+            <IndianRupee className="w-4 h-4 text-[#F59E0B]" />
           </div>
-          <div className="text-2xl font-bold font-mono text-white">${dollarsSaved}</div>
-          <div className="text-[10px] font-mono text-[#8A8A8E]">Direct fuel cost saved</div>
+          <div className="text-2xl font-bold font-mono text-white">₹{rupeesSaved.toLocaleString('en-IN')}</div>
+          <div className="text-[10px] font-mono text-[#8A8A8E]">Direct fuel saved (@ ₹96.50/L)</div>
         </div>
 
         <div className="p-5 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-2">

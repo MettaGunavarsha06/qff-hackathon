@@ -43,11 +43,18 @@ def build_vrp_cost_matrix(
     depot: DepotInput,
     deliveries: List[DeliveryInput],
     objective: str = "balanced",
-    traffic_level: str = "medium"
+    traffic_level: str = "medium",
+    distance_matrix: Optional[Dict[Tuple[str, str], float]] = None,
+    time_matrix: Optional[Dict[Tuple[str, str], float]] = None,
+    distance_weight: float = 1.0,
+    time_weight: float = 1.0,
+    fuel_weight: float = 1.0,
+    co2_weight: float = 1.0,
 ) -> Tuple[List[str], np.ndarray]:
     """
     Constructs the weighted cost matrix C[i][j] between all nodes (Depot + deliveries).
-    Weights reflect the chosen objective: distance, time, fuel, co2, or balanced.
+    When real road distance_matrix and time_matrix from Mappls are available,
+    uses exact road distance and live traffic durations.
     """
     nodes = [depot.id] + [d.id for d in deliveries]
     n = len(nodes)
@@ -62,25 +69,36 @@ def build_vrp_cost_matrix(
             if i == j:
                 cost_matrix[i, j] = 0.0
             else:
-                p1 = coords[nodes[i]]
-                p2 = coords[nodes[j]]
-                dist = haversine_distance(p1[0], p1[1], p2[0], p2[1])
-                t_mins = calculate_travel_time(dist, traffic_level)
+                id_i = nodes[i]
+                id_j = nodes[j]
+
+                if distance_matrix and (id_i, id_j) in distance_matrix:
+                    dist = distance_matrix[(id_i, id_j)]
+                    t_mins = time_matrix.get((id_i, id_j), calculate_travel_time(dist, traffic_level)) if time_matrix else calculate_travel_time(dist, traffic_level)
+                else:
+                    p1 = coords[id_i]
+                    p2 = coords[id_j]
+                    dist = haversine_distance(p1[0], p1[1], p2[0], p2[1]) * 1.3
+                    t_mins = calculate_travel_time(dist, traffic_level)
+
+                fuel = dist / 12.0
+                co2 = fuel * 2.68
 
                 if objective == "distance":
                     cost = dist
                 elif objective == "time":
                     cost = t_mins
                 elif objective == "fuel":
-                    cost = dist / 12.0  # Normalized fuel consumption
+                    cost = fuel
                 elif objective == "co2":
-                    cost = (dist / 12.0) * 2.31
-                else:  # balanced
-                    cost = dist * 0.7 + t_mins * 0.3
+                    cost = co2
+                else:  # balanced multi-objective
+                    cost = distance_weight * dist + time_weight * t_mins + fuel_weight * fuel + co2_weight * co2
 
                 cost_matrix[i, j] = cost
 
     return nodes, cost_matrix
+
 
 def simulate_qaoa_statevector(
     cost_matrix: np.ndarray,
@@ -137,14 +155,30 @@ class QiskitVRPOptimizer:
     5. Solution Decoding into valid multi-vehicle routes
     6. Constraint Validation & Metric Calculation
     """
-    def __init__(self, request: OptimizationRequestInput):
+    def __init__(
+        self,
+        request: OptimizationRequestInput,
+        distance_matrix: Optional[Dict[Tuple[str, str], float]] = None,
+        time_matrix: Optional[Dict[Tuple[str, str], float]] = None,
+        is_live_traffic_used: bool = False,
+        traffic_provider: str = "Mappls",
+        traffic_status: str = "unavailable",
+        traffic_last_updated: Optional[str] = None,
+    ):
         self.request = request
-        self.depot = request.depot or DepotInput(id="DEPOT", lat=37.7685, lng=-122.4140)
+        self.depot = request.depot or DepotInput(id="DEPOT", lat=12.9279, lng=77.6271)
         self.vehicles = request.vehicles
         self.deliveries = request.deliveries
         self.objective = request.objective or "balanced"
         self.traffic_level = request.traffic_level or "medium"
         self.deliveries_map = {d.id: d for d in self.deliveries}
+        
+        self.distance_matrix = distance_matrix
+        self.time_matrix = time_matrix
+        self.is_live_traffic_used = is_live_traffic_used
+        self.traffic_provider = traffic_provider
+        self.traffic_status = traffic_status
+        self.traffic_last_updated = traffic_last_updated
 
     def optimize(self) -> OptimizationResponseOutput:
         start_time = time.perf_counter()
@@ -162,9 +196,18 @@ class QiskitVRPOptimizer:
                 f"Please select 'Load Quantum Demo (4 stops)' or use the classical optimizer."
             )
 
-        # Stage 1: Build QUBO cost matrix
+        # Stage 1: Build QUBO cost matrix with real road matrices
         nodes, cost_matrix = build_vrp_cost_matrix(
-            self.depot, self.deliveries, self.objective, self.traffic_level
+            depot=self.depot,
+            deliveries=self.deliveries,
+            objective=self.objective,
+            traffic_level=self.traffic_level,
+            distance_matrix=self.distance_matrix,
+            time_matrix=self.time_matrix,
+            distance_weight=float(getattr(self.request, "distance_weight", 1.0) or 1.0),
+            time_weight=float(getattr(self.request, "time_weight", 1.0) or 1.0),
+            fuel_weight=float(getattr(self.request, "fuel_weight", 1.0) or 1.0),
+            co2_weight=float(getattr(self.request, "co2_weight", 1.0) or 1.0),
         )
 
         # Stage 2: Configure & Execute QAOA
@@ -191,7 +234,6 @@ class QiskitVRPOptimizer:
 
                 # Execute on local Qiskit Aer simulator
                 backend = AerSimulator()
-                # Run small shot count to verify real execution
                 transpiled = qiskit.transpile(qc, backend)
                 job = backend.run(transpiled, shots=128)
                 counts = job.result().get_counts()
@@ -204,7 +246,6 @@ class QiskitVRPOptimizer:
         ordered_delivery_ids = [nodes[idx] for idx in optimal_perm_indices]
 
         # Stage 3: Multi-Vehicle Capacity Partitioning
-        # Assign the decoded sequence across available vehicles
         num_vehicles = len(self.vehicles)
         vehicle_assignments: List[List[str]] = [[] for _ in range(num_vehicles)]
         vehicle_loads = [0.0 for _ in range(num_vehicles)]
@@ -212,7 +253,6 @@ class QiskitVRPOptimizer:
         current_veh = 0
         for did in ordered_delivery_ids:
             demand = self.deliveries_map[did].get_demand()
-            # If current vehicle reaches capacity and more vehicles exist, move to next
             if (
                 vehicle_loads[current_veh] + demand > self.vehicles[current_veh].capacity
                 and current_veh < num_vehicles - 1
@@ -239,7 +279,9 @@ class QiskitVRPOptimizer:
                 depot=self.depot,
                 deliveries_map=self.deliveries_map,
                 traffic_level=self.traffic_level,
-                color=color
+                color=color,
+                distance_matrix=self.distance_matrix,
+                time_matrix=self.time_matrix,
             )
             route_outputs.append(r_out)
 
@@ -259,6 +301,12 @@ class QiskitVRPOptimizer:
             if total_delivered > 0 else 100.0
         )
 
+        traffic_note = (
+            "Live Mappls real-time road & traffic data successfully integrated into QAOA Hamiltonian."
+            if self.is_live_traffic_used
+            else "Live traffic data unavailable; Hamiltonian constructed using non-traffic road estimates."
+        )
+
         return OptimizationResponseOutput(
             status="success",
             method="qiskit",
@@ -274,7 +322,12 @@ class QiskitVRPOptimizer:
                 backend=solver_backend_name,
                 algorithm=algorithm_name,
                 status="completed",
-                notes="Executed on Qiskit Aer / Statevector quantum simulator. No physical QPU claimed."
+                notes=f"Executed on Qiskit Aer / Statevector quantum simulator. {traffic_note}"
             ),
-            unassigned_deliveries=[]
+            unassigned_deliveries=[],
+            traffic_status=self.traffic_status,
+            traffic_provider=self.traffic_provider,
+            traffic_last_updated=self.traffic_last_updated,
+            is_live_traffic_used=self.is_live_traffic_used,
         )
+

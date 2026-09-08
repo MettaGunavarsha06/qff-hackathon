@@ -28,7 +28,7 @@ def get_traffic_status() -> Dict[str, Any]:
     if not api_key:
         return {
             "status": "traffic_unavailable",
-            "message": "Live traffic data is currently unavailable. (MAPPLS_REST_KEY not configured)",
+            "message": "Live traffic data is currently unavailable.",
             "provider": TRAFFIC_PROVIDER_NAME,
             "is_live": False,
             "last_updated": get_ist_timestamp(),
@@ -37,15 +37,12 @@ def get_traffic_status() -> Dict[str, Any]:
 
     # Perform a lightweight ping/check to Mappls endpoint
     try:
-        # Check driving distance between two standard points in Delhi/Bengaluru
-        # Using Mappls distance_matrix_eta endpoint with small timeout
         coords = "77.6271,12.9279;77.6412,12.9716"  # lon,lat;lon,lat
         url = f"https://apis.mappls.com/advancedmaps/v1/{api_key}/distance_matrix_eta/driving/{coords}"
         resp = requests.get(url, timeout=4.0)
 
         if resp.status_code == 200:
             data = resp.json()
-            # Mappls returns responseCode 200 or code 200/ok
             if data.get("responseCode") in [200, "200"] or "durations" in data or "results" in data:
                 return {
                     "status": "live_connected",
@@ -56,20 +53,18 @@ def get_traffic_status() -> Dict[str, Any]:
                     "api_configured": True,
                 }
 
-        # If error response from API (e.g. invalid key or quota)
-        error_msg = resp.json().get("message", f"HTTP {resp.status_code}") if resp.text else f"HTTP {resp.status_code}"
         return {
             "status": "traffic_unavailable",
-            "message": f"Live traffic data is currently unavailable. ({error_msg})",
+            "message": "Live traffic data is currently unavailable.",
             "provider": TRAFFIC_PROVIDER_NAME,
             "is_live": False,
             "last_updated": get_ist_timestamp(),
             "api_configured": True,
         }
-    except Exception as e:
+    except Exception:
         return {
             "status": "traffic_unavailable",
-            "message": f"Live traffic data is currently unavailable. ({str(e)})",
+            "message": "Live traffic data is currently unavailable.",
             "provider": TRAFFIC_PROVIDER_NAME,
             "is_live": False,
             "last_updated": get_ist_timestamp(),
@@ -100,13 +95,14 @@ def get_distance_matrix(locations: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not api_key:
         return {
             "status": "traffic_unavailable",
-            "message": "Live traffic data is currently unavailable. (MAPPLS_REST_KEY not configured)",
+            "message": "Live traffic data is currently unavailable.",
             "provider": TRAFFIC_PROVIDER_NAME,
             "is_live": False,
             "last_updated": get_ist_timestamp(),
             "distance_matrix": None,
             "time_matrix": None,
         }
+
 
     try:
         # Mappls requires coordinates in longitude,latitude order separated by semicolon
@@ -193,10 +189,10 @@ def get_distance_matrix(locations: List[Dict[str, Any]]) -> Dict[str, Any]:
             "traffic_status": traffic_status,
         }
 
-    except Exception as e:
+    except Exception:
         return {
             "status": "traffic_unavailable",
-            "message": f"Live traffic data is currently unavailable. ({str(e)})",
+            "message": "Live traffic data is currently unavailable.",
             "provider": TRAFFIC_PROVIDER_NAME,
             "is_live": False,
             "last_updated": get_ist_timestamp(),
@@ -250,10 +246,10 @@ def get_route(origin: Tuple[float, float], destination: Tuple[float, float]) -> 
             "provider": TRAFFIC_PROVIDER_NAME,
             "is_live": False,
         }
-    except Exception as e:
+    except Exception:
         return {
             "status": "traffic_unavailable",
-            "message": f"Live traffic data is currently unavailable. ({str(e)})",
+            "message": "Live traffic data is currently unavailable.",
             "provider": TRAFFIC_PROVIDER_NAME,
             "is_live": False,
         }
@@ -283,3 +279,33 @@ def get_live_eta(origin: Tuple[float, float], destination: Tuple[float, float]) 
             "provider": TRAFFIC_PROVIDER_NAME,
             "is_live": False,
         }
+
+def refresh_traffic(locations: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Refreshes real-time traffic data from Mappls for the given locations.
+    Returns updated travel matrix and IST timestamp.
+    Does NOT simulate traffic if the request fails.
+    """
+    matrix_res = get_distance_matrix(locations)
+    if matrix_res.get("status") == "success":
+        return {
+            "status": "success",
+            "provider": TRAFFIC_PROVIDER_NAME,
+            "is_live": True,
+            "last_updated": matrix_res.get("last_updated", get_ist_timestamp()),
+            "message": f"Live traffic updated: {matrix_res.get('last_updated', get_ist_timestamp())}",
+            "distance_matrix": matrix_res.get("distance_matrix"),
+            "time_matrix": matrix_res.get("time_matrix"),
+            "traffic_status": matrix_res.get("traffic_status"),
+        }
+    else:
+        return {
+            "status": "traffic_unavailable",
+            "message": "Live traffic data is currently unavailable.",
+            "provider": TRAFFIC_PROVIDER_NAME,
+            "is_live": False,
+            "last_updated": get_ist_timestamp(),
+            "distance_matrix": None,
+            "time_matrix": None,
+        }
+

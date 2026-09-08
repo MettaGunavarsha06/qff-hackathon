@@ -31,9 +31,9 @@ export const VehiclesPage: React.FC<VehiclesPageProps> = ({
     id: '',
     name: '',
     capacity_kg: 500.0,
-    starting_depot_id: 'DEPOT-01',
+    starting_depot_id: 'DEPOT-BLR',
     max_route_distance_km: 140.0,
-    fuel_efficiency_km_per_l: 12.0,
+    fuel_efficiency_km_per_l: 18.0,
     fuel_type: 'electric',
   });
 
@@ -41,15 +41,25 @@ export const VehiclesPage: React.FC<VehiclesPageProps> = ({
 
   const openAddModal = () => {
     const nextNum = vehicles.length + 1;
-    const newId = `V-${nextNum < 10 ? '0' + nextNum : nextNum}`;
+    const newId = `IND-V${nextNum < 10 ? '0' + nextNum : nextNum}`;
+    const indianFleetNames = [
+      'Tata Ace EV Express',
+      'Mahindra Bolero Maxi Truck',
+      'Ashok Leyland Bada Dost',
+      'Euler HiLoad EV Delivery',
+      'Piaggio Ape E-City Cargo',
+      'Mahindra Zor Grand EV',
+      'Tata Intra V50 Cargo',
+    ];
+    const defaultName = indianFleetNames[(nextNum - 1) % indianFleetNames.length];
     setEditingVehicle(null);
     setFormData({
       id: newId,
-      name: `VoltExpress Cargo E${nextNum}`,
+      name: defaultName,
       capacity_kg: 500.0,
-      starting_depot_id: 'DEPOT-01',
-      max_route_distance_km: 140.0,
-      fuel_efficiency_km_per_l: 18.0,
+      starting_depot_id: vehicles[0]?.starting_depot_id || 'DEPOT-BLR',
+      max_route_distance_km: 130.0,
+      fuel_efficiency_km_per_l: 19.0,
       fuel_type: 'electric',
     });
     setFormError(null);

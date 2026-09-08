@@ -2,109 +2,6 @@ from typing import List, Tuple
 from .models import Depot, Vehicle, Delivery
 
 def get_demo_depot() -> Depot:
-    return Depot(
-        id="DEPOT-01",
-        name="RouteQ Bay Logistics Hub",
-        lat=37.7685,
-        lng=-122.4140,
-        operating_hours_start="08:00",
-        operating_hours_end="18:00"
-    )
-
-def get_demo_vehicles() -> List[Vehicle]:
-    return [
-        Vehicle(
-            id="V-01",
-            name="VoltExpress Cargo E1",
-            capacity_kg=480.0,
-            starting_depot_id="DEPOT-01",
-            max_route_distance_km=130.0,
-            fuel_efficiency_km_per_l=18.0,
-            fuel_type="electric"
-        ),
-        Vehicle(
-            id="V-02",
-            name="EcoTransit Sprinter Alpha",
-            capacity_kg=550.0,
-            starting_depot_id="DEPOT-01",
-            max_route_distance_km=150.0,
-            fuel_efficiency_km_per_l=9.5,
-            fuel_type="diesel"
-        ),
-        Vehicle(
-            id="V-03",
-            name="UrbanHybrid Courier H1",
-            capacity_kg=420.0,
-            starting_depot_id="DEPOT-01",
-            max_route_distance_km=120.0,
-            fuel_efficiency_km_per_l=14.0,
-            fuel_type="hybrid"
-        ),
-        Vehicle(
-            id="V-04",
-            name="EcoTransit Sprinter Beta",
-            capacity_kg=580.0,
-            starting_depot_id="DEPOT-01",
-            max_route_distance_km=160.0,
-            fuel_efficiency_km_per_l=9.0,
-            fuel_type="diesel"
-        ),
-        Vehicle(
-            id="V-05",
-            name="VoltExpress Cargo E2",
-            capacity_kg=500.0,
-            starting_depot_id="DEPOT-01",
-            max_route_distance_km=130.0,
-            fuel_efficiency_km_per_l=18.5,
-            fuel_type="electric"
-        )
-    ]
-
-def get_demo_deliveries() -> List[Delivery]:
-    raw_data = [
-        ("DEL-01", "Apex BioTech Labs", 37.7885, -122.3995, 38.0, "urgent", "08:30", "10:30", 15, "550 Howard St, Financial District"),
-        ("DEL-02", "Salesforce Tower Reception", 37.7897, -122.3972, 45.0, "high", "09:00", "11:30", 20, "415 Mission St, SoMa"),
-        ("DEL-03", "Pacific Heights Medical", 37.7925, -122.4345, 25.0, "urgent", "09:00", "11:00", 15, "2340 Clay St, Pacific Heights"),
-        ("DEL-04", "Presidio Design Studio", 37.7989, -122.4542, 62.0, "medium", "10:00", "13:00", 20, "101 Montgomery St, Presidio"),
-        ("DEL-05", "Fisherman's Wharf Provisions", 37.8080, -122.4177, 85.0, "high", "08:30", "11:00", 25, "2800 Leavenworth St, North Beach"),
-        ("DEL-06", "Embarcadero Tech Center", 37.7955, -122.3937, 30.0, "medium", "11:00", "14:00", 15, "1 Market St, Financial District"),
-        ("DEL-07", "Nob Hill Boutique Hotel", 37.7915, -122.4150, 40.0, "high", "09:30", "12:00", 15, "905 California St, Nob Hill"),
-        ("DEL-08", "Mission Community Health", 37.7599, -122.4148, 55.0, "urgent", "10:00", "12:00", 20, "2401 Mission St, Mission"),
-        ("DEL-09", "Castro Artisan Foods", 37.7609, -122.4350, 48.0, "medium", "11:00", "14:30", 15, "400 Castro St, Castro"),
-        ("DEL-10", "Noe Valley Organic Mart", 37.7502, -122.4332, 68.0, "low", "13:00", "16:30", 20, "3900 24th St, Noe Valley"),
-        ("DEL-11", "Potrero Hill Creative Hub", 37.7580, -122.4010, 32.0, "medium", "12:00", "15:00", 15, "1695 18th St, Potrero Hill"),
-        ("DEL-12", "Dogpatch Hardware & Craft", 37.7562, -122.3879, 90.0, "high", "09:00", "12:00", 25, "2298 3rd St, Dogpatch"),
-        ("DEL-13", "Mission Bay Biotech Incubator", 37.7675, -122.3910, 35.0, "urgent", "09:30", "11:30", 15, "1700 4th St, Mission Bay"),
-        ("DEL-14", "Inner Sunset Pharmacy", 37.7635, -122.4660, 22.0, "urgent", "10:30", "12:30", 15, "1200 9th Ave, Inner Sunset"),
-        ("DEL-15", "Outer Sunset Surf Supplies", 37.7535, -122.5050, 75.0, "low", "13:30", "17:00", 20, "3800 Judah St, Outer Sunset"),
-        ("DEL-16", "Richmond District Books", 37.7802, -122.4820, 28.0, "medium", "11:30", "15:00", 15, "5400 Geary Blvd, Central Richmond"),
-        ("DEL-17", "Golden Gate Park Science Ctr", 37.7699, -122.4661, 50.0, "medium", "10:00", "13:30", 20, "55 Music Concourse Dr, GGP"),
-        ("DEL-18", "Marina Green Yacht Supply", 37.8045, -122.4380, 65.0, "high", "09:00", "12:30", 20, "3950 Scott St, Marina"),
-        ("DEL-19", "Cow Hollow Wine Merchants", 37.7975, -122.4350, 42.0, "medium", "12:30", "16:00", 15, "2100 Union St, Cow Hollow"),
-        ("DEL-20", "Chinatown Heritage Market", 37.7941, -122.4078, 58.0, "high", "09:00", "11:30", 20, "700 Grant Ave, Chinatown"),
-        ("DEL-21", "Civic Center Municipal Library", 37.7792, -122.4158, 30.0, "low", "13:00", "17:00", 15, "100 Larkin St, Civic Center"),
-        ("DEL-22", "Twin Peaks View Observatory", 37.7544, -122.4477, 18.0, "low", "14:00", "17:30", 15, "501 Twin Peaks Blvd"),
-        ("DEL-23", "Glen Park Village Bakery", 37.7345, -122.4335, 40.0, "medium", "11:00", "14:30", 15, "2800 Diamond St, Glen Park"),
-        ("DEL-24", "Bernal Heights Hardware", 37.7420, -122.4180, 52.0, "medium", "12:00", "15:30", 15, "400 Cortland Ave, Bernal Heights"),
-        ("DEL-25", "Oracle Park Event Logistics", 37.7786, -122.3893, 80.0, "urgent", "08:30", "10:30", 25, "24 Willie Mays Plaza, South Beach")
-    ]
-    deliveries = []
-    for item in raw_data:
-        deliveries.append(Delivery(
-            id=item[0],
-            customer_name=item[1],
-            lat=item[2],
-            lng=item[3],
-            demand_kg=item[4],
-            priority=item[5],
-            time_window_start=item[6],
-            time_window_end=item[7],
-            service_time_mins=item[8],
-            address=item[9]
-        ))
-    return deliveries
-
-def get_india_demo_depot() -> Depot:
     """Central logistics depot at Koramangala, Bengaluru, India."""
     return Depot(
         id="DEPOT-BLR",
@@ -115,7 +12,7 @@ def get_india_demo_depot() -> Depot:
         operating_hours_end="18:30"
     )
 
-def get_india_demo_vehicles() -> List[Vehicle]:
+def get_demo_vehicles() -> List[Vehicle]:
     """Urban delivery fleet tailored for Indian traffic and road conditions."""
     return [
         Vehicle(
@@ -123,16 +20,16 @@ def get_india_demo_vehicles() -> List[Vehicle]:
             name="Tata Ace EV Express",
             capacity_kg=500.0,
             starting_depot_id="DEPOT-BLR",
-            max_route_distance_km=110.0,
+            max_route_distance_km=120.0,
             fuel_efficiency_km_per_l=19.0,
             fuel_type="electric"
         ),
         Vehicle(
             id="IND-V02",
-            name="Mahindra Bolero Maxi",
+            name="Mahindra Bolero Maxi Truck",
             capacity_kg=650.0,
             starting_depot_id="DEPOT-BLR",
-            max_route_distance_km=140.0,
+            max_route_distance_km=150.0,
             fuel_efficiency_km_per_l=11.5,
             fuel_type="diesel"
         ),
@@ -141,7 +38,7 @@ def get_india_demo_vehicles() -> List[Vehicle]:
             name="Ashok Leyland Bada Dost",
             capacity_kg=750.0,
             starting_depot_id="DEPOT-BLR",
-            max_route_distance_km=150.0,
+            max_route_distance_km=160.0,
             fuel_efficiency_km_per_l=10.0,
             fuel_type="diesel"
         ),
@@ -150,25 +47,49 @@ def get_india_demo_vehicles() -> List[Vehicle]:
             name="Euler HiLoad EV Delivery",
             capacity_kg=480.0,
             starting_depot_id="DEPOT-BLR",
-            max_route_distance_km=100.0,
+            max_route_distance_km=110.0,
             fuel_efficiency_km_per_l=18.0,
             fuel_type="electric"
         ),
+        Vehicle(
+            id="IND-V05",
+            name="Piaggio Ape E-City Cargo",
+            capacity_kg=420.0,
+            starting_depot_id="DEPOT-BLR",
+            max_route_distance_km=95.0,
+            fuel_efficiency_km_per_l=21.0,
+            fuel_type="electric"
+        )
     ]
 
-def get_india_demo_deliveries() -> List[Delivery]:
-    """10 realistic delivery stops across major Bengaluru commercial and tech corridors."""
+def get_demo_deliveries() -> List[Delivery]:
+    """25 realistic delivery stops across major Bengaluru commercial and tech corridors."""
     raw_india = [
-        ("BLR-D01", "Indiranagar 100ft Road Retail Hub", 12.9716, 77.6412, 45.0, "urgent", "09:00", "11:30", 15, "100 Feet Rd, HAL 2nd Stage, Indiranagar"),
-        ("BLR-D02", "HSR Layout Sector 2 Tech Office", 12.9121, 77.6446, 60.0, "high", "09:30", "12:00", 20, "27th Main Rd, HSR Layout Sector 2"),
-        ("BLR-D03", "MG Road Commercial Plaza", 12.9756, 77.6066, 35.0, "urgent", "10:00", "12:30", 15, "Mahatma Gandhi Rd, Central Business District"),
-        ("BLR-D04", "Bellandur EcoSpace Tech Park", 12.9304, 77.6784, 80.0, "high", "10:30", "13:30", 25, "Outer Ring Rd, Bellandur"),
-        ("BLR-D05", "Marathahalli Multiplex & Market", 12.9591, 77.6974, 55.0, "medium", "11:00", "14:00", 15, "Varthur Rd, Marathahalli"),
-        ("BLR-D06", "Whitefield ITPL Main Gate", 12.9863, 77.7314, 90.0, "medium", "11:30", "14:30", 25, "International Tech Park, Whitefield"),
-        ("BLR-D07", "Jayanagar 4th Block Market", 12.9308, 77.5838, 40.0, "medium", "12:00", "15:00", 15, "11th Main Rd, Jayanagar 4th Block"),
-        ("BLR-D08", "Electronic City Phase 1 Infosys Gate", 12.8452, 77.6602, 70.0, "low", "13:00", "16:30", 20, "Hosur Rd, Electronic City Phase 1"),
-        ("BLR-D09", "Sarjapur Road Wipro Campus", 12.9102, 77.6835, 65.0, "high", "13:30", "16:30", 20, "Sarjapur Main Rd, Kaikondrahalli"),
-        ("BLR-D10", "Hebbal Manyata Tech Park", 13.0458, 77.6201, 50.0, "low", "14:00", "17:30", 20, "Outer Ring Rd, Nagavara, Hebbal")
+        ("BLR-D01", "Apex BioTech Labs India", 12.9716, 77.6412, 38.0, "urgent", "08:30", "10:30", 15, "100 Feet Rd, HAL 2nd Stage, Indiranagar, Bengaluru"),
+        ("BLR-D02", "Flipkart Internet Campus", 12.9121, 77.6446, 45.0, "high", "09:00", "11:30", 20, "27th Main Rd, HSR Layout Sector 2, Bengaluru"),
+        ("BLR-D03", "MG Road Commercial Plaza", 12.9756, 77.6066, 25.0, "urgent", "09:00", "11:00", 15, "Mahatma Gandhi Rd, Central Business District, Bengaluru"),
+        ("BLR-D04", "Bellandur EcoSpace Tech Park", 12.9304, 77.6784, 62.0, "medium", "10:00", "13:00", 20, "Outer Ring Rd, Bellandur, Bengaluru"),
+        ("BLR-D05", "Marathahalli Multiplex & Market", 12.9591, 77.6974, 55.0, "high", "08:30", "11:00", 25, "Varthur Rd, Marathahalli, Bengaluru"),
+        ("BLR-D06", "Whitefield ITPL Main Gate", 12.9863, 77.7314, 90.0, "medium", "11:00", "14:00", 25, "International Tech Park, Whitefield, Bengaluru"),
+        ("BLR-D07", "Jayanagar 4th Block Market", 12.9308, 77.5838, 40.0, "high", "09:30", "12:00", 15, "11th Main Rd, Jayanagar 4th Block, Bengaluru"),
+        ("BLR-D08", "Electronic City Infosys Gate 1", 12.8452, 77.6602, 70.0, "urgent", "10:00", "12:00", 20, "Hosur Rd, Electronic City Phase 1, Bengaluru"),
+        ("BLR-D09", "Sarjapur Road Wipro Campus", 12.9102, 77.6835, 65.0, "medium", "11:00", "14:30", 15, "Sarjapur Main Rd, Kaikondrahalli, Bengaluru"),
+        ("BLR-D10", "Hebbal Manyata Tech Park", 13.0458, 77.6201, 50.0, "low", "13:00", "16:30", 20, "Outer Ring Rd, Nagavara, Hebbal, Bengaluru"),
+        ("BLR-D11", "Malleshwaram 8th Cross Retail", 12.9984, 77.5714, 32.0, "medium", "12:00", "15:00", 15, "Margosa Rd, Malleshwaram, Bengaluru"),
+        ("BLR-D12", "Rajajinagar Industrial Estate", 12.9892, 77.5539, 85.0, "high", "09:00", "12:00", 25, "West of Chord Rd, Rajajinagar, Bengaluru"),
+        ("BLR-D13", "Peenya 1st Stage Manufacturing", 13.0285, 77.5195, 95.0, "urgent", "09:30", "11:30", 20, "Peenya Industrial Area, Bengaluru"),
+        ("BLR-D14", "BTM Layout 2nd Stage Commerce", 12.9165, 77.6101, 28.0, "urgent", "10:30", "12:30", 15, "Outer Ring Rd, BTM 2nd Stage, Bengaluru"),
+        ("BLR-D15", "JP Nagar 6th Phase Cultural Hub", 12.9063, 77.5855, 45.0, "low", "13:30", "17:00", 20, "15th Cross Rd, JP Nagar 6th Phase, Bengaluru"),
+        ("BLR-D16", "Banashankari 3rd Stage Mart", 12.9255, 77.5467, 35.0, "medium", "11:30", "15:00", 15, "Kathreguppe Main Rd, Banashankari, Bengaluru"),
+        ("BLR-D17", "Domlur Intermediate Ring Rd Hub", 12.9609, 77.6387, 48.0, "medium", "10:00", "13:30", 20, "Intermediate Ring Rd, Domlur, Bengaluru"),
+        ("BLR-D18", "Richmond Town Commercial Zone", 12.9634, 77.6022, 52.0, "high", "09:00", "12:30", 20, "Richmond Rd, Richmond Town, Bengaluru"),
+        ("BLR-D19", "Commercial Street Fashion Arcade", 12.9822, 77.6083, 42.0, "medium", "12:30", "16:00", 15, "Tasker Town, Shivajinagar, Bengaluru"),
+        ("BLR-D20", "Frazer Town Gourmet Emporium", 12.9968, 77.6133, 58.0, "high", "09:00", "11:30", 20, "Mosque Rd, Pulikeshi Nagar, Bengaluru"),
+        ("BLR-D21", "Kalyan Nagar CMR Road Tech Hub", 13.0218, 77.6436, 30.0, "low", "13:00", "17:00", 15, "CMR Main Rd, HRBR Layout, Kalyan Nagar, Bengaluru"),
+        ("BLR-D22", "Yeshwanthpur Wholesale Yard", 13.0210, 77.5480, 75.0, "low", "14:00", "17:30", 20, "Tumkur Rd, Yeshwanthpur, Bengaluru"),
+        ("BLR-D23", "Bannerghatta Apollo Hospital", 12.8943, 77.5995, 35.0, "urgent", "11:00", "13:30", 15, "Bannerghatta Main Rd, Arakere, Bengaluru"),
+        ("BLR-D24", "Yelahanka New Town Complex", 13.1007, 77.5963, 52.0, "medium", "12:00", "15:30", 15, "Major Sandeep Unnikrishnan Rd, Yelahanka, Bengaluru"),
+        ("BLR-D25", "KR Puram Railway Cargo Logistics", 13.0039, 77.6953, 80.0, "urgent", "08:30", "10:30", 25, "Old Madras Rd, KR Puram, Bengaluru")
     ]
     deliveries = []
     for item in raw_india:
@@ -185,3 +106,12 @@ def get_india_demo_deliveries() -> List[Delivery]:
             address=item[9]
         ))
     return deliveries
+
+def get_india_demo_depot() -> Depot:
+    return get_demo_depot()
+
+def get_india_demo_vehicles() -> List[Vehicle]:
+    return get_demo_vehicles()
+
+def get_india_demo_deliveries() -> List[Delivery]:
+    return get_demo_deliveries()

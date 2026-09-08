@@ -97,6 +97,15 @@ export interface ConvergencePoint {
   best_energy: number;
 }
 
+export interface TrafficStatus {
+  status: 'live_connected' | 'traffic_unavailable';
+  provider: string;
+  is_live: boolean;
+  message: string;
+  last_updated?: string;
+  api_configured?: boolean;
+}
+
 export interface OptimizationResult {
   solver_type: string;
   solver_name: string;
@@ -112,6 +121,10 @@ export interface OptimizationResult {
   on_time_percentage: number;
   convergence_history: ConvergencePoint[];
   objective_score: number;
+  traffic_status?: string;
+  traffic_provider?: string;
+  traffic_last_updated?: string;
+  is_live_traffic_used?: boolean;
 }
 
 export interface MetricComparison {
@@ -144,4 +157,11 @@ export interface OptimizationRequest {
   capacity_mode: 'strict' | 'relaxed';
   solver_type: SolverType;
   random_seed?: number;
+  use_live_traffic?: boolean;
+  allow_non_traffic_fallback?: boolean;
+  distance_weight?: number;
+  time_weight?: number;
+  fuel_weight?: number;
+  co2_weight?: number;
 }
+

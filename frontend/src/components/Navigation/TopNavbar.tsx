@@ -4,7 +4,10 @@ import {
   X,
   Database,
   ArrowRight,
+  RefreshCw,
+  Radio,
 } from 'lucide-react';
+import type { TrafficStatus } from '../../types';
 
 export type NavTab =
   | 'landing'
@@ -22,11 +25,16 @@ interface TopNavbarProps {
   onSelectTab: (tab: NavTab) => void;
   onQuickOptimize: () => void;
   onLoadDemo: () => void;
+  onSelectHub?: (hubKey: string) => void;
+  selectedHubKey?: string;
   isOptimizing: boolean;
   isOptimized: boolean;
   backendOnline: boolean;
   totalDeliveries: number;
   totalVehicles: number;
+  trafficStatus?: TrafficStatus;
+  onRefreshTraffic?: () => void;
+  isRefreshingTraffic?: boolean;
 }
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({
@@ -34,10 +42,15 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   onSelectTab,
   onQuickOptimize,
   onLoadDemo,
+  onSelectHub,
+  selectedHubKey = 'bengaluru',
   isOptimizing,
   isOptimized,
   totalDeliveries,
   totalVehicles,
+  trafficStatus,
+  onRefreshTraffic,
+  isRefreshingTraffic,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -52,6 +65,8 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
     { id: 'analytics', label: 'Telemetry' },
     { id: 'settings', label: 'Config' },
   ];
+
+  const isTrafficLive = trafficStatus?.is_live ?? false;
 
   return (
     <header className="sticky top-0 z-40 bg-[#080808]/90 backdrop-blur-md border-b border-white/[0.06] text-xs">
@@ -104,18 +119,87 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* Right Controls: Telemetry Strip & Optimize Action */}
         <div className="flex items-center gap-3">
           
-          {/* Subtle Live Status Indicator */}
-          <div className="hidden lg:flex items-center gap-2 text-[11px] font-mono text-[#8A8A8E]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-            <span>QISKIT SQA</span>
+          {/* Traffic Status Indicator (India / Mappls) */}
+          <div
+            className={`hidden md:flex items-center gap-2 px-2.5 py-1 rounded border font-mono text-[10px] transition-all ${
+              isTrafficLive
+                ? 'bg-[#10B981]/10 border-[#10B981]/30 text-emerald-300'
+                : 'bg-white/[0.03] border-white/[0.08] text-[#8A8A8E]'
+            }`}
+            title={trafficStatus?.message || (isTrafficLive ? 'Live Traffic Connected (Mappls)' : 'Traffic Data Unavailable')}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                isTrafficLive ? 'bg-[#10B981] animate-pulse' : 'bg-[#F59E0B]'
+              }`}
+            />
+            <div className="flex items-center gap-1.5 leading-tight">
+              <span className="font-semibold text-white">
+                {isTrafficLive ? 'Live Traffic Connected' : 'Traffic Data Unavailable'}
+              </span>
+              <span className="text-white/40">|</span>
+              <span className="text-[9px] text-[#A1A1AA]">
+                Mappls {trafficStatus?.last_updated ? `(${trafficStatus.last_updated.split(', ')[1] || 'IST'})` : ''}
+              </span>
+            </div>
           </div>
 
+          {/* Refresh Live Traffic Action */}
+          {onRefreshTraffic && (
+            <button
+              onClick={onRefreshTraffic}
+              disabled={isRefreshingTraffic}
+              title="Refresh real-time Mappls road matrix & traffic-aware ETAs"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-white/[0.04] hover:bg-white/[0.08] text-[#8A8A8E] hover:text-white border border-white/[0.06] font-mono text-[10px] tracking-wider transition-all cursor-pointer"
+            >
+              <RefreshCw className={`w-3 h-3 text-[#00F0FF] ${isRefreshingTraffic ? 'animate-spin' : ''}`} />
+              <span className="hidden lg:inline">{isRefreshingTraffic ? 'FETCHING...' : 'REFRESH TRAFFIC'}</span>
+            </button>
+          )}
+
           <div className="hidden lg:block h-3.5 w-px bg-white/[0.08]" />
+
+          {/* India Multi-Hub Corridor Switcher */}
+          {onSelectHub && (
+            <div className="hidden lg:flex items-center gap-1 bg-white/[0.03] p-0.5 rounded border border-white/[0.06] font-mono text-[10px]">
+              <span className="px-1.5 py-0.5 text-[#8A8A8E] flex items-center gap-1">
+                <span>🇮🇳</span>
+                <span className="hidden xl:inline">HUB:</span>
+              </span>
+              <button
+                onClick={() => onSelectHub('bengaluru')}
+                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                  selectedHubKey === 'bengaluru' ? 'bg-white/10 text-white font-semibold' : 'text-[#8A8A8E] hover:text-white'
+                }`}
+                title="Bengaluru Logistics Corridor, Karnataka (25 stops)"
+              >
+                BLR (25)
+              </button>
+              <button
+                onClick={() => onSelectHub('delhi')}
+                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                  selectedHubKey === 'delhi' ? 'bg-white/10 text-white font-semibold' : 'text-[#8A8A8E] hover:text-white'
+                }`}
+                title="Delhi-NCR Logistics Corridor, Delhi / Haryana (8 stops)"
+              >
+                DEL (8)
+              </button>
+              <button
+                onClick={() => onSelectHub('mumbai')}
+                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                  selectedHubKey === 'mumbai' ? 'bg-white/10 text-white font-semibold' : 'text-[#8A8A8E] hover:text-white'
+                }`}
+                title="Mumbai MMR Logistics Corridor, Maharashtra (8 stops)"
+              >
+                BOM (8)
+              </button>
+            </div>
+          )}
 
           {/* Load Demo Button */}
           <button
             onClick={onLoadDemo}
-            title="Load 25 standard benchmark stops"
+            title="Load 25 Bengaluru benchmark delivery stops (India)"
             className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/[0.04] hover:bg-white/[0.08] text-[#8A8A8E] hover:text-white border border-white/[0.06] font-mono text-[10px] tracking-wider transition-all cursor-pointer"
           >
             <Database className="w-3 h-3 text-[#FF5500]" />
@@ -141,6 +225,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           </button>
         </div>
       </div>
+
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (

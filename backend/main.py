@@ -10,10 +10,21 @@ from models.schemas import (
     DepotInput,
     VehicleInput,
     DeliveryInput,
+    RefreshTrafficRequest,
+    RouteRequest,
 )
 from services.classical_optimizer import ClassicalOptimizer
 from services.qiskit_optimizer import QiskitVRPOptimizer, QISKIT_AVAILABLE, AER_AVAILABLE
 from services.route_optimizer import run_route_optimization, run_comparison_benchmark
+from services.traffic_service import (
+    get_traffic_status,
+    get_distance_matrix,
+    get_route,
+    get_live_eta,
+    refresh_traffic,
+    get_ist_timestamp,
+    TRAFFIC_PROVIDER_NAME,
+)
 from optimizer.demo_data import get_demo_depot, get_demo_vehicles, get_demo_deliveries
 
 app = FastAPI(
@@ -43,6 +54,54 @@ _last_optimization_status = {
 }
 
 # -------------------------------------------------------------------
+# Helper: Collect Coordinates & Build Traffic Matrix
+# -------------------------------------------------------------------
+def prepare_traffic_matrix(req: OptimizationRequestInput):
+    """
+    1. Collects depot and delivery coordinates.
+    2. Requests real road travel information from Mappls / routing API.
+    3. Builds distance matrix & travel-time matrix.
+    4. If traffic API is unavailable and allow_non_traffic_fallback is False, raises HTTP 503.
+    """
+    depot_loc = {
+        "id": req.depot.id if req.depot else "DEPOT",
+        "lat": req.depot.lat if req.depot else 12.9279,
+        "lng": req.depot.lng if req.depot else 77.6271,
+    }
+    locations = [depot_loc] + [{"id": d.id, "lat": d.lat, "lng": d.lng} for d in req.deliveries]
+
+    if req.use_live_traffic:
+        traffic_res = get_distance_matrix(locations)
+        if traffic_res.get("status") == "success":
+            return (
+                traffic_res.get("distance_matrix"),
+                traffic_res.get("time_matrix"),
+                True,
+                "live_connected",
+                TRAFFIC_PROVIDER_NAME,
+                traffic_res.get("last_updated", get_ist_timestamp()),
+            )
+        else:
+            if not req.allow_non_traffic_fallback:
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "status": "traffic_unavailable",
+                        "message": "Live traffic data is currently unavailable.",
+                    },
+                )
+
+    # Fallback to non-traffic road estimation
+    return (
+        None,
+        None,
+        False,
+        "traffic_unavailable",
+        TRAFFIC_PROVIDER_NAME,
+        get_ist_timestamp(),
+    )
+
+# -------------------------------------------------------------------
 # Core API Endpoints (as requested)
 # -------------------------------------------------------------------
 
@@ -50,6 +109,7 @@ _last_optimization_status = {
 @app.get("/api/health")
 def health_check():
     """Returns system status, active quantum simulator backend, and available solvers."""
+    traffic_status = get_traffic_status()
     return {
         "status": "healthy",
         "service": "RouteQ Optimization Engine",
@@ -58,6 +118,10 @@ def health_check():
         "qiskit_aer_installed": AER_AVAILABLE,
         "quantum_backend": os.getenv("QUANTUM_BACKEND", "aer_simulator"),
         "supported_methods": ["classical", "qiskit"],
+        "traffic_provider": TRAFFIC_PROVIDER_NAME,
+        "traffic_status": traffic_status.get("status"),
+        "traffic_is_live": traffic_status.get("is_live"),
+        "traffic_last_updated": traffic_status.get("last_updated"),
         "solvers": [
             {
                 "id": "qiskit",
@@ -78,6 +142,38 @@ def health_check():
         ]
     }
 
+# -------------------------------------------------------------------
+# Traffic Endpoints (India / Mappls API)
+# -------------------------------------------------------------------
+@app.get("/api/traffic/status")
+def api_traffic_status():
+    """Returns real-time connection status of Mappls Traffic & Routing API."""
+    return get_traffic_status()
+
+@app.post("/api/traffic/matrix")
+def api_traffic_matrix(req: RefreshTrafficRequest):
+    """Fetches real road distance and travel-time matrix for locations."""
+    return get_distance_matrix(req.locations)
+
+@app.post("/api/traffic/route")
+def api_traffic_route(req: RouteRequest):
+    """Fetches real road turn-by-turn route and geometry between origin and destination."""
+    if len(req.origin) < 2 or len(req.destination) < 2:
+        raise HTTPException(status_code=400, detail="Invalid origin or destination coordinates.")
+    return get_route((req.origin[0], req.origin[1]), (req.destination[0], req.destination[1]))
+
+@app.post("/api/traffic/live-eta")
+def api_traffic_live_eta(req: RouteRequest):
+    """Calculates live traffic-aware ETA and arrival timestamp in IST."""
+    if len(req.origin) < 2 or len(req.destination) < 2:
+        raise HTTPException(status_code=400, detail="Invalid origin or destination coordinates.")
+    return get_live_eta((req.origin[0], req.origin[1]), (req.destination[0], req.destination[1]))
+
+@app.post("/api/traffic/refresh")
+def api_traffic_refresh(req: RefreshTrafficRequest):
+    """Refreshes live traffic travel matrix and returns current IST timestamp."""
+    return refresh_traffic(req.locations)
+
 @app.get("/optimization/status")
 @app.get("/api/optimization/status")
 def get_optimization_status():
@@ -87,13 +183,23 @@ def get_optimization_status():
 @app.post("/optimize/classical", response_model=OptimizationResponseOutput)
 @app.post("/api/optimize/classical", response_model=OptimizationResponseOutput)
 def optimize_classical(req: OptimizationRequestInput):
-    """Executes the classical Clarke-Wright savings + 2-opt optimizer."""
+    """Executes the classical Clarke-Wright savings + 2-opt optimizer with real road matrices."""
     req.optimization_method = "classical"
     try:
         _last_optimization_status["status"] = "running"
         _last_optimization_status["last_method"] = "classical"
-        
-        optimizer = ClassicalOptimizer(req)
+
+        dist_matrix, time_matrix, is_live, tr_status, tr_provider, tr_updated = prepare_traffic_matrix(req)
+
+        optimizer = ClassicalOptimizer(
+            request=req,
+            distance_matrix=dist_matrix,
+            time_matrix=time_matrix,
+            is_live_traffic_used=is_live,
+            traffic_provider=tr_provider,
+            traffic_status=tr_status,
+            traffic_last_updated=tr_updated,
+        )
         result = optimizer.optimize()
 
         _last_optimization_status.update({
@@ -106,6 +212,8 @@ def optimize_classical(req: OptimizationRequestInput):
             "vehicles_count": len(req.vehicles)
         })
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         _last_optimization_status["status"] = "error"
         raise HTTPException(status_code=400, detail=str(e))
@@ -114,15 +222,25 @@ def optimize_classical(req: OptimizationRequestInput):
 @app.post("/api/optimize/qiskit", response_model=OptimizationResponseOutput)
 def optimize_qiskit(req: OptimizationRequestInput):
     """
-    Executes the Qiskit QAOA / QUBO quantum optimizer using AerSimulator.
-    Demonstration supports small instances (3 to 6 delivery locations).
+    Executes the Qiskit QAOA / QUBO quantum optimizer using AerSimulator
+    with real road distance and travel-time matrices.
     """
     req.optimization_method = "qiskit"
     try:
         _last_optimization_status["status"] = "running"
         _last_optimization_status["last_method"] = "qiskit"
 
-        optimizer = QiskitVRPOptimizer(req)
+        dist_matrix, time_matrix, is_live, tr_status, tr_provider, tr_updated = prepare_traffic_matrix(req)
+
+        optimizer = QiskitVRPOptimizer(
+            request=req,
+            distance_matrix=dist_matrix,
+            time_matrix=time_matrix,
+            is_live_traffic_used=is_live,
+            traffic_provider=tr_provider,
+            traffic_status=tr_status,
+            traffic_last_updated=tr_updated,
+        )
         result = optimizer.optimize()
 
         _last_optimization_status.update({
@@ -135,6 +253,8 @@ def optimize_qiskit(req: OptimizationRequestInput):
             "vehicles_count": len(req.vehicles)
         })
         return result
+    except HTTPException:
+        raise
     except ValueError as ve:
         _last_optimization_status["status"] = "error"
         raise HTTPException(status_code=400, detail=str(ve))
@@ -160,6 +280,7 @@ def optimize_generic(req: OptimizationRequestInput):
 def compare_endpoints(req: OptimizationRequestInput):
     """Runs head-to-head empirical comparison between Classical and Qiskit."""
     return run_comparison_benchmark(req)
+
 
 # Demo data endpoint for instant 1-click loading
 @app.get("/api/demo-data")

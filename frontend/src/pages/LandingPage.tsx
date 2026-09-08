@@ -78,20 +78,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   ];
   const heroDepot = { x: 210, y: 170 };
 
-  // Live Route Visualization Nodes (10 delivery nodes + 1 depot)
+  // Live Route Visualization Nodes (10 delivery nodes + 1 depot) - Bengaluru Logistics Grid, India
   const mapNodes = [
-    { id: 'D-014', label: 'Sector 4 Hub', demand: '8.4 kg', timeWindow: '10:00–12:00', priority: 'High', x: 120, y: 130 },
-    { id: 'D-021', label: 'North Plaza', demand: '12.0 kg', timeWindow: '09:30–11:30', priority: 'Standard', x: 240, y: 80 },
-    { id: 'D-035', label: 'BioPark Lab', demand: '4.2 kg', timeWindow: '11:00–13:00', priority: 'Critical', x: 380, y: 100 },
-    { id: 'D-042', label: 'East Terminal', demand: '15.6 kg', timeWindow: '10:30–12:30', priority: 'Standard', x: 490, y: 160 },
-    { id: 'D-058', label: 'Financial District', demand: '6.1 kg', timeWindow: '13:00–15:00', priority: 'Standard', x: 460, y: 280 },
-    { id: 'D-063', label: 'Bay Logistics', demand: '18.0 kg', timeWindow: '11:30–13:30', priority: 'High', x: 360, y: 340 },
-    { id: 'D-079', label: 'Civic Center', demand: '9.5 kg', timeWindow: '14:00–16:00', priority: 'Standard', x: 220, y: 360 },
-    { id: 'D-088', label: 'Westside Medical', demand: '3.8 kg', timeWindow: '09:00–11:00', priority: 'Critical', x: 90, y: 270 },
-    { id: 'D-092', label: 'Apex Tech Campus', demand: '14.2 kg', timeWindow: '13:30–15:30', priority: 'Standard', x: 180, y: 210 },
-    { id: 'D-104', label: 'Central Depot Area', demand: '7.0 kg', timeWindow: '12:00–14:00', priority: 'High', x: 330, y: 200 },
+    { id: 'BLR-01', label: 'Indiranagar 100ft Rd Hub', demand: '8.4 kg', timeWindow: '10:00–12:00', priority: 'High', x: 120, y: 130 },
+    { id: 'BLR-02', label: 'MG Road Commercial CBD', demand: '12.0 kg', timeWindow: '09:30–11:30', priority: 'Standard', x: 240, y: 80 },
+    { id: 'BLR-03', label: 'Whitefield ITPL Tech Gate', demand: '4.2 kg', timeWindow: '11:00–13:00', priority: 'Critical', x: 380, y: 100 },
+    { id: 'BLR-04', label: 'KR Puram Rail Logistics', demand: '15.6 kg', timeWindow: '10:30–12:30', priority: 'Standard', x: 490, y: 160 },
+    { id: 'BLR-05', label: 'Bellandur EcoSpace Corridor', demand: '6.1 kg', timeWindow: '13:00–15:00', priority: 'Standard', x: 460, y: 280 },
+    { id: 'BLR-06', label: 'Sarjapur Wipro Tech Campus', demand: '18.0 kg', timeWindow: '11:30–13:30', priority: 'High', x: 360, y: 340 },
+    { id: 'BLR-07', label: 'Electronic City Infosys Gate', demand: '9.5 kg', timeWindow: '14:00–16:00', priority: 'Standard', x: 220, y: 360 },
+    { id: 'BLR-08', label: 'Jayanagar 4th Block Market', demand: '3.8 kg', timeWindow: '09:00–11:00', priority: 'Critical', x: 90, y: 270 },
+    { id: 'BLR-09', label: 'HSR Layout 27th Main Rd', demand: '14.2 kg', timeWindow: '13:30–15:30', priority: 'Standard', x: 180, y: 210 },
+    { id: 'BLR-10', label: 'Koramangala Commercial Hub', demand: '7.0 kg', timeWindow: '12:00–14:00', priority: 'High', x: 330, y: 200 },
   ];
-  const mapDepot = { x: 280, y: 230, label: 'Central Fleet Base' };
+  const mapDepot = { x: 280, y: 230, label: 'Koramangala Central Hub (BLR)' };
 
   // Calculate vehicle point along route path
   const routeWaypoints = [
@@ -522,7 +522,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="space-y-2">
               <span className="text-xs font-mono text-[#8A8A8E] uppercase tracking-wider">
-                03 &bull; LIVE CARTOGRAPHY
+                03 &bull; LIVE CARTOGRAPHY &bull; INDIA OPERATIONS
               </span>
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
                 LIVE ROUTE VISUALIZATION
@@ -530,12 +530,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
             <div className="text-xs font-mono text-[#8A8A8E] flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-              <span>ACTIVE DISPATCH TELEMETRY</span>
+              <span>ACTIVE DISPATCH TELEMETRY (IST)</span>
             </div>
           </div>
 
           {/* Large Interactive Minimal Dark Map */}
           <div className="relative w-full aspect-[16/9] sm:aspect-[21/9] rounded-xl bg-[#0D0D0D] border border-white/[0.08] overflow-hidden p-4 sm:p-8 flex items-center justify-center">
+            
+            {/* India Operations Watermark Tag */}
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded bg-[#080808]/90 border border-white/[0.08] font-mono text-[10px] text-[#8A8A8E] shadow-md">
+              <span className="text-sm leading-none select-none">🇮🇳</span>
+              <span className="text-white font-semibold tracking-wider">BENGALURU LOGISTICS GRID</span>
+              <span className="text-white/20">|</span>
+              <span>KARNATAKA, INDIA</span>
+            </div>
             
             <svg viewBox="0 0 580 420" className="w-full h-full max-w-4xl">
               <defs>

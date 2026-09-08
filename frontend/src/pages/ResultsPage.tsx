@@ -85,7 +85,18 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
           <h1 className="text-2xl sm:text-4xl font-bold text-white tracking-tight mt-1">
             DISPATCH EXECUTION REPORT
           </h1>
+          <div className="flex items-center gap-2 mt-2 font-mono text-[11px]">
+            <span className={`w-2 h-2 rounded-full ${optimizationResult.is_live_traffic_used ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span className="text-white font-medium">
+              {optimizationResult.is_live_traffic_used ? 'Mappls Real-Time Routing Active' : 'Non-Traffic Road Data Fallback'}
+            </span>
+            <span className="text-white/30">&bull;</span>
+            <span className="text-[#8A8A8E]">
+              {optimizationResult.traffic_last_updated || 'India Standard Time (IST)'}
+            </span>
+          </div>
         </div>
+
 
         <button
           onClick={handleExportJson}

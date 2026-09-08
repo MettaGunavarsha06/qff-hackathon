@@ -7,12 +7,12 @@ class Location(BaseModel):
     address: Optional[str] = ""
 
 class Depot(BaseModel):
-    id: str = "DEPOT-01"
-    name: str = "Central Logistics Hub"
-    lat: float = 37.7749
-    lng: float = -122.4194
-    operating_hours_start: str = "08:00"
-    operating_hours_end: str = "18:00"
+    id: str = "DEPOT-BLR"
+    name: str = "RouteQ Bengaluru Central Hub (Koramangala)"
+    lat: float = 12.9279
+    lng: float = 77.6271
+    operating_hours_start: str = "08:30"
+    operating_hours_end: str = "18:30"
 
 class Delivery(BaseModel):
     id: str

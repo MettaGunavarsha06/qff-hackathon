@@ -7,6 +7,9 @@ import {
   Leaf,
   Play,
   CheckCircle2,
+  RefreshCw,
+  Radio,
+  AlertTriangle,
 } from 'lucide-react';
 import type {
   OptimizationObjective,
@@ -18,6 +21,7 @@ import type {
   Depot,
   Vehicle,
   Delivery,
+  TrafficStatus,
 } from '../types';
 
 interface OptimizationPageProps {
@@ -29,14 +33,21 @@ interface OptimizationPageProps {
   isOptimizing: boolean;
   onRunOptimization: (req: OptimizationRequest) => Promise<void>;
   onNavigateTab: (tab: any) => void;
+  trafficStatus?: TrafficStatus;
+  onRefreshTraffic?: () => void;
+  isRefreshingTraffic?: boolean;
 }
 
 export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   depot,
   vehicles,
   deliveries,
+  optimizationResult,
   isOptimizing,
   onRunOptimization,
+  trafficStatus,
+  onRefreshTraffic,
+  isRefreshingTraffic,
 }) => {
   const [objective, setObjective] = useState<OptimizationObjective>('balanced');
   const [trafficLevel, setTrafficLevel] = useState<TrafficLevel>('moderate');
@@ -44,6 +55,8 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   const [capacityMode, setCapacityMode] = useState<'strict' | 'relaxed'>('strict');
   const [solverType, setSolverType] = useState<SolverType>('quantum_inspired');
   const [activeVehiclesCount, setActiveVehiclesCount] = useState<number>(vehicles.length);
+  const [useLiveTraffic, setUseLiveTraffic] = useState<boolean>(true);
+  const [allowNonTrafficFallback, setAllowNonTrafficFallback] = useState<boolean>(true);
 
   const handleStartOptimization = async () => {
     const subsetVehicles = vehicles.slice(0, activeVehiclesCount);
@@ -56,9 +69,12 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
       time_window_mode: timeWindowMode,
       capacity_mode: capacityMode,
       solver_type: solverType,
+      use_live_traffic: useLiveTraffic,
+      allow_non_traffic_fallback: allowNonTrafficFallback,
     };
     await onRunOptimization(req);
   };
+
 
   const objectivesList: {
     id: OptimizationObjective;
@@ -133,6 +149,112 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
         
         {/* Left Columns: Objectives & Parameters */}
         <div className="lg:col-span-8 space-y-6">
+
+          {/* Real-Time India Traffic & Routing (Mappls API) Card */}
+          <div className="p-5 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-mono text-[#8A8A8E] uppercase tracking-wider">
+                  REAL-TIME TRAFFIC & ROUTING &bull; INDIA
+                </div>
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2 mt-0.5">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      trafficStatus?.is_live ? 'bg-[#10B981] animate-pulse' : 'bg-[#F59E0B]'
+                    }`}
+                  />
+                  <span>
+                    {trafficStatus?.is_live ? '● Live Traffic Connected' : '● Traffic Data Unavailable'}
+                  </span>
+                </h3>
+              </div>
+
+              {onRefreshTraffic && (
+                <button
+                  type="button"
+                  onClick={onRefreshTraffic}
+                  disabled={isRefreshingTraffic}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.08] font-mono text-xs transition-all cursor-pointer self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-[#00F0FF] ${isRefreshingTraffic ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshingTraffic ? 'Querying Mappls...' : 'Refresh Live Traffic'}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Telemetry Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
+              <div className="p-3 rounded bg-black/50 border border-white/[0.04]">
+                <span className="text-[10px] text-[#8A8A8E] block uppercase">Traffic Data Provider</span>
+                <span className="text-sm font-semibold text-white">Mappls</span>
+              </div>
+              <div className="p-3 rounded bg-black/50 border border-white/[0.04]">
+                <span className="text-[10px] text-[#8A8A8E] block uppercase">Connection Status</span>
+                <span
+                  className={`text-sm font-semibold ${
+                    trafficStatus?.is_live ? 'text-emerald-400' : 'text-amber-400'
+                  }`}
+                >
+                  {trafficStatus?.is_live ? 'Live' : 'Unavailable'}
+                </span>
+              </div>
+              <div className="p-3 rounded bg-black/50 border border-white/[0.04] col-span-2">
+                <span className="text-[10px] text-[#8A8A8E] block uppercase">Last Updated</span>
+                <span className="text-xs font-semibold text-white">
+                  {trafficStatus?.last_updated || '08 Sep 2026, 18:45 IST'}
+                </span>
+              </div>
+            </div>
+
+            {/* Live Message or Notice */}
+            <div
+              className={`p-3 rounded text-xs leading-relaxed flex items-start gap-2.5 ${
+                trafficStatus?.is_live
+                  ? 'bg-[#10B981]/10 border border-[#10B981]/20 text-emerald-200'
+                  : 'bg-[#F59E0B]/10 border border-[#F59E0B]/20 text-amber-200'
+              }`}
+            >
+              <Radio className="w-4 h-4 shrink-0 mt-0.5 text-current" />
+              <div>
+                <span className="font-semibold block">
+                  {trafficStatus?.is_live
+                    ? 'Mappls Road & Live Traffic Matrix Active'
+                    : 'Live traffic data is currently unavailable.'}
+                </span>
+                <span className="text-[11px] opacity-85">
+                  {trafficStatus?.is_live
+                    ? 'Road distance matrix and congestion-adjusted travel times are queried directly from Mappls routing API and injected into the optimization objective.'
+                    : 'The optimizer can optionally use non-traffic road network estimates (standard distance calculation) to compute optimal delivery routes.'}
+                </span>
+              </div>
+            </div>
+
+            {/* Fallback Option Toggle & Qiskit indicator */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-white/[0.04] text-xs">
+              <label className="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={allowNonTrafficFallback}
+                  onChange={(e) => setAllowNonTrafficFallback(e.target.checked)}
+                  className="rounded bg-black border-white/20 text-[#00F0FF] focus:ring-0 cursor-pointer"
+                />
+                <span className="text-[11px] text-[#A1A1AA]">
+                  Allow classical optimizer to run using non-traffic road data if Mappls API is offline
+                </span>
+              </label>
+
+              <div className="text-[10px] font-mono text-[#8A8A8E] flex items-center gap-1.5 self-start sm:self-auto">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    optimizationResult?.is_live_traffic_used ? 'bg-emerald-400' : 'bg-[#8A8A8E]'
+                  }`}
+                />
+                <span>
+                  Qiskit: {optimizationResult?.is_live_traffic_used ? 'Live Traffic Used' : 'Non-Traffic Road Data'}
+                </span>
+              </div>
+            </div>
+          </div>
           
           {/* Section 1: Optimization Objective Selection */}
           <div className="p-5 rounded-lg bg-[#0D0D0D] border border-white/[0.06] space-y-4">
@@ -142,6 +264,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
               </div>
               <span className="font-mono text-[10px] text-[#8A8A8E]">HAMILTONIAN WEIGHTS</span>
             </div>
+
 
             <div className="space-y-2">
               {objectivesList.map((obj) => {

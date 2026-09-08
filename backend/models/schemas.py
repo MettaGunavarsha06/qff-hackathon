@@ -2,10 +2,10 @@ from typing import List, Optional, Literal, Dict, Any, Union
 from pydantic import BaseModel, Field
 
 class DepotInput(BaseModel):
-    id: str = "DEPOT"
-    name: Optional[str] = "Central Logistics Hub"
-    lat: float
-    lng: float
+    id: str = "DEPOT-BLR"
+    name: Optional[str] = "RouteQ Bengaluru Central Hub (Koramangala)"
+    lat: float = 12.9279
+    lng: float = 77.6271
     operating_hours_start: Optional[str] = "08:00"
     operating_hours_end: Optional[str] = "18:00"
 
@@ -58,10 +58,19 @@ class OptimizationRequestInput(BaseModel):
     capacity_mode: Optional[str] = "strict"        # "strict", "relaxed"
     quantum_backend: Optional[str] = "aer_simulator"
     use_live_traffic: Optional[bool] = True
+    allow_non_traffic_fallback: Optional[bool] = True
     distance_weight: Optional[float] = 1.0
     time_weight: Optional[float] = 1.0
     fuel_weight: Optional[float] = 1.0
     co2_weight: Optional[float] = 1.0
+
+class RefreshTrafficRequest(BaseModel):
+    locations: Optional[List[Dict[str, Any]]] = []
+
+class RouteRequest(BaseModel):
+    origin: List[float]
+    destination: List[float]
+
 
 class RouteWaypoint(BaseModel):
     sequence_index: int

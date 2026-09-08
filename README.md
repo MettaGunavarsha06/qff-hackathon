@@ -104,7 +104,7 @@ RouteQ's quantum pipeline translates vehicle routing into quantum mechanical ope
    - **Method Selector**: Toggle between `[ Classical Clarke-Wright + 2-Opt ]` and `[ Qiskit QAOA (Aer Simulator) ]`.
    - **1-Click Demo Datasets**: 
      - ⚡ **Load Quantum Demo (4 stops)**: Pre-configured 4-stop instance tailored for instant quantum simulation.
-     - 🚚 **Load Full Demo (25 stops)**: 25-stop realistic San Francisco dataset for classical routing.
+     - 🚚 **Load Full Demo (25 stops)**: 25-stop realistic Bengaluru, India commercial logistics dataset for classical routing.
    - **5 Multi-Objective Profiles**: Balanced Multi-Objective, Minimize Distance, Minimize Travel Time, Minimize Fuel, and Minimize CO2 (Green Logistics).
    - **Dynamic Traffic Multipliers**: Clear ($1.00\times$), Moderate ($1.28\times$), Heavy ($1.75\times$), Peak Rush Hour ($2.45\times$).
    - **Animated 5-Stage Modal**:
