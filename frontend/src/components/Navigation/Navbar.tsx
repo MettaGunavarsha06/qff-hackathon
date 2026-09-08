@@ -6,7 +6,6 @@ import {
   Zap,
   CheckCircle2,
   AlertTriangle,
-  Info,
   X,
   RefreshCw,
 } from 'lucide-react';

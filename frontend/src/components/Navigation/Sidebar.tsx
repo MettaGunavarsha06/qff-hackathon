@@ -5,15 +5,11 @@ import {
   Truck,
   Cpu,
   Route,
-  Award,
   BarChart3,
   Settings,
   Database,
   Sparkles,
   Zap,
-  Activity,
-  CheckCircle2,
-  XCircle,
 } from 'lucide-react';
 
 export type NavTab =
