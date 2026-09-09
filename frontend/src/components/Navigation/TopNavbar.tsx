@@ -148,7 +148,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           
           {/* Hub Selector Dropdown */}
           {onSelectHub && (
-            <div className="relative hidden xl:block">
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setHubDropdownOpen(!hubDropdownOpen)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF9F5] hover:bg-[#F2F1EC] border border-[#E8E6DF] font-mono text-[11px] text-[#171A38] transition-colors cursor-pointer"
@@ -165,8 +165,11 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 6 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-44 bg-white border border-[#E8E6DF] rounded-2xl shadow-lg p-1.5 z-50 font-mono text-xs"
+                    className="absolute right-0 mt-2 w-52 bg-white border border-[#E8E6DF] rounded-2xl shadow-xl p-2 z-50 font-mono text-xs space-y-1"
                   >
+                    <div className="px-2.5 py-1 text-[10px] uppercase font-bold text-[#8E909A] border-b border-[#F2F1EC]">
+                      Select Active Indian Hub
+                    </div>
                     {hubs.map((h) => (
                       <button
                         key={h.key}
@@ -174,7 +177,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                           onSelectHub(h.key);
                           setHubDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center justify-between ${
+                        className={`w-full text-left px-3 py-2 rounded-xl transition-colors cursor-pointer flex items-center justify-between ${
                           selectedHubKey === h.key
                             ? 'bg-[#FAF9F5] text-[#FF6B4A] font-bold'
                             : 'text-[#6B6D76] hover:bg-[#F2F1EC] hover:text-[#171A38]'
@@ -182,7 +185,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                       >
                         <span>{h.name}</span>
                         {selectedHubKey === h.key && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B4A]" />
+                          <span className="w-2 h-2 rounded-full bg-[#FF6B4A]" />
                         )}
                       </button>
                     ))}
@@ -230,7 +233,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="pointer-events-auto absolute top-16 left-4 right-4 bg-white/95 backdrop-blur-xl border border-[#E8E6DF] rounded-2xl shadow-xl p-3 md:hidden space-y-1"
+            className="pointer-events-auto absolute top-16 left-4 right-4 bg-white/95 backdrop-blur-xl border border-[#E8E6DF] rounded-2xl shadow-xl p-3 md:hidden space-y-2"
           >
             {onExitToLanding && (
               <button
@@ -238,7 +241,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                   onExitToLanding();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-4 py-2 rounded-xl text-xs font-medium text-[#FF6B4A] bg-[#FAF9F5] border border-[#E8E6DF] flex items-center justify-between mb-2"
+                className="w-full text-left px-4 py-2 rounded-xl text-xs font-medium text-[#FF6B4A] bg-[#FAF9F5] border border-[#E8E6DF] flex items-center justify-between"
               >
                 <div className="flex items-center gap-1.5">
                   <ArrowLeft className="w-3.5 h-3.5" />
@@ -247,26 +250,58 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
               </button>
             )}
 
-            {primaryTabs.map((tab) => {
-              const isActive = canonicalActive === tab.canonical;
-              return (
-                <button
-                  key={tab.canonical}
-                  onClick={() => {
-                    onSelectTab(tab.id);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-colors ${
-                    isActive
-                      ? 'bg-gradient-to-r from-[#FF6B4A] to-[#E95AA8] text-white shadow-sm font-semibold'
-                      : 'text-[#6B6D76] hover:bg-[#FAF9F5] hover:text-[#171A38]'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                </button>
-              );
-            })}
+            {/* Mobile Hub Selector */}
+            {onSelectHub && (
+              <div className="py-2 px-1 border-t border-b border-[#E8E6DF] space-y-1.5">
+                <div className="text-[10px] font-mono uppercase font-bold text-[#8E909A] px-2">
+                  Select Logistics Hub:
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {hubs.map((h) => (
+                    <button
+                      key={h.key}
+                      onClick={() => {
+                        onSelectHub(h.key);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono text-left transition-colors flex items-center justify-between ${
+                        selectedHubKey === h.key
+                          ? 'bg-[#FF6B4A] text-white font-bold'
+                          : 'bg-[#FAF9F5] text-[#6B6D76] hover:text-[#171A38]'
+                      }`}
+                    >
+                      <span className="truncate">{h.name.replace(' Hub', '')}</span>
+                      {selectedHubKey === h.key && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white ml-1 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              {primaryTabs.map((tab) => {
+                const isActive = canonicalActive === tab.canonical;
+                return (
+                  <button
+                    key={tab.canonical}
+                    onClick={() => {
+                      onSelectTab(tab.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-colors ${
+                      isActive
+                        ? 'bg-gradient-to-r from-[#FF6B4A] to-[#E95AA8] text-white shadow-sm font-semibold'
+                        : 'text-[#6B6D76] hover:bg-[#FAF9F5] hover:text-[#171A38]'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </button>
+                );
+              })}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
