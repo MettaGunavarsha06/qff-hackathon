@@ -106,6 +106,20 @@ export interface TrafficStatus {
   api_configured?: boolean;
 }
 
+export interface QuantumCircuitInfo {
+  backend_name: string;
+  qubits: number;
+  depth: number;
+  gate_counts: Record<string, number>;
+  shots: number;
+  counts: Record<string, number>;
+  optimal_bitstring: string;
+  gamma: number;
+  beta: number;
+  p_layers: number;
+  circuit_diagram?: string;
+}
+
 export interface OptimizationResult {
   solver_type: string;
   solver_name: string;
@@ -125,6 +139,7 @@ export interface OptimizationResult {
   traffic_provider?: string;
   traffic_last_updated?: string;
   is_live_traffic_used?: boolean;
+  quantum_circuit_info?: QuantumCircuitInfo;
 }
 
 export interface MetricComparison {

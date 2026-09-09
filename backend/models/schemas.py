@@ -110,6 +110,19 @@ class SolverInfo(BaseModel):
     status: str
     notes: Optional[str] = None
 
+class QuantumCircuitInfo(BaseModel):
+    backend_name: str
+    qubits: int
+    depth: int
+    gate_counts: Dict[str, int]
+    shots: int
+    counts: Dict[str, int]
+    optimal_bitstring: str
+    gamma: float
+    beta: float
+    p_layers: int
+    circuit_diagram: Optional[str] = None
+
 class OptimizationResponseOutput(BaseModel):
     status: str = "success"
     method: str
@@ -127,3 +140,5 @@ class OptimizationResponseOutput(BaseModel):
     traffic_provider: Optional[str] = "Mappls"
     traffic_last_updated: Optional[str] = None
     is_live_traffic_used: bool = False
+    quantum_circuit_info: Optional[QuantumCircuitInfo] = None
+

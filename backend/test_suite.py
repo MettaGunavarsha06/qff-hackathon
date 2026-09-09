@@ -91,10 +91,22 @@ class TestRouteQBackend(unittest.TestCase):
             self.assertLessEqual(r.capacity_used, self.vehicles[0].capacity)
 
         self.assertEqual(set(visited), {"BLR-D01", "BLR-D02", "BLR-D03", "BLR-D04"})
+        
+        # Verify genuine Qiskit circuit metadata
+        self.assertIsNotNone(res.quantum_circuit_info)
+        qinfo = res.quantum_circuit_info
+        self.assertEqual(qinfo.qubits, 4)
+        self.assertGreater(qinfo.depth, 0)
+        self.assertEqual(qinfo.shots, 1024)
+        self.assertIn("rzz", qinfo.gate_counts)
+        self.assertIn("rx", qinfo.gate_counts)
+        self.assertIn("h", qinfo.gate_counts)
+        self.assertTrue(len(qinfo.counts) > 0)
+        self.assertTrue(len(qinfo.optimal_bitstring) > 0)
 
     def test_04_qiskit_problem_size_limit(self):
-        """Test that Qiskit raises a clear message when >6 deliveries are submitted."""
-        large_deliveries = self.deliveries_small * 2  # 8 deliveries
+        """Test that Qiskit raises a clear message when >10 deliveries are submitted."""
+        large_deliveries = self.deliveries_small * 3  # 12 deliveries
         for idx, d in enumerate(large_deliveries):
             large_deliveries[idx] = DeliveryInput(
                 id=f"D{idx+1}", customer=f"Cust {idx+1}", lat=d.lat, lng=d.lng, demand=5.0
@@ -109,7 +121,8 @@ class TestRouteQBackend(unittest.TestCase):
         opt = QiskitVRPOptimizer(req)
         with self.assertRaises(ValueError) as ctx:
             opt.optimize()
-        self.assertIn("supports small routing instances", str(ctx.exception))
+        self.assertIn("due to qubit statevector simulation space", str(ctx.exception))
 
 if __name__ == "__main__":
     unittest.main()
+

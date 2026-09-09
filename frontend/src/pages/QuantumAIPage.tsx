@@ -216,13 +216,138 @@ export const QuantumAIPage: React.FC<QuantumAIPageProps> = ({
           </div>
         </div>
 
+        {/* ─── LIVE QISKIT CIRCUIT TELEMETRY SECTION ──────── */}
+        {optimizationResult?.quantum_circuit_info && (
+          <div className="space-y-6 pt-6 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="text-xs font-mono text-[#FF5B37] uppercase tracking-wider font-semibold flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>QISKIT CIRCUIT EXECUTION TELEMETRY &bull; STATEVECTORSAMPLER</span>
+                </div>
+                <div className="text-sm font-light text-[#8E909A]">
+                  Measured output from parameterized QAOA variational circuit executed in Python Qiskit 2.5
+                </div>
+              </div>
+              <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] text-xs font-mono">
+                <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+                <span>Qiskit Verified</span>
+              </div>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-4 rounded-2xl bg-[#121216] border border-white/10 space-y-1">
+                <div className="text-[10px] font-mono text-[#8E909A] uppercase">Active Qubits</div>
+                <div className="text-2xl font-bold font-mono text-white">
+                  {optimizationResult.quantum_circuit_info.qubits} Q
+                </div>
+                <div className="text-[11px] font-mono text-[#FF5B37]">2^{optimizationResult.quantum_circuit_info.qubits} Hilbert Space</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#121216] border border-white/10 space-y-1">
+                <div className="text-[10px] font-mono text-[#8E909A] uppercase">Circuit Depth</div>
+                <div className="text-2xl font-bold font-mono text-white">
+                  {optimizationResult.quantum_circuit_info.depth}
+                </div>
+                <div className="text-[11px] font-mono text-[#8E909A]">p = {optimizationResult.quantum_circuit_info.p_layers} QAOA Layer</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#121216] border border-white/10 space-y-1">
+                <div className="text-[10px] font-mono text-[#8E909A] uppercase">Sampler Shots</div>
+                <div className="text-2xl font-bold font-mono text-white">
+                  {optimizationResult.quantum_circuit_info.shots}
+                </div>
+                <div className="text-[11px] font-mono text-[#10B981]">Statevector Exact</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#121216] border border-white/10 space-y-1">
+                <div className="text-[10px] font-mono text-[#8E909A] uppercase">Ground State</div>
+                <div className="text-2xl font-bold font-mono text-[#FF5B37]">
+                  |{optimizationResult.quantum_circuit_info.optimal_bitstring}⟩
+                </div>
+                <div className="text-[11px] font-mono text-[#8E909A]">Min Hamiltonian</div>
+              </div>
+            </div>
+
+            {/* Gate Counts & Sampled Measurement Bitstrings */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Gate Operation Breakdown */}
+              <div className="p-5 rounded-2xl bg-[#121216] border border-white/10 space-y-3">
+                <div className="text-xs font-mono font-semibold text-white uppercase tracking-wider">
+                  QUANTUM GATE COMPOSITION
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs font-mono">
+                  {Object.entries(optimizationResult.quantum_circuit_info.gate_counts).map(([gate, count]) => (
+                    <div key={gate} className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col">
+                      <span className="text-[#FF5B37] font-bold text-sm uppercase">{gate}</span>
+                      <span className="text-white font-bold">{count} gates</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-[11px] font-mono text-[#8E909A] pt-1">
+                  Parameterized rotation angles: γ = {optimizationResult.quantum_circuit_info.gamma}, β = {optimizationResult.quantum_circuit_info.beta}
+                </div>
+              </div>
+
+              {/* Sampled Measurement Bitstrings */}
+              <div className="p-5 rounded-2xl bg-[#121216] border border-white/10 space-y-3">
+                <div className="text-xs font-mono font-semibold text-white uppercase tracking-wider">
+                  TOP MEASURED BITSTRINGS ({optimizationResult.quantum_circuit_info.shots} SHOTS)
+                </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto font-mono text-xs pr-1">
+                  {Object.entries(optimizationResult.quantum_circuit_info.counts).slice(0, 6).map(([bstr, count]) => {
+                    const pct = ((count / optimizationResult.quantum_circuit_info!.shots) * 100).toFixed(1);
+                    const isBest = bstr === optimizationResult.quantum_circuit_info!.optimal_bitstring;
+                    return (
+                      <div key={bstr} className="space-y-1">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className={isBest ? 'text-[#FF5B37] font-bold' : 'text-white'}>
+                            |{bstr}⟩ {isBest && '★ Ground State'}
+                          </span>
+                          <span className="text-[#8E909A]">{count} ({pct}%)</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${isBest ? 'bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D]' : 'bg-white/40'}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+
+            {/* ASCII Circuit Diagram */}
+            {optimizationResult.quantum_circuit_info.circuit_diagram && (
+              <div className="p-5 rounded-2xl bg-[#121216] border border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-mono font-semibold text-white uppercase tracking-wider">
+                    QISKIT QUANTUM CIRCUIT DIAGRAM (ASCII)
+                  </div>
+                  <span className="text-[10px] font-mono text-[#8E909A]">
+                    {optimizationResult.quantum_circuit_info.backend_name}
+                  </span>
+                </div>
+                <pre className="p-4 rounded-xl bg-black/60 border border-white/5 font-mono text-[11px] leading-snug text-[#38BDF8] overflow-x-auto whitespace-pre">
+                  {optimizationResult.quantum_circuit_info.circuit_diagram}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Technical Transparency Note */}
         <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex items-start gap-3.5 text-xs text-[#8E909A] leading-relaxed font-light">
           <ShieldCheck className="w-4 h-4 text-[#FF5B37] shrink-0 mt-0.5" />
           <div>
             <strong className="text-white font-medium">Verified Simulator Implementation: </strong>
-            All quantum operations execute locally on CPU hardware via <strong className="text-white font-medium">IBM Qiskit Aer statevector simulators</strong>.
-            This demonstration illustrates QUBO Hamiltonian formulation and QAOA variational circuits for combinatorial vehicle routing.
+            All quantum operations execute locally via <strong className="text-white font-medium">IBM Qiskit StatevectorSampler</strong> in Python.
+            This demonstration executes genuine QAOA variational quantum circuits with RZZ and RX gates for combinatorial vehicle routing.
           </div>
         </div>
 

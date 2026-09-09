@@ -53,7 +53,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   const [trafficLevel, setTrafficLevel] = useState<TrafficLevel>('moderate');
   const [timeWindowMode, setTimeWindowMode] = useState<'strict' | 'soft' | 'ignore'>('soft');
   const [capacityMode, setCapacityMode] = useState<'strict' | 'relaxed'>('strict');
-  const [solverType, setSolverType] = useState<SolverType>('quantum_inspired');
+  const [solverType, setSolverType] = useState<SolverType>('qiskit');
   const [activeVehiclesCount, setActiveVehiclesCount] = useState<number>(vehicles.length || 5);
   const [useLiveTraffic, setUseLiveTraffic] = useState<boolean>(true);
   const [allowNonTrafficFallback, setAllowNonTrafficFallback] = useState<boolean>(true);
@@ -374,9 +374,8 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
               <span className="text-[#6B6D76] block">Optimization Engine:</span>
               <div className="space-y-2">
                 {[
-                  { id: 'quantum_inspired', name: 'Simulated Quantum Annealing', tag: 'Recommended' },
-                  { id: 'qiskit_runtime', name: 'Qiskit QAOA / Statevector', tag: 'Hybrid' },
-                  { id: 'classical_heuristics', name: 'Clarke-Wright & 2-Opt', tag: 'Classical' },
+                  { id: 'qiskit', name: 'IBM Qiskit QAOA Simulator', tag: 'Quantum (Recommended)' },
+                  { id: 'classical', name: 'Clarke-Wright & 2-Opt Heuristic', tag: 'Classical Baseline' },
                 ].map((s) => (
                   <button
                     key={s.id}

@@ -245,116 +245,11 @@ export function solveLocalOptimization(
       return localRun2Opt(full, getDist).filter((n) => n !== 'DEPOT');
     });
   } else {
-    // Quantum-Inspired SQA with Sector Pre-Clustering & Multi-Objective Hamiltonian
-    const delivAngles = deliveries.map((d) => {
-      let ang = Math.atan2(d.lat - depot.lat, d.lng - depot.lng);
-      if (ang < 0) ang += 2 * Math.PI;
-      return { ang, d };
-    });
-    delivAngles.sort((a, b) => a.ang - b.ang);
-
-    const target = Math.floor(deliveries.length / k);
-    const extra = deliveries.length % k;
-    let curV = 0;
-    let countInCur = 0;
-    let limit = target + (curV < extra ? 1 : 0);
-
-    for (const item of delivAngles) {
-      if (countInCur >= limit && curV < k - 1) {
-        curV++;
-        countInCur = 0;
-        limit = target + (curV < extra ? 1 : 0);
-      }
-      assignments[curV].push(item.d.id);
-      countInCur++;
-    }
-
-    // Evaluate Hamiltonian
-    const evalEnergy = (state: string[][]) => {
-      let energy = 0;
-      for (let vIdx = 0; vIdx < k; vIdx++) {
-        const route = state[vIdx];
-        if (route.length === 0) continue;
-        const full = ['DEPOT', ...route, 'DEPOT'];
-        let curTime = 510; // 08:30
-        let routeLoad = 0;
-
-        for (let i = 0; i < full.length - 1; i++) {
-          const u = full[i];
-          const v = full[i + 1];
-          energy += getDist(u, v) * 0.9;
-          if (v !== 'DEPOT') {
-            const del = delivMap[v];
-            routeLoad += del.demand_kg;
-            curTime += getTime(u, v);
-            const startM = parseTimeToMins(del.time_window_start);
-            const endM = parseTimeToMins(del.time_window_end);
-            if (curTime < startM) curTime = startM;
-            else if (curTime > endM) energy += (curTime - endM) * 3.5;
-            curTime += del.service_time_mins;
-          }
-        }
-        const excess = Math.max(0, routeLoad - vehicles[vIdx].capacity_kg);
-        energy += excess * 150;
-      }
-      return energy;
-    };
-
-    let curEnergy = evalEnergy(assignments);
-    let bestEnergy = curEnergy;
-    let bestState = assignments.map((r) => [...r]);
-
-    convergence.push({ iteration: 0, energy: Number(curEnergy.toFixed(1)), best_energy: Number(bestEnergy.toFixed(1)) });
-
-    // Annealing iterations
-    const iters = 200;
-    for (let it = 1; it <= iters; it++) {
-      const s = it / iters;
-      const gamma = 4.0 * (1 - s);
-      const temp = Math.max(0.1, 40 * Math.pow(0.985, it));
-
-      const candidate = assignments.map((r) => [...r]);
-      const nonEmpties = candidate
-        .map((r, i) => (r.length > 0 ? i : -1))
-        .filter((i) => i !== -1);
-
-      if (nonEmpties.length >= 2) {
-        const v1 = nonEmpties[Math.floor(Math.random() * nonEmpties.length)];
-        const v2 = Math.floor(Math.random() * k);
-        if (v1 !== v2 && candidate[v1].length > 0) {
-          const cIdx = Math.floor(Math.random() * candidate[v1].length);
-          const cust = candidate[v1].splice(cIdx, 1)[0];
-          candidate[v2].push(cust);
-
-          const candEnergy = evalEnergy(candidate);
-          const delta = candEnergy - curEnergy;
-          const denom = Math.max(0.001, temp + gamma * Math.sqrt(Math.abs(delta) + 1));
-
-          if (delta < 0 || Math.random() < Math.exp(-delta / denom)) {
-            assignments = candidate;
-            curEnergy = candEnergy;
-            if (curEnergy < bestEnergy) {
-              bestEnergy = curEnergy;
-              bestState = candidate.map((r) => [...r]);
-            }
-          }
-        }
-      }
-
-      if (it % 20 === 0 || it === iters) {
-        convergence.push({
-          iteration: it,
-          energy: Number(curEnergy.toFixed(1)),
-          best_energy: Number(bestEnergy.toFixed(1)),
-        });
-      }
-    }
-
-    assignments = bestState.map((a) => {
-      if (a.length <= 2) return a;
-      const full = ['DEPOT', ...a, 'DEPOT'];
-      return localRun2Opt(full, getDist).filter((n) => n !== 'DEPOT');
-    });
+    // Fake client-side quantum calculation has been removed.
+    // Real Qiskit execution is performed by the Python backend via /api/quantum/optimize.
+    throw new Error(
+      'Quantum QAOA optimization requires execution on the Python Qiskit backend (/api/quantum/optimize). Mock client-side annealing has been removed.'
+    );
   }
 
   // Construct Routes
@@ -496,9 +391,7 @@ export function solveLocalOptimization(
   return {
     solver_type: mode,
     solver_name:
-      mode === 'quantum_inspired'
-        ? 'Quantum-Inspired Simulated Annealing (QUBO)'
-        : mode === 'classical_baseline'
+      mode === 'classical_baseline'
         ? 'Classical Clarke-Wright Savings + 2-Opt'
         : 'Unoptimized Baseline',
     execution_time_ms: Number((performance.now() - startTime).toFixed(1)),
@@ -710,26 +603,24 @@ export async function optimizeQiskit(req: OptimizationRequest): Promise<Optimiza
     co2_weight: req.co2_weight ?? 1.0,
   };
 
-  try {
-    const res = await fetch(`${API_BASE_URL}/optimize/qiskit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return adaptBackendResponse(data, req);
-    } else {
+  const res = await fetch(`${API_BASE_URL}/quantum/optimize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (res.ok) {
+    const data = await res.json();
+    return adaptBackendResponse(data, req);
+  } else {
+    let detail = 'Quantum optimization error';
+    try {
       const err = await res.json();
-      throw new Error(err.detail || 'Qiskit optimization error');
+      detail = err.detail || detail;
+    } catch {
+      // ignore
     }
-  } catch (err: any) {
-    if (err.message && err.message.includes('supports small routing instances')) {
-      throw err;
-    }
-    // fallback
+    throw new Error(detail);
   }
-  return solveLocalOptimization(req, 'quantum_inspired');
 }
 
 export async function optimizeRoutes(req: OptimizationRequest): Promise<OptimizationResult> {
@@ -803,6 +694,7 @@ function adaptBackendResponse(data: any, req: OptimizationRequest): Optimization
     traffic_provider: data.traffic_provider || 'Mappls',
     traffic_last_updated: data.traffic_last_updated,
     is_live_traffic_used: Boolean(data.is_live_traffic_used),
+    quantum_circuit_info: data.quantum_circuit_info,
   };
 }
 

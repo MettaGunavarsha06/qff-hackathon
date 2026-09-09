@@ -32,7 +32,7 @@ RouteQ provides a side-by-side comparative framework allowing logistics dispatch
 |   |  - Interactive Route Map (Leaflet)                                    |   |
 |   |  - Delivery & Fleet CRUD Management                                   |   |
 |   |  - Optimization Studio: Method Selector (Classical vs Qiskit)        |   |
-|   |  - 5-Stage Animated Progress Pipeline                                 |   |
+|   |  - Real Qiskit Circuit Telemetry Panel & Measurement Counts           |   |
 |   |  - Empirical Comparison Scorecard & ESG Analytics                     |   |
 |   +-----------------------------------+-----------------------------------+   |
 |                                       | HTTP / REST (Vite Proxy: /api)        |
@@ -40,20 +40,18 @@ RouteQ provides a side-by-side comparative framework allowing logistics dispatch
 |   +-----------------------------------------------------------------------+   |
 |   |                         FASTAPI BACKEND                               |   |
 |   |  - GET  /api/health              - POST /api/optimize/classical       |   |
-|   |  - GET  /api/demo-data           - POST /api/optimize/qiskit          |   |
-|   |  - GET  /api/optimization/status - POST /api/compare                  |   |
+|   |  - GET  /api/demo-data           - POST /api/quantum/optimize         |   |
+|   |  - GET  /api/optimization/status - POST /api/optimize/qiskit          |   |
 |   +-------------------+-----------------------------------+---------------+   |
 |                       |                                   |                   |
 |                       v                                   v                   |
 |   +-------------------------------+   +-------------------------------+       |
-|   |      CLASSICAL OPTIMIZER      |   |   QISKIT QUANTUM OPTIMIZER    |       |
-|   | - Clarke-Wright Edge Savings  |   | - Binary Decision Variable    |       |
-|   | - Bin-packing & Capacity      |   |   Mapping (CVRPTW -> QUBO)    |       |
-|   | - 2-Opt Iterative Local Search|   | - Cost Hamiltonian H_C        |       |
-|   | - Scales up to 50+ stops      |   | - QAOA Circuit Construction   |       |
-|   +-------------------------------+   | - Qiskit Aer / Statevector    |       |
-|                                       | - Solution Bitstring Decoding |       |
-|                                       | - Max 6 stops (2^N scaling)   |       |
+|   |      CLASSICAL OPTIMIZER      |   |   QISKIT QUANTUM SERVICE      |       |
+|   | - Clarke-Wright Edge Savings  |   | - Ising Cost Hamiltonian H_C  |       |
+|   | - Bin-packing & Capacity      |   | - QAOA Circuit (H, RZZ, RX)   |       |
+|   | - 2-Opt Iterative Local Search|   | - Qiskit StatevectorSampler   |       |
+|   | - Scales up to 50+ stops      |   | - 1024 Shots Real Sampling    |       |
+|   +-------------------------------+   | - Ground State Bitstring Dec. |       |
 |                                       +-------------------------------+       |
 +-------------------------------------------------------------------------------+
 ```
@@ -170,8 +168,9 @@ python -m unittest test_suite.py
 | `GET` | `/api/health` | Returns backend health, active simulator, and available solvers |
 | `GET` | `/api/demo-data` | Returns 25-stop full demo and 4-stop quantum demo datasets |
 | `GET` | `/api/optimization/status` | Real-time telemetry on the latest optimization run |
+| `POST` | `/api/quantum/optimize` | Executes genuine Qiskit QAOA quantum circuits via StatevectorSampler (1024 shots) |
+| `POST` | `/api/optimize/qiskit` | Alias to `/api/quantum/optimize` for backwards compatibility |
 | `POST` | `/api/optimize/classical` | Executes Clarke-Wright Savings + 2-Opt on the requested instance |
-| `POST` | `/api/optimize/qiskit` | Executes Qiskit QAOA / QUBO optimization on instances with $\le 6$ stops |
 | `POST` | `/api/optimize` | Unified endpoint dispatching based on `optimization_method` |
 | `POST` | `/api/compare` | Executes head-to-head empirical benchmark between Classical and Qiskit |
 
