@@ -1,9 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Depot, Delivery, VehicleRoute, Vehicle } from '../../types';
-import { ZoomIn, ZoomOut, Maximize2, Key, X, Check, MapPin } from 'lucide-react';
-import { GoogleRouteMap } from './GoogleRouteMap';
+import { MAP_LAYERS } from '../../config/mapProviders';
+import { calculateDirections } from '../../services/routing';
+import type { TravelMode, RouteResult } from '../../services/routing';
+import type { GeocodingResult } from '../../services/geocoding';
+import { LocationButton } from './LocationButton';
+import { SearchBox } from './SearchBox';
+import { LayerControl } from './LayerControl';
+import type { ActiveMapLayer } from './LayerControl';
+import { DirectionsPanel } from './DirectionsPanel';
+import { MapControls } from './MapControls';
+import { generateMarkerPopupHtml } from './MarkerPopup';
+import { TrafficLegend } from './TrafficLegend';
+import { defaultTrafficProvider } from '../../services/traffic';
+import type { TrafficSnapshot } from '../../services/traffic';
+import { AlertCircle, Check, X } from 'lucide-react';
 
 interface RouteMapProps {
   depot: Depot;
@@ -21,7 +34,6 @@ interface RouteMapProps {
 export const RouteMap: React.FC<RouteMapProps> = ({
   depot,
   deliveries,
-  vehicles,
   optimizationResult,
   selectedVehicleId = null,
   onSelectVehicle,
@@ -31,67 +43,122 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const layerGroupRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const logisticsLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const directionsLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const searchLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const userLocationLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const trafficLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const districtBoundaryLayerRef = useRef<L.LayerGroup | null>(null);
   const stopMarkersRef = useRef<Record<string, L.Marker>>({});
-  const [activeFilter, setActiveFilter] = useState<string | null>(selectedVehicleId);
 
-  // Map Provider State: 'leaflet' | 'google'
-  const [mapProvider, setMapProvider] = useState<'leaflet' | 'google'>(() => {
-    return (localStorage.getItem('routeq_map_provider') as 'leaflet' | 'google') || 'leaflet';
-  });
+  // Active Map Layer: 'street' | 'satellite' | 'terrain'
+  const [activeLayer, setActiveLayer] = useState<ActiveMapLayer>('street');
+  const [trafficEnabled, setTrafficEnabled] = useState<boolean>(false);
+  const [trafficSnapshot, setTrafficSnapshot] = useState<TrafficSnapshot | null>(null);
+  const [isRefreshingTraffic, setIsRefreshingTraffic] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [currentZoom, setCurrentZoom] = useState<number>(13);
+  const hasInitialFitRef = useRef<boolean>(false);
 
-  // Google Maps API Key state
-  const [apiKey, setApiKey] = useState<string>(() => {
-    return (
-      localStorage.getItem('routeq_gmaps_api_key') ||
-      (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) ||
-      ''
-    );
-  });
-  const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
-  const [tempKey, setTempKey] = useState<string>(apiKey);
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  // Status banners & notices
+  const [systemNotice, setSystemNotice] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Directions State
+  const [directionsOrigin, setDirectionsOrigin] = useState<{ name: string; lat: number; lng: number } | null>(null);
+  const [directionsDestination, setDirectionsDestination] = useState<{ name: string; lat: number; lng: number } | null>(null);
+  const [travelMode, setTravelMode] = useState<TravelMode>('driving');
+  const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
+  const [isRouting, setIsRouting] = useState<boolean>(false);
 
   const routes: VehicleRoute[] = optimizationResult?.routes || [];
 
-  useEffect(() => {
-    setActiveFilter(selectedVehicleId);
-  }, [selectedVehicleId]);
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  }, []);
 
-  // India Bounding Box coordinates
-  const INDIA_BOUNDS = L.latLngBounds([
-    [6.5, 68.0],   // Southwest corner of India
-    [37.5, 97.5],  // Northeast corner of India
-  ]);
+  const showNotice = useCallback((msg: string) => {
+    setSystemNotice(msg);
+    setTimeout(() => setSystemNotice(null), 4500);
+  }, []);
 
-  // Initialize Map with clean light cartographic styling constrained to India
+  // 1. Initialize Global Leaflet Map (Supports long zoom 1 to very close zoom 22)
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
     if (!mapInstanceRef.current) {
+      // Check for shareable URL query coordinates: ?lat=...&lng=...&zoom=...
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlLat = parseFloat(searchParams.get('lat') || '');
+      const urlLng = parseFloat(searchParams.get('lng') || '');
+      const urlZoom = parseInt(searchParams.get('zoom') || '', 10);
+
+      const initialCenter: [number, number] =
+        !isNaN(urlLat) && !isNaN(urlLng) ? [urlLat, urlLng] : [depot.lat, depot.lng];
+      const initialZoom = !isNaN(urlZoom) ? urlZoom : 13;
+      setCurrentZoom(initialZoom);
+
       const map = L.map(mapContainerRef.current, {
-        center: [depot.lat, depot.lng],
-        zoom: 13,
-        minZoom: 4,
-        maxBounds: INDIA_BOUNDS,
-        maxBoundsViscosity: 0.85,
+        center: initialCenter,
+        zoom: initialZoom,
+        minZoom: 1, // Long zoom: full world global view
+        maxZoom: 22, // Very close zoom: building, vehicle & meter level
+        zoomSnap: 1,
+        zoomDelta: 1,
+        wheelPxPerZoomLevel: 60,
+        wheelDebounceTime: 40,
         zoomControl: false,
         attributionControl: false,
       });
 
-      // CartoDB Positron clean light raster tiles
-      L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        {
-          maxZoom: 19,
-          subdomains: 'abcd',
-        }
-      ).addTo(map);
+      // Track zoom level for controls and indicator
+      map.on('zoomend', () => {
+        setCurrentZoom(map.getZoom());
+      });
 
-      layerGroupRef.current = L.layerGroup().addTo(map);
+      // Standard OpenStreetMap Tile Layer with Overzooming support
+      const initialLayerConfig = MAP_LAYERS.street;
+      const tile = L.tileLayer(initialLayerConfig.url, {
+        maxZoom: initialLayerConfig.maxZoom || 22,
+        maxNativeZoom: initialLayerConfig.maxNativeZoom || 19,
+        minZoom: initialLayerConfig.minZoom || 1,
+        attribution: initialLayerConfig.attribution,
+      });
+
+      tile.on('tileerror', () => {
+        showNotice('Map could not be loaded. Please check your internet connection.');
+      });
+
+      tile.addTo(map);
+      tileLayerRef.current = tile;
+
+      // Attribution control in bottom right
+      L.control
+        .attribution({
+          position: 'bottomright',
+          prefix: '<a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet</a>',
+        })
+        .addTo(map);
+
+      // Layer groups for clean separation of concerns
+      districtBoundaryLayerRef.current = L.layerGroup().addTo(map);
+      logisticsLayerGroupRef.current = L.layerGroup().addTo(map);
+      directionsLayerGroupRef.current = L.layerGroup().addTo(map);
+      searchLayerGroupRef.current = L.layerGroup().addTo(map);
+      userLocationLayerGroupRef.current = L.layerGroup().addTo(map);
+
+      // Dedicated Traffic Pane (above base tiles at 200, beneath markers at 600)
+      if (!map.getPane('trafficPane')) {
+        const tPane = map.createPane('trafficPane');
+        tPane.style.zIndex = '380';
+      }
+      trafficLayerGroupRef.current = L.layerGroup().addTo(map);
+
       mapInstanceRef.current = map;
 
-      // Delayed resize invalidation to ensure Leaflet renders properly inside dynamic layouts
+      // Delayed resize invalidation
       setTimeout(() => {
         map.invalidateSize();
       }, 200);
@@ -102,8 +169,17 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
+    const handleFlyTo = (e: any) => {
+      if (e.detail && mapInstanceRef.current) {
+        const { lat, lng, zoom } = e.detail;
+        mapInstanceRef.current.flyTo([lat, lng], zoom || 12, { duration: 1.2 });
+      }
+    };
+    window.addEventListener('routeq_map_flyto', handleFlyTo);
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('routeq_map_flyto', handleFlyTo);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -111,6 +187,33 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     };
   }, []);
 
+  // Update Tile Layer when user switches between Street, Satellite, Terrain
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const config = MAP_LAYERS[activeLayer];
+
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+
+    const newTileLayer = L.tileLayer(config.url, {
+      maxZoom: config.maxZoom || 22,
+      maxNativeZoom: config.maxNativeZoom || 19,
+      minZoom: config.minZoom || 1,
+      attribution: config.attribution,
+      subdomains: (config.subdomains as any) || 'abc',
+    });
+
+    newTileLayer.on('tileerror', () => {
+      showNotice('Map provider unavailable. Please check your network connection.');
+    });
+
+    newTileLayer.addTo(map);
+    tileLayerRef.current = newTileLayer;
+  }, [activeLayer, showNotice]);
+
+  // Recalculate container size on height change
   useEffect(() => {
     if (mapInstanceRef.current) {
       const timer = setTimeout(() => {
@@ -118,18 +221,264 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       }, 150);
       return () => clearTimeout(timer);
     }
-  }, [height]);
+  }, [height, isFullscreen]);
 
-  // Draw Depot, Routes & Delivery Nodes
+  // 2. Global Event Handlers for Marker Popup Actions (Directions, Save, Share)
   useEffect(() => {
-    if (!mapInstanceRef.current || !layerGroupRef.current) return;
-    const group = layerGroupRef.current;
+    // Window bridge for "Directions" button inside Leaflet popup HTML
+    (window as any).__routeq_get_directions = (destLat: number, destLng: number, destName: string) => {
+      setDirectionsOrigin({
+        name: `${depot.name} (Hub)`,
+        lat: depot.lat,
+        lng: depot.lng,
+      });
+      setDirectionsDestination({
+        name: destName,
+        lat: destLat,
+        lng: destLng,
+      });
+    };
+
+    // Window bridge for "Save" button inside Leaflet popup HTML
+    (window as any).__routeq_save_place = (id: string, name: string, lat: number, lng: number) => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('routeq_saved_places') || '[]');
+        const exists = saved.some((p: any) => p.id === id);
+        if (!exists) {
+          saved.push({ id, name, lat, lng, savedAt: new Date().toISOString() });
+          localStorage.setItem('routeq_saved_places', JSON.stringify(saved));
+          showToast(`Saved "${name}" to favorites!`);
+        } else {
+          showToast(`"${name}" is already saved.`);
+        }
+      } catch {
+        showToast(`Saved "${name}"!`);
+      }
+    };
+
+    // Window bridge for "Share" button inside Leaflet popup HTML
+    (window as any).__routeq_share_place = (lat: number, lng: number, placeId: string) => {
+      const zoom = mapInstanceRef.current ? mapInstanceRef.current.getZoom() : 14;
+      const shareUrl = `${window.location.origin}${window.location.pathname}?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&zoom=${zoom}&place=${placeId}`;
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() => {
+          showToast('Share link copied to clipboard!');
+        })
+        .catch(() => {
+          showToast(`Share URL: ${shareUrl}`);
+        });
+    };
+
+    return () => {
+      delete (window as any).__routeq_get_directions;
+      delete (window as any).__routeq_save_place;
+      delete (window as any).__routeq_share_place;
+    };
+  }, [depot, showToast]);
+
+  // 3. Traffic Layer Management & Realistic Simulation Feed
+  const renderTrafficSegments = useCallback((snapshot: TrafficSnapshot) => {
+    if (!trafficLayerGroupRef.current || !mapInstanceRef.current) return;
+    const group = trafficLayerGroupRef.current;
+    group.clearLayers();
+
+    snapshot.segments.forEach((seg) => {
+      const polyline = L.polyline(seg.coordinates, {
+        pane: 'trafficPane',
+        color: seg.color,
+        weight: 6,
+        opacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round',
+      });
+
+      const popupHtml = `
+        <div style="padding: 6px 4px; font-family: 'Manrope', system-ui, sans-serif; min-width: 175px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-weight: 700; color: #1F2024; font-size: 12px;">${seg.roadName}</span>
+            <span style="font-size: 9px; font-weight: 700; font-family: 'IBM Plex Mono'; color: ${seg.color}; background: ${seg.color}20; padding: 2px 6px; border-radius: 6px;">
+              ${seg.level.toUpperCase()}
+            </span>
+          </div>
+          <div style="font-family: 'IBM Plex Mono'; font-size: 10px; color: #6B6D76; margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+            <div>SPEED: <b style="color: #1F2024;">${seg.speedKmh} km/h</b></div>
+            <div>DELAY: <b style="color: #1F2024;">+${seg.delayMins}m</b></div>
+            <div>CONGESTION: <b style="color: #1F2024;">${seg.congestionPct}%</b></div>
+            <div>LENGTH: <b style="color: #1F2024;">${seg.lengthKm} km</b></div>
+          </div>
+          <div style="margin-top: 6px; font-size: 8.5px; font-family: 'IBM Plex Mono'; color: #8E909A; border-top: 1px solid #F2F1EC; padding-top: 4px;">
+            ${snapshot.label}
+          </div>
+        </div>
+      `;
+
+      polyline.bindPopup(popupHtml);
+      group.addLayer(polyline);
+    });
+  }, []);
+
+  const handleRefreshTraffic = useCallback(async () => {
+    if (!mapInstanceRef.current) return;
+    setIsRefreshingTraffic(true);
+    try {
+      const snap = await defaultTrafficProvider.refresh(
+        { lat: depot.lat, lng: depot.lng },
+        deliveries.map((d) => ({ id: d.id, lat: d.lat, lng: d.lng })),
+        routes
+      );
+      setTrafficSnapshot(snap);
+      renderTrafficSegments(snap);
+      showToast('Traffic updated: just now');
+    } catch {
+      showNotice('Traffic refresh currently unavailable.');
+    } finally {
+      setIsRefreshingTraffic(false);
+    }
+  }, [depot, deliveries, routes, renderTrafficSegments, showToast, showNotice]);
+
+  useEffect(() => {
+    if (!trafficEnabled) {
+      if (trafficLayerGroupRef.current) {
+        trafficLayerGroupRef.current.clearLayers();
+      }
+      setTrafficSnapshot(null);
+      return;
+    }
+
+    let isCancelled = false;
+    showToast('Loading traffic...');
+    showNotice('Live traffic data is unavailable. Showing traffic simulation.');
+
+    defaultTrafficProvider
+      .getSnapshot(
+        { lat: depot.lat, lng: depot.lng },
+        deliveries.map((d) => ({ id: d.id, lat: d.lat, lng: d.lng })),
+        routes
+      )
+      .then((snap) => {
+        if (isCancelled) return;
+        setTrafficSnapshot(snap);
+        renderTrafficSegments(snap);
+        showToast('Traffic updated');
+      })
+      .catch(() => {
+        if (!isCancelled) showNotice('Traffic provider unavailable.');
+      });
+
+    const interval = setInterval(() => {
+      defaultTrafficProvider
+        .refresh(
+          { lat: depot.lat, lng: depot.lng },
+          deliveries.map((d) => ({ id: d.id, lat: d.lat, lng: d.lng })),
+          routes
+        )
+        .then((snap) => {
+          if (isCancelled) return;
+          setTrafficSnapshot(snap);
+          renderTrafficSegments(snap);
+        })
+        .catch(() => {});
+    }, 35000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [trafficEnabled, depot, deliveries, routes, renderTrafficSegments, showNotice, showToast]);
+
+  // 4. Calculate OSRM Directions when Origin, Destination or Mode changes
+  useEffect(() => {
+    if (!directionsOrigin || !directionsDestination) {
+      setRouteResult(null);
+      directionsLayerGroupRef.current?.clearLayers();
+      return;
+    }
+
+    let isCancelled = false;
+    setIsRouting(true);
+
+    calculateDirections(directionsOrigin, directionsDestination, travelMode)
+      .then((res) => {
+        if (isCancelled) return;
+        setRouteResult(res);
+        setIsRouting(false);
+
+        if (directionsLayerGroupRef.current && mapInstanceRef.current) {
+          directionsLayerGroupRef.current.clearLayers();
+
+          // Draw the OSRM route geometry line
+          const polyline = L.polyline(res.coordinates, {
+            color: travelMode === 'walking' ? '#10B981' : travelMode === 'cycling' ? '#F59E0B' : '#0284C7',
+            weight: 5,
+            opacity: 0.9,
+            dashArray: travelMode === 'walking' ? '5, 8' : undefined,
+            lineCap: 'round',
+            lineJoin: 'round',
+          });
+
+          polyline.bindPopup(`
+            <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
+              <div style="font-weight: 700; color: #1F2024; font-size: 13px;">${res.mode.toUpperCase()} ROUTE</div>
+              <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono'; margin-top: 3px;">
+                DISTANCE: ${res.distanceKm} km | TIME: ${res.durationMins} mins
+              </div>
+            </div>
+          `);
+
+          directionsLayerGroupRef.current.addLayer(polyline);
+
+          // Fit map viewport to encompass the whole route
+          const routeBounds = L.latLngBounds(res.coordinates);
+          mapInstanceRef.current.fitBounds(routeBounds, { padding: [60, 60] });
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setIsRouting(false);
+          showNotice('Routing service temporarily busy.');
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [directionsOrigin, directionsDestination, travelMode, showNotice]);
+
+  // 4. Render Logistics Entities (Hub, Fleet Routes, Delivery/Tourist Stops)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !logisticsLayerGroupRef.current) return;
+    const group = logisticsLayerGroupRef.current;
     group.clearLayers();
     stopMarkersRef.current = {};
 
     const bounds = L.latLngBounds([[depot.lat, depot.lng]]);
 
-    // 1. Central Logistics Depot Marker (Custom Minimal Geometric Monogram)
+    // Render District Administrative Boundary if district is active
+    if (districtBoundaryLayerRef.current) {
+      districtBoundaryLayerRef.current.clearLayers();
+      if (depot && depot.district) {
+        const boundaryCircle = L.circle([depot.lat, depot.lng], {
+          radius: 12500,
+          color: '#FF6B4A',
+          weight: 1.8,
+          dashArray: '5, 8',
+          fillColor: '#FF6B4A',
+          fillOpacity: 0.04,
+        });
+        boundaryCircle.bindPopup(`
+          <div style="font-family: 'Manrope', sans-serif; padding: 4px;">
+            <div style="font-weight: 700; color: #1F2024; font-size: 13px;">${depot.district} District</div>
+            <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono'; margin-top: 2px;">
+              ${depot.state ? `${depot.state} · ` : ''}Operational Logistics Boundary
+            </div>
+          </div>
+        `);
+        districtBoundaryLayerRef.current.addLayer(boundaryCircle);
+      }
+    }
+
+    // Central Logistics Hub Marker
     const depotIcon = L.divIcon({
       className: 'custom-depot-node',
       html: `
@@ -161,14 +510,17 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     });
 
     const depotMarker = L.marker([depot.lat, depot.lng], { icon: depotIcon });
-    depotMarker.bindPopup(`
-      <div style="padding: 4px 2px; min-width: 190px; font-family: 'Manrope', sans-serif;">
-        <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #FF5B37; letter-spacing: 0.5px; font-family: 'IBM Plex Mono';">Central Logistics Hub</div>
-        <div style="font-weight: 700; font-size: 13px; margin-top: 2px; color: #1F2024;">${depot.name}</div>
-        <div style="font-size: 11px; color: #6B6D76; margin-top: 4px; font-family: 'IBM Plex Mono';">ID: ${depot.id}</div>
-        <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">HOURS: ${depot.operating_hours_start} – ${depot.operating_hours_end}</div>
-      </div>
-    `);
+    const depotPopupHtml = generateMarkerPopupHtml({
+      id: depot.id,
+      name: depot.name,
+      category: 'Central Logistics Hub',
+      description: `Primary operational fulfillment center serving ${depot.district || 'Metro Region'}. Operating hours: ${depot.operating_hours_start} – ${depot.operating_hours_end}.`,
+      rating: 4.9,
+      address: `${depot.name}, ${depot.district || ''}, ${depot.state || 'India'}`,
+      lat: depot.lat,
+      lng: depot.lng,
+    });
+    depotMarker.bindPopup(depotPopupHtml);
     group.addLayer(depotMarker);
 
     const deliveryToVehicleMap: Record<
@@ -176,10 +528,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       { color: string; seq: number; vehicleName: string; vehicleId: string; isLate: boolean; arrival: string }
     > = {};
 
-    // 2. Draw Route Polylines
+    // Render Routes
     routes.forEach((route, rIdx) => {
-      const isSelected = activeFilter ? route.vehicle_id === activeFilter : false;
-      const isAlternative = activeFilter ? route.vehicle_id !== activeFilter : false;
+      const isSelected = selectedVehicleId ? route.vehicle_id === selectedVehicleId : false;
+      const isAlternative = selectedVehicleId ? route.vehicle_id !== selectedVehicleId : false;
 
       const palette = ['#FF5B37', '#FF4D8D', '#3B82F6', '#10B981', '#F59E0B'];
       const defaultColor = route.color || palette[rIdx % palette.length];
@@ -200,7 +552,6 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       const latLngs = route.waypoints.map((wp) => [wp.lat, wp.lng] as [number, number]);
       if (latLngs.length > 1) {
         if (isAlternative) {
-          // Alternative routes: Subtle dashed lines
           const altPolyline = L.polyline(latLngs, {
             color: '#94A3B8',
             weight: 2.2,
@@ -221,48 +572,44 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           });
           group.addLayer(altPolyline);
         } else if (isSelected) {
-          // Selected vehicle route: RouteQ Orange -> Pink gradient highlight
-          // Layer 1: Soft Outer Magenta Glow
-          const glowPolyline = L.polyline(latLngs, {
+          const glowLine = L.polyline(latLngs, {
             color: '#FF4D8D',
-            weight: 8,
-            opacity: 0.45,
+            weight: 9,
+            opacity: 0.35,
             lineCap: 'round',
             lineJoin: 'round',
           });
-          group.addLayer(glowPolyline);
+          group.addLayer(glowLine);
 
-          // Layer 2: Core Vibrant RouteQ Coral Route
-          const corePolyline = L.polyline(latLngs, {
+          const coreLine = L.polyline(latLngs, {
             color: '#FF5B37',
             weight: 4.5,
             opacity: 1.0,
             lineCap: 'round',
             lineJoin: 'round',
           });
-          corePolyline.bindPopup(`
+          coreLine.bindPopup(`
             <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
-              <div style="font-weight: 700; color: #FF5B37; font-size: 13px;">${route.vehicle_name} (Selected)</div>
+              <div style="font-weight: 700; color: #FF5B37; font-size: 13px;">${route.vehicle_name} (Active Focus)</div>
               <div style="font-size: 11px; color: #6B6D76; margin-top: 3px; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km.toFixed(1)} km</div>
               <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">TIME: ${Math.round(route.total_time_mins)} mins | FUEL: ${route.fuel_consumed_l.toFixed(1)} L</div>
             </div>
           `);
-          group.addLayer(corePolyline);
+          group.addLayer(coreLine);
         } else {
-          // Overview mode (all vehicles active)
-          const glowPolyline = L.polyline(latLngs, {
+          const glowLine = L.polyline(latLngs, {
             color: defaultColor,
-            weight: 5,
-            opacity: 0.22,
+            weight: 6,
+            opacity: 0.18,
             lineCap: 'round',
             lineJoin: 'round',
           });
-          group.addLayer(glowPolyline);
+          group.addLayer(glowLine);
 
           const polyline = L.polyline(latLngs, {
             color: defaultColor,
-            weight: 3,
-            opacity: 0.92,
+            weight: 3.5,
+            opacity: 0.9,
             lineCap: 'round',
             lineJoin: 'round',
           });
@@ -279,14 +626,11 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           group.addLayer(polyline);
         }
 
-        // Vector Truck Marker for each active vehicle
+        // Truck Vector Marker
         if (route.waypoints.length > 1) {
           const midWpIdx = Math.min(route.waypoints.length - 1, Math.max(1, Math.floor(route.waypoints.length / 2)));
           const truckWp = route.waypoints[midWpIdx];
           const strokeColor = isSelected ? '#FF5B37' : (isAlternative ? '#94A3B8' : defaultColor);
-          const shadowStyle = isSelected
-            ? 'box-shadow: 0 0 14px rgba(255, 91, 55, 0.55);'
-            : 'box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
 
           const truckIcon = L.divIcon({
             className: 'custom-vehicle-truck-node',
@@ -295,10 +639,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                 display: flex; align-items: center; justify-content: center;
                 width: 28px; height: 28px; border-radius: 8px;
                 background: #FFFFFF; border: 2px solid ${strokeColor};
-                ${shadowStyle}
-                cursor: pointer; transition: transform 0.2s ease;
-                opacity: ${isAlternative ? 0.65 : 1};
-              " title="${route.vehicle_name} (Click to inspect)">
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                cursor: pointer; opacity: ${isAlternative ? 0.65 : 1};
+              " title="${route.vehicle_name}">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
                   <path d="M15 18H9"/>
@@ -311,6 +654,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             iconSize: [28, 28],
             iconAnchor: [14, 14],
           });
+
           const truckMarker = L.marker([truckWp.lat, truckWp.lng], { icon: truckIcon });
           truckMarker.on('click', () => {
             if (onSelectVehicle) onSelectVehicle(route.vehicle_id);
@@ -329,11 +673,11 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       }
     });
 
-    // 3. Delivery Stop Markers
+    // Render Delivery / Tourist Place Markers
     deliveries.forEach((del) => {
       const assignment = deliveryToVehicleMap[del.id];
-      const isAssignedToSelected = activeFilter && assignment ? assignment.vehicleId === activeFilter : false;
-      const isMutedAlternative = activeFilter && assignment ? assignment.vehicleId !== activeFilter : false;
+      const isAssignedToSelected = selectedVehicleId && assignment ? assignment.vehicleId === selectedVehicleId : false;
+      const isMutedAlternative = selectedVehicleId && assignment ? assignment.vehicleId !== selectedVehicleId : false;
 
       bounds.extend([del.lat, del.lng]);
 
@@ -362,7 +706,6 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             font-family: 'IBM Plex Mono', monospace;
             font-weight: 700;
             font-size: ${isAssignedToSelected ? '10px' : '8.5px'};
-            position: relative;
             opacity: ${isMutedAlternative ? 0.6 : 1};
             cursor: pointer;
             transition: transform 0.2s ease;
@@ -375,26 +718,25 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       });
 
       const delMarker = L.marker([del.lat, del.lng], { icon: delIcon });
-      delMarker.bindPopup(`
-        <div style="padding: 4px 2px; min-width: 200px; font-family: 'Manrope', sans-serif;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-            <span style="font-size: 11px; font-weight: 700; color: #1F2024; font-family: 'IBM Plex Mono';">${del.id}</span>
-            <span style="background: rgba(255,91,55,0.1); color: #FF5B37; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 9999px; text-transform: uppercase; font-family: 'IBM Plex Mono';">${del.priority}</span>
-          </div>
-          <div style="font-weight: 700; font-size: 13px; color: #1F2024; margin-bottom: 2px;">${del.customer_name}</div>
-          <div style="font-size: 11px; color: #6B6D76; margin-bottom: 4px;">${del.address || 'Bengaluru Logistics Corridor, India'}</div>
-          ${assignment ? `
-            <div style="font-size: 10px; color: #FF5B37; font-weight: 600; font-family: 'IBM Plex Mono'; margin-bottom: 4px;">
-              ASSIGNED: ${assignment.vehicleName} (STOP #${assignment.seq}) &bull; ARRIVAL: ${assignment.arrival}
-            </div>
-          ` : ''}
-          <div style="font-size: 11px; color: #6B6D76; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #E8E6DF; font-family: 'IBM Plex Mono';">
-            <div>LOAD: ${del.demand_kg} kg</div>
-            <div>SERVICE: ${del.service_time_mins}m</div>
-            <div style="grid-column: span 2;">WINDOW: ${del.time_window_start} – ${del.time_window_end}</div>
-          </div>
-        </div>
-      `);
+
+      const popupHtml = generateMarkerPopupHtml({
+        id: del.id,
+        name: del.customer_name,
+        category: del.priority === 'urgent' ? 'High Priority' : 'Delivery Destination',
+        description: `Scheduled stop with ${del.demand_kg} kg cargo. Service time: ${del.service_time_mins} mins. Window: ${del.time_window_start} – ${del.time_window_end}.`,
+        rating: 4.8,
+        address: del.address || `${del.district || ''}, ${del.state || 'India'}`,
+        lat: del.lat,
+        lng: del.lng,
+        priority: del.priority,
+        demand_kg: del.demand_kg,
+        delivery_window: `${del.time_window_start} – ${del.time_window_end}`,
+        service_time_mins: del.service_time_mins,
+        assigned_vehicle: assignment ? `${assignment.vehicleName} (Stop #${assignment.seq})` : undefined,
+        arrival_time: assignment?.arrival,
+      });
+
+      delMarker.bindPopup(popupHtml);
 
       delMarker.on('click', () => {
         if (onSelectStop) onSelectStop(del);
@@ -404,255 +746,247 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       group.addLayer(delMarker);
     });
 
-    if (deliveries.length > 0) {
-      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-    } else {
-      mapInstanceRef.current.setView([depot.lat, depot.lng], 13);
+    // Only perform initial automatic fitBounds once on first load if not using shareable URL coordinates
+    // This strictly preserves the user's manual close zoom or long zoom across re-renders
+    if (deliveries.length > 0 && mapInstanceRef.current && !hasInitialFitRef.current) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hasExplicitCoords = searchParams.has('lat') || searchParams.has('zoom');
+      if (!hasExplicitCoords) {
+        mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+      }
+      hasInitialFitRef.current = true;
     }
-  }, [depot, deliveries, routes, activeFilter]);
+  }, [depot, deliveries, routes, selectedVehicleId, onSelectVehicle, onSelectStop, selectedStopId]);
 
-  // When selectedStopId changes, smoothly pan to and open its popup
+  // Handle selectedStopId focus
   useEffect(() => {
-    if (selectedStopId && mapInstanceRef.current && stopMarkersRef.current[selectedStopId]) {
-      const marker = stopMarkersRef.current[selectedStopId];
-      mapInstanceRef.current.setView(marker.getLatLng(), 15, { animate: true });
-      marker.openPopup();
-    }
+    if (!selectedStopId || !mapInstanceRef.current || !stopMarkersRef.current[selectedStopId]) return;
+    const marker = stopMarkersRef.current[selectedStopId];
+    mapInstanceRef.current.panTo(marker.getLatLng(), { animate: true, duration: 0.8 });
+    marker.openPopup();
   }, [selectedStopId]);
 
-  const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
-  const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
-  const handleResetBounds = () => {
+  // Handle Geolocation Found ("My Location" button)
+  const handleLocationFound = (loc: { lat: number; lng: number; accuracy: number }) => {
+    if (!mapInstanceRef.current || !userLocationLayerGroupRef.current) return;
+    const group = userLocationLayerGroupRef.current;
+    group.clearLayers();
+
+    // Accuracy Circle
+    const accuracyCircle = L.circle([loc.lat, loc.lng], {
+      radius: Math.max(loc.accuracy, 30),
+      color: '#3B82F6',
+      fillColor: '#3B82F6',
+      fillOpacity: 0.12,
+      weight: 1.5,
+    });
+    group.addLayer(accuracyCircle);
+
+    // Pulsing User Pin
+    const userIcon = L.divIcon({
+      className: 'custom-user-location-node',
+      html: `
+        <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; width: 28px; height: 28px; border-radius: 50%; background: rgba(59, 130, 246, 0.25); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+          <div style="position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #3B82F6; border: 2.5px solid #FFFFFF; box-shadow: 0 2px 8px rgba(0,0,0,0.25);"></div>
+        </div>
+      `,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+
+    const userMarker = L.marker([loc.lat, loc.lng], { icon: userIcon });
+    const userPopupHtml = generateMarkerPopupHtml({
+      id: 'USER-LOC',
+      name: 'Your Current Location',
+      category: 'Current Position',
+      description: `Accurate within ~${Math.round(loc.accuracy)} meters via browser geolocation.`,
+      lat: loc.lat,
+      lng: loc.lng,
+    });
+    userMarker.bindPopup(userPopupHtml);
+    group.addLayer(userMarker);
+
+    mapInstanceRef.current.flyTo([loc.lat, loc.lng], 14, { duration: 1.2 });
+    userMarker.openPopup();
+    showToast('Found your location!');
+  };
+
+  // Handle Search Result Selected (Nominatim Place Search)
+  const handleSearchResult = (place: GeocodingResult) => {
+    if (!mapInstanceRef.current || !searchLayerGroupRef.current) return;
+    const group = searchLayerGroupRef.current;
+    group.clearLayers();
+
+    const searchIcon = L.divIcon({
+      className: 'custom-search-pin-node',
+      html: `
+        <div style="
+          width: 28px; height: 28px; border-radius: 50%;
+          background: #10B981; border: 2.5px solid #FFFFFF;
+          box-shadow: 0 4px 14px rgba(16,185,129,0.4);
+          display: flex; align-items: center; justify-content: center;
+          color: white; font-weight: bold; font-size: 12px;
+        ">
+          📍
+        </div>
+      `,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+
+    const marker = L.marker([place.lat, place.lng], { icon: searchIcon });
+    const popupHtml = generateMarkerPopupHtml({
+      id: `OSM-${place.osm_id}`,
+      name: place.name,
+      category: place.type.replace('_', ' '),
+      description: place.display_name,
+      rating: 4.7,
+      address: place.display_name,
+      lat: place.lat,
+      lng: place.lng,
+    });
+
+    marker.bindPopup(popupHtml);
+    group.addLayer(marker);
+
+    // If bounding box is available, fit bounds; otherwise use adaptive zoom
+    if (place.boundingbox) {
+      const [south, north, west, east] = place.boundingbox;
+      mapInstanceRef.current.fitBounds(
+        [
+          [south, west],
+          [north, east],
+        ],
+        { padding: [40, 40], maxZoom: 18 }
+      );
+    } else {
+      const targetZoom =
+        place.type === 'house' || place.type === 'building' || place.type === 'amenity' || place.type === 'shop'
+          ? 18
+          : place.type === 'road' || place.type === 'suburb' || place.type === 'neighbourhood'
+          ? 16
+          : place.type === 'city' || place.type === 'town'
+          ? 12
+          : place.type === 'country'
+          ? 5
+          : 14;
+      mapInstanceRef.current.flyTo([place.lat, place.lng], targetZoom, { duration: 1.2 });
+    }
+    marker.openPopup();
+  };
+
+  // Recenter Bounds (Fit all delivery and depot locations)
+  const handleRecenter = () => {
     if (!mapInstanceRef.current) return;
     const bounds = L.latLngBounds([[depot.lat, depot.lng]]);
     deliveries.forEach((d) => bounds.extend([d.lat, d.lng]));
     if (deliveries.length > 0) {
-      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
     } else {
       mapInstanceRef.current.setView([depot.lat, depot.lng], 13);
     }
   };
 
-  const handleSaveKey = () => {
-    const trimmed = tempKey.trim();
-    setApiKey(trimmed);
-    localStorage.setItem('routeq_gmaps_api_key', trimmed);
-    setSaveSuccess(true);
-    setTimeout(() => {
-      setSaveSuccess(false);
-      setShowKeyModal(false);
-    }, 800);
-  };
-
   return (
     <div
-      className="relative w-full h-full rounded-2xl overflow-hidden border border-[#E8E6DF] bg-[#F2F1EC] shadow-soft-sm"
-      style={{ minHeight: '480px' }}
+      className={`relative w-full rounded-2xl overflow-hidden border border-[#E8E6DF] bg-[#F2F1EC] shadow-soft-sm transition-all ${
+        isFullscreen ? 'fixed inset-0 z-[5000] rounded-none' : 'h-full'
+      }`}
+      style={{ minHeight: isFullscreen ? '100vh' : '480px' }}
     >
-      {/* If Google Maps provider is active, render GoogleRouteMap */}
-      {mapProvider === 'google' ? (
-        <GoogleRouteMap
-          depot={depot}
-          deliveries={deliveries}
-          vehicles={vehicles}
-          optimizationResult={optimizationResult}
-          selectedVehicleId={selectedVehicleId}
-          onSelectVehicle={onSelectVehicle}
-          selectedStopId={selectedStopId}
-          onSelectStop={onSelectStop}
-          apiKey={apiKey}
-          onOpenKeyModal={() => {
-            setTempKey(apiKey);
-            setShowKeyModal(true);
-          }}
-        />
-      ) : (
-        <>
-          {/* Top Left: India Hub Badge */}
-          <div className="absolute top-3.5 left-3.5 z-[1000] flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#E8E6DF] shadow-sm pointer-events-none">
-            <span className="text-sm leading-none select-none">🇮🇳</span>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-bold text-[#1F2024] tracking-wide">
-                INDIA LOGISTICS GRID
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-              <span className="text-[10px] text-[#6B6D76] font-mono truncate max-w-[140px]">
-                {depot.name}
-              </span>
-            </div>
-          </div>
-
-          {/* Top Right: Minimal Zoom Controls */}
-          <div className="absolute top-3.5 right-3.5 z-[1000] flex flex-col gap-1.5">
-            <button
-              onClick={handleZoomIn}
-              title="Zoom In"
-              className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleZoomOut}
-              title="Zoom Out"
-              className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleResetBounds}
-              title="Recenter"
-              className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Bottom Minimal Status Readout */}
-          <div className="absolute bottom-3.5 left-3.5 z-[1000] hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#E8E6DF] font-mono text-[10px] text-[#6B6D76] shadow-sm">
-            <div className="flex items-center gap-1.5 text-[#1F2024] font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-              <span>HUB: {depot.id}</span>
-            </div>
-            <span className="text-[#E8E6DF]">|</span>
-            <div>STOPS: {deliveries.length}</div>
-            <span className="text-[#E8E6DF]">|</span>
-            <div>ROUTES: {routes.length || 'STANDBY'}</div>
-          </div>
-
-          {/* Leaflet Canvas Container */}
-          <div ref={mapContainerRef} className="w-full h-full min-h-[480px]" />
-        </>
-      )}
-
-      {/* Floating Map Engine Switcher & Google API Key Config (Pinned Top Center / Right) */}
-      <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-[1001] flex items-center gap-1.5 p-1 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E8E6DF] shadow-soft-sm font-mono text-[10px]">
-        <button
-          onClick={() => {
-            setMapProvider('leaflet');
-            localStorage.setItem('routeq_map_provider', 'leaflet');
-          }}
-          className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-            mapProvider === 'leaflet'
-              ? 'bg-[#1F2024] text-white shadow-xs'
-              : 'text-[#6B6D76] hover:text-[#1F2024]'
-          }`}
-          title="Switch to Leaflet (OpenStreetMap / CartoDB raster tiles)"
-        >
-          LEAFLET
-        </button>
-        <button
-          onClick={() => {
-            if (!apiKey) {
-              setTempKey(apiKey);
-              setShowKeyModal(true);
-            }
-            setMapProvider('google');
-            localStorage.setItem('routeq_map_provider', 'google');
-          }}
-          className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-            mapProvider === 'google'
-              ? 'bg-[#1F2024] text-white shadow-xs'
-              : 'text-[#6B6D76] hover:text-[#1F2024]'
-          }`}
-          title="Switch to Google Maps (Real-Time Traffic, Satellite & Roadmaps)"
-        >
-          <span>GOOGLE MAPS</span>
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              apiKey ? 'bg-[#34A853]' : 'bg-[#F59E0B] animate-pulse'
-            }`}
-          />
-        </button>
-
-        <button
-          onClick={() => {
-            setTempKey(apiKey);
-            setShowKeyModal(true);
-          }}
-          title="Configure Google Maps API Key"
-          className="p-1.5 rounded-xl text-[#6B6D76] hover:text-[#FF5B37] hover:bg-[#F7F6F2] transition-colors cursor-pointer"
-        >
-          <Key className="w-3.5 h-3.5" />
-        </button>
+      {/* Top Left: India Logistics Grid / Global Badge */}
+      <div className="absolute top-3.5 left-3.5 z-[1000] flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-[#E8E6DF] shadow-sm pointer-events-none">
+        <span className="text-sm leading-none select-none">🌐</span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] font-bold text-[#1F2024] tracking-wide">
+            GLOBAL LOGISTICS GRID
+          </span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+          <span className="text-[10px] text-[#6B6D76] font-mono truncate max-w-[140px]">
+            {depot.name}
+          </span>
+        </div>
       </div>
 
-      {/* Google Maps API Key Configuration Modal */}
-      {showKeyModal && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 font-sans">
-          <div className="bg-white rounded-3xl border border-[#E8E6DF] shadow-soft-xl max-w-md w-full p-6 space-y-5 text-[#1F2024] relative animate-in fade-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setShowKeyModal(false)}
-              className="absolute top-5 right-5 p-2 rounded-full hover:bg-[#F7F6F2] text-[#6B6D76] transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* Top Center: Place Search Bar (Nominatim) */}
+      <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-[1001] w-[260px] sm:w-[320px] md:w-[380px]">
+        <SearchBox onSelectPlace={handleSearchResult} />
+      </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold text-[#FF5B37] uppercase">
-                  MAP PROVIDER &bull; GOOGLE MAPS
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-[#1F2024]">Configure API Key</h3>
-              <p className="text-xs text-[#6B6D76] leading-relaxed">
-                Provide your Google Maps JavaScript API key to enable live traffic layers, satellite imagery, and high-fidelity routing cartography.
-              </p>
-            </div>
+      {/* Top Right: Layer Switcher, Location & Navigation Controls */}
+      <div className="absolute top-3.5 right-3.5 z-[1000] flex items-start gap-2">
+        <LayerControl
+          activeLayer={activeLayer}
+          onSelectLayer={setActiveLayer}
+          trafficEnabled={trafficEnabled}
+          onToggleTraffic={() => setTrafficEnabled(!trafficEnabled)}
+          onShowNotice={showNotice}
+        />
 
-            <div className="space-y-2">
-              <label className="text-[11px] font-mono text-[#6B6D76] block">
-                GOOGLE MAPS JAVASCRIPT API KEY
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={tempKey}
-                  onChange={(e) => setTempKey(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8E6DF] bg-[#FAF9F6] font-mono text-xs text-[#1F2024] focus:outline-none focus:border-[#FF5B37] focus:bg-white transition-all pr-10"
-                />
-                <Key className="w-4 h-4 text-[#8E909A] absolute right-3 top-3 pointer-events-none" />
-              </div>
-              <p className="text-[10px] text-[#8E909A] font-mono">
-                Saved securely in local browser storage or configured via <code className="bg-[#F2F1EC] px-1 py-0.5 rounded text-[#1F2024]">VITE_GOOGLE_MAPS_API_KEY</code> in <code className="bg-[#F2F1EC] px-1 py-0.5 rounded text-[#1F2024]">.env</code>.
-              </p>
-            </div>
+        <div className="flex flex-col gap-1.5">
+          <LocationButton onLocationFound={handleLocationFound} onError={showNotice} />
+          <MapControls
+            onZoomIn={() => mapInstanceRef.current?.zoomIn()}
+            onZoomOut={() => mapInstanceRef.current?.zoomOut()}
+            onRecenter={handleRecenter}
+            currentZoom={currentZoom}
+            minZoom={1}
+            maxZoom={22}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+          />
+        </div>
+      </div>
 
-            <div className="pt-2 flex items-center justify-between border-t border-[#E8E6DF]">
-              <a
-                href="https://console.cloud.google.com/google/maps-apis/credentials"
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs font-mono text-[#FF5B37] hover:underline"
-              >
-                Get Google API Key &rarr;
-              </a>
+      {/* Directions Panel (when active) */}
+      {directionsDestination && (
+        <DirectionsPanel
+          originName={directionsOrigin?.name || 'Origin'}
+          destinationName={directionsDestination.name}
+          routeResult={routeResult}
+          isLoading={isRouting}
+          selectedMode={travelMode}
+          onSelectMode={setTravelMode}
+          onClear={() => {
+            setDirectionsDestination(null);
+            setRouteResult(null);
+            directionsLayerGroupRef.current?.clearLayers();
+          }}
+        />
+      )}
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowKeyModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-mono text-[#6B6D76] hover:bg-[#F7F6F2] transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveKey}
-                  className="px-4 py-2 rounded-xl bg-[#1F2024] text-white text-xs font-mono font-bold hover:bg-black transition-all flex items-center gap-1.5 shadow-soft-sm cursor-pointer"
-                >
-                  {saveSuccess ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-[#10B981]" />
-                      <span>Saved!</span>
-                    </>
-                  ) : (
-                    <span>Save & Apply</span>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Traffic Legend (when traffic overlay active) */}
+      {trafficEnabled && (
+        <TrafficLegend
+          snapshot={trafficSnapshot}
+          onRefresh={handleRefreshTraffic}
+          isRefreshing={isRefreshingTraffic}
+        />
+      )}
+
+      {/* System Notice Alert (e.g. Traffic unconfigured or permission notice) */}
+      {systemNotice && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1002] max-w-md w-auto px-4 py-2 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] font-mono text-xs shadow-soft-lg flex items-center gap-2 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 text-[#FF5B37] shrink-0" />
+          <span className="leading-tight">{systemNotice}</span>
+          <button onClick={() => setSystemNotice(null)} className="p-1 hover:text-[#FF5B37] cursor-pointer">
+            <X className="w-3 h-3" />
+          </button>
         </div>
       )}
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-[1002] px-4 py-2 rounded-full bg-[#1F2024] text-white font-mono text-xs shadow-soft-xl flex items-center gap-2 animate-in fade-in zoom-in-95">
+          <Check className="w-3.5 h-3.5 text-[#10B981]" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+
+      {/* Leaflet Canvas Container */}
+      <div ref={mapContainerRef} className="w-full h-full min-h-[480px]" />
     </div>
   );
 };

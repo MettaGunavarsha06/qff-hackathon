@@ -30,6 +30,8 @@ import type {
 } from '../types';
 import { RouteMap } from '../components/Map/RouteMap';
 
+import type { OptimizationProgressState } from '../components/Optimization/OptimizationProgressBanner';
+
 interface ResultsPageProps {
   depot: Depot;
   deliveries: Delivery[];
@@ -40,6 +42,7 @@ interface ResultsPageProps {
   onNavigateTab: (tab: any) => void;
   onRunOptimization?: () => Promise<void>;
   isOptimizing?: boolean;
+  optimizationProgress?: OptimizationProgressState;
 }
 
 const smoothEase = [0.22, 1, 0.36, 1] as const;
@@ -63,6 +66,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   onNavigateTab,
   onRunOptimization,
   isOptimizing = false,
+  optimizationProgress,
 }) => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedStopModal, setSelectedStopModal] = useState<Delivery | null>(null);
@@ -252,10 +256,16 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             <button
               onClick={() => onRunOptimization()}
               disabled={isOptimizing}
-              className="btn-primary-gradient text-xs !py-2.5 !px-5 font-semibold flex items-center gap-2 cursor-pointer shadow-soft"
+              className="btn-primary-gradient text-xs !py-2.5 !px-5 font-semibold flex items-center gap-2 cursor-pointer shadow-soft select-none"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isOptimizing ? 'animate-spin' : ''}`} />
-              <span>{isOptimizing ? 'Optimizing...' : 'Re-Run Optimizer'}</span>
+              <span>
+                {isOptimizing
+                  ? optimizationProgress?.percent
+                    ? `Optimizing (${Math.round(optimizationProgress.percent)}%)...`
+                    : 'Optimizing...'
+                  : 'Re-Run Optimizer'}
+              </span>
             </button>
           )}
 

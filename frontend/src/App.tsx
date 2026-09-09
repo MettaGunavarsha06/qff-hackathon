@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TopNavbar } from './components/Navigation/TopNavbar';
 import type { NavTab } from './components/Navigation/TopNavbar';
 import { OptimizationModal } from './components/Optimization/OptimizationModal';
+import { OptimizationProgressBanner } from './components/Optimization/OptimizationProgressBanner';
+import type { OptimizationProgressState } from './components/Optimization/OptimizationProgressBanner';
 import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DeliveriesPage } from './pages/DeliveriesPage';
@@ -24,6 +26,7 @@ import type {
 } from './types';
 import { DEMO_DEPOT, DEMO_VEHICLES, DEMO_DELIVERIES, INDIA_HUBS } from './data/demoData';
 import { resolveDistrictHub } from './data/indiaDistricts';
+import { findStateOrUT } from './data/indiaLocations';
 import {
   checkBackendHealth,
   fetchDemoData,
@@ -46,6 +49,8 @@ export const App: React.FC = () => {
   // Application Tab State
   const [currentTab, setCurrentTab] = useState<NavTab>('overview');
   const [selectedHubKey, setSelectedHubKey] = useState<string>('bengaluru');
+  const [selectedStateName, setSelectedStateName] = useState<string>('Karnataka');
+  const [selectedDistrictName, setSelectedDistrictName] = useState<string>('Bengaluru Urban');
   const [depot, setDepot] = useState<Depot>(DEMO_DEPOT);
   const [vehicles, setVehicles] = useState<Vehicle[]>(DEMO_VEHICLES);
   const [deliveries, setDeliveries] = useState<Delivery[]>(DEMO_DELIVERIES);
@@ -81,6 +86,13 @@ export const App: React.FC = () => {
     message: 'Live traffic data is currently unavailable.',
   });
   const [isRefreshingTraffic, setIsRefreshingTraffic] = useState<boolean>(false);
+
+  // Staged non-blocking optimization progress (8-15s controlled execution)
+  const [optimizationProgress, setOptimizationProgress] = useState<OptimizationProgressState>({
+    isRunning: false,
+    stage: 'Idle',
+    percent: 0,
+  });
 
   // Sync optimization results to sessionStorage for resilient navigation
   useEffect(() => {
@@ -178,24 +190,18 @@ export const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Handler: Run Optimization Sequence
-  // Uses the FULL current depot/vehicles/deliveries from state.
-  // Respects solver_type from the OptimizationPage UI.
-  // Clears previous result immediately so the map shows a loading/empty state.
+  // Handler: Realistic Staged Optimization Sequence (8–15s, Non-Blocking, Map & Scroll Active)
   const handleRunOptimization = async (req?: OptimizationRequest) => {
+    if (isOptimizing) return; // Prevent duplicate concurrent runs
+
     setIsOptimizing(true);
     setOptimizationError(null);
-    setShowOptimizationModal(true);
+    setShowOptimizationModal(false); // Do not freeze the website with full-screen backdrop
 
-    // ─── Capture BEFORE baseline for savings comparison ───────────────────
+    // Capture baseline for comparison
     const baselineResult = optimizationResult;
 
-    // ─── CRITICAL: Clear old result so map + metrics reset immediately ────
-    setOptimizationResult(null);
-    // Also clear sessionStorage so stale data doesn't persist on error
-    try { sessionStorage.removeItem('routeq_optimization_result'); } catch { /* ignore */ }
-
-    // ─── Build the optimization request from current app state ────────────
+    // Build the request
     const optimizationReq: OptimizationRequest = req || {
       depot,
       vehicles,
@@ -209,22 +215,84 @@ export const App: React.FC = () => {
       allow_non_traffic_fallback: true,
     };
 
-    const solverLabel = optimizationReq.solver_type === 'classical'
-      ? 'Classical Clarke-Wright'
-      : 'Qiskit QAOA';
+    const solverLabel =
+      optimizationReq.solver_type === 'classical' ? 'Classical Clarke-Wright' : 'Qiskit QAOA';
+
+    // Stages configured to run across ~11.5 seconds total
+    const STAGES = [
+      { stage: 'Initializing optimizer...', targetPct: 10, durationMs: 1200 },
+      { stage: 'Loading route data...', targetPct: 20, durationMs: 1200 },
+      { stage: 'Analyzing road network...', targetPct: 35, durationMs: 1400 },
+      { stage: 'Analyzing traffic conditions...', targetPct: 50, durationMs: 1500 },
+      { stage: 'Calculating route alternatives...', targetPct: 65, durationMs: 1600 },
+      { stage: 'Comparing routes...', targetPct: 80, durationMs: 1400 },
+      { stage: 'Optimizing dispatch...', targetPct: 90, durationMs: 1400 },
+      { stage: 'Final validation...', targetPct: 100, durationMs: 1300 },
+    ];
+
+    setOptimizationProgress({
+      isRunning: true,
+      stage: 'Initializing optimizer...',
+      percent: 0,
+    });
+
+    // Helper for smooth, continuous asynchronous progression
+    let currentPct = 0;
+    const runStep = (stageName: string, targetPct: number, durationMs: number): Promise<void> => {
+      return new Promise((resolve) => {
+        const startPct = currentPct;
+        const startTime = performance.now();
+
+        const interval = setInterval(() => {
+          const elapsed = performance.now() - startTime;
+          const progress = Math.min(1, elapsed / durationMs);
+          const eased = 1 - Math.pow(1 - progress, 2); // Quad ease-out
+          currentPct = startPct + (targetPct - startPct) * eased;
+
+          setOptimizationProgress({
+            isRunning: true,
+            stage: stageName,
+            percent: Math.min(targetPct, currentPct),
+          });
+
+          if (progress >= 1) {
+            clearInterval(interval);
+            currentPct = targetPct;
+            setOptimizationProgress({
+              isRunning: true,
+              stage: stageName,
+              percent: targetPct,
+            });
+            resolve();
+          }
+        }, 30);
+      });
+    };
 
     try {
-      console.log(`[RouteQ] Running ${solverLabel} optimizer — ${optimizationReq.deliveries.length} stops, ${optimizationReq.vehicles.length} vehicles`);
+      console.log(`[RouteQ] Staged ${solverLabel} optimizer launched — duration: ~11.5s`);
 
-      // ─── Call unified backend endpoint (respects solver_type) ──────────
-      const res = await optimizeWithMethod(optimizationReq);
+      // Dispatch real backend solve in parallel
+      const backendPromise = optimizeWithMethod(optimizationReq);
 
-      console.log(`[RouteQ] Optimization done: ${res.total_distance_km}km, ${res.routes.length} routes, solver: ${res.solver?.name || res.solver_type}`);
+      // Execute each realistic stage smoothly
+      for (const step of STAGES) {
+        await runStep(step.stage, step.targetPct, step.durationMs);
+      }
+
+      // Await backend response
+      const res = await backendPromise;
+
+      setOptimizationProgress({
+        isRunning: true,
+        stage: 'Optimization complete.',
+        percent: 100,
+      });
 
       setOptimizationResult(res);
       setOptimizationError(null);
 
-      // ─── Compute before/after improvements ─────────────────────────────
+      // Compute savings & metrics
       const unopt = baselineResult || solveLocalOptimization(optimizationReq, 'unoptimized');
       const comp: ComparisonResult = {
         classical: res,
@@ -244,16 +312,25 @@ export const App: React.FC = () => {
       setComparisonResult(comp);
 
       showToast(`✓ Optimization complete: ${res.routes.length} routes · ${res.total_distance_km} km · ${res.solver?.name || solverLabel}`);
+      setCurrentTab('routes');
+
+      // Allow 800ms to appreciate 100% completion before hiding banner
+      await new Promise((r) => setTimeout(r, 800));
     } catch (err: any) {
       console.error('[RouteQ] Optimization failed:', err);
       const errMsg = err?.message || 'Failed to execute optimization';
       setOptimizationError(errMsg);
-      // Restore previous result so the page doesn't stay blank
       setOptimizationResult(baselineResult);
       showToast('Optimization error: ' + errMsg);
       setShowOptimizationModal(false);
+      setCurrentTab('routes');
     } finally {
       setIsOptimizing(false);
+      setOptimizationProgress({
+        isRunning: false,
+        stage: 'Complete',
+        percent: 100,
+      });
     }
   };
 
@@ -281,28 +358,53 @@ export const App: React.FC = () => {
     }, 50);
   };
 
-  // Handler: Select Specific India Hub — loads data & triggers real backend optimization
+  // Handler: Select Specific India Hub / District — loads data & triggers real backend optimization
   const handleSelectHub = (hubKey: string, stateName?: string, districtName?: string) => {
+    const normState = stateName || selectedStateName || 'Karnataka';
+    const normDistrict = districtName || selectedDistrictName || 'Bengaluru Urban';
+
+    setSelectedStateName(normState);
+    setSelectedDistrictName(normDistrict);
+
     let hub = INDIA_HUBS[hubKey];
     if (!hub) {
-      hub = resolveDistrictHub(hubKey, stateName, districtName);
+      hub = resolveDistrictHub(hubKey, normState, normDistrict);
     }
     if (hub) {
+      const stateObj = findStateOrUT(normState);
+      const districtObj = stateObj?.districts.find(
+        (d) => d.name.toLowerCase() === normDistrict.toLowerCase() ||
+               (d.alias && d.alias.toLowerCase().includes(normDistrict.toLowerCase()))
+      );
+
+      const lat = districtObj ? districtObj.lat : hub.depot.lat;
+      const lng = districtObj ? districtObj.lng : hub.depot.lng;
+
       const enrichedDepot: Depot = {
         ...hub.depot,
-        district: hub.district,
-        state: hub.state,
+        lat,
+        lng,
+        district: normDistrict,
+        state: normState,
       };
       const enrichedDeliveries: Delivery[] = hub.deliveries.map((del) => ({
         ...del,
-        district: del.district || hub.district,
-        state: del.state || hub.state,
+        district: del.district || normDistrict,
+        state: del.state || normState,
       }));
       setDepot(enrichedDepot);
       setVehicles(hub.vehicles);
       setDeliveries(enrichedDeliveries);
       setSelectedHubKey(hub.id || hubKey);
-      showToast(`Loading ${hub.name} (${hub.district}, ${hub.state}) — optimizing...`);
+
+      // Smooth zoom to district
+      window.dispatchEvent(
+        new CustomEvent('routeq_map_flyto', {
+          detail: { lat, lng, zoom: 13 },
+        })
+      );
+
+      showToast(`📍 Loaded ${normDistrict} (${normState}) — optimizing...`);
       // Trigger real backend optimization with hub data
       setTimeout(() => {
         handleRunOptimization({
@@ -318,6 +420,24 @@ export const App: React.FC = () => {
           allow_non_traffic_fallback: true,
         });
       }, 50);
+    }
+  };
+
+  // Handler: Select State (zooms map to state center)
+  const handleSelectState = (stateName: string) => {
+    setSelectedStateName(stateName);
+    const stateObj = findStateOrUT(stateName);
+    if (stateObj) {
+      window.dispatchEvent(
+        new CustomEvent('routeq_map_flyto', {
+          detail: {
+            lat: stateObj.lat,
+            lng: stateObj.lng,
+            zoom: stateObj.isUT ? 10 : 7,
+          },
+        })
+      );
+      showToast(`📍 Zooming to ${stateName} (${stateObj.districts.length} districts)`);
     }
   };
 
@@ -457,7 +577,10 @@ export const App: React.FC = () => {
               onQuickOptimize={() => handleRunOptimization()}
               onLoadDemo={handleLoadDemo}
               onSelectHub={handleSelectHub}
+              onSelectState={handleSelectState}
               selectedHubKey={selectedHubKey}
+              selectedStateName={selectedStateName}
+              selectedDistrictName={selectedDistrictName}
               isOptimizing={isOptimizing}
               isOptimized={!!optimizationResult}
               backendOnline={backendOnline}
@@ -494,6 +617,7 @@ export const App: React.FC = () => {
                       onLoadDemo={handleLoadDemo}
                       onNavigateTab={setCurrentTab}
                       isOptimizing={isOptimizing}
+                      optimizationProgress={optimizationProgress}
                     />
                   )}
 
@@ -508,6 +632,7 @@ export const App: React.FC = () => {
                       onNavigateTab={setCurrentTab}
                       onRunOptimization={handleRunOptimization}
                       isOptimizing={isOptimizing}
+                      optimizationProgress={optimizationProgress}
                     />
                   )}
 
@@ -578,6 +703,8 @@ export const App: React.FC = () => {
 
       </AnimatePresence>
 
+      {/* Non-blocking Staged Optimization Progress Banner */}
+      <OptimizationProgressBanner progress={optimizationProgress} />
     </div>
   );
 };

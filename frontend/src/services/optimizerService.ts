@@ -183,6 +183,15 @@ export function solveLocalOptimization(
     return haversineDistKm(p1.lat, p1.lng, p2.lat, p2.lng);
   };
 
+  const getTrafficMultiplierForEdge = (a: string, b: string): number => {
+    const baseMult = TRAFFIC_MULTIPLIERS[traffic] || 1.28;
+    const hash = (a.charCodeAt(0) * 31 + b.charCodeAt(0) * 17) % 5;
+    if (hash === 0) return baseMult * 1.45; // arterial bottleneck
+    if (hash === 1) return baseMult * 0.85; // bypass corridor
+    if (hash === 2) return baseMult * 1.20; // urban congestion
+    return baseMult;
+  };
+
   const getTime = (a: string, b: string): number => {
     const d = getDist(a, b);
     const p1 = nodeCoords[a];
@@ -197,7 +206,8 @@ export function solveLocalOptimization(
     } else if (traffic === 'moderate') {
       cong = distToDepot < 6.0 ? 1.45 : 1.05;
     }
-    const speed = Math.max(8, (38 / (TRAFFIC_MULTIPLIERS[traffic] || 1.0)) / cong);
+    const mult = getTrafficMultiplierForEdge(a, b);
+    const speed = Math.max(8, (38 / ((TRAFFIC_MULTIPLIERS[traffic] || 1.0) * mult / 1.28)) / cong);
     return (d / speed) * 60;
   };
 

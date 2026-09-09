@@ -3,6 +3,8 @@ import { ArrowRight, Route, ShieldCheck, Zap } from 'lucide-react';
 import type { Depot, Vehicle, Delivery, OptimizationResult, ComparisonResult } from '../types';
 import { RouteMap } from '../components/Map/RouteMap';
 
+import type { OptimizationProgressState } from '../components/Optimization/OptimizationProgressBanner';
+
 interface DashboardPageProps {
   depot: Depot;
   vehicles: Vehicle[];
@@ -13,6 +15,7 @@ interface DashboardPageProps {
   onLoadDemo: () => void;
   onNavigateTab: (tab: any) => void;
   isOptimizing: boolean;
+  optimizationProgress?: OptimizationProgressState;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
@@ -24,6 +27,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onOptimizeClick,
   onNavigateTab,
   isOptimizing,
+  optimizationProgress,
 }) => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
@@ -97,9 +101,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           <button
             onClick={onOptimizeClick}
             disabled={isOptimizing}
-            className="btn-primary-gradient !py-1.5 !px-3.5 text-xs !font-semibold"
+            className="btn-primary-gradient !py-1.5 !px-3.5 text-xs !font-semibold select-none"
           >
-            <span>{isOptimizing ? 'Running Route Optimizer...' : 'Run Route Optimizer'}</span>
+            <span>
+              {isOptimizing
+                ? optimizationProgress?.percent
+                  ? `Optimizing (${Math.round(optimizationProgress.percent)}%)...`
+                  : 'Running Route Optimizer...'
+                : 'Run Route Optimizer'}
+            </span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
