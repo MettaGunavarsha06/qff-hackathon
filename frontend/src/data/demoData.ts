@@ -195,6 +195,112 @@ export const BOM_DELIVERIES: Delivery[] = [
 ];
 
 // ============================================================================
+// 4. HYDERABAD LOGISTICS CORRIDOR (Telangana, India)
+// ============================================================================
+export const HYD_DEPOT: Depot = {
+  id: 'DEPOT-HYD',
+  name: 'RouteQ Hyderabad Central Hub (HITEC City)',
+  lat: 17.4435,
+  lng: 78.3772,
+  operating_hours_start: '08:00',
+  operating_hours_end: '19:00',
+};
+
+export const HYD_VEHICLES: Vehicle[] = [
+  {
+    id: 'HYD-V01',
+    name: 'Tata Ace EV Express',
+    capacity_kg: 500.0,
+    starting_depot_id: 'DEPOT-HYD',
+    max_route_distance_km: 120.0,
+    fuel_efficiency_km_per_l: 19.0,
+    fuel_type: 'electric',
+  },
+  {
+    id: 'HYD-V02',
+    name: 'Mahindra Bolero Maxi Truck',
+    capacity_kg: 650.0,
+    starting_depot_id: 'DEPOT-HYD',
+    max_route_distance_km: 140.0,
+    fuel_efficiency_km_per_l: 11.5,
+    fuel_type: 'diesel',
+  },
+  {
+    id: 'HYD-V03',
+    name: 'Euler HiLoad EV Delivery',
+    capacity_kg: 480.0,
+    starting_depot_id: 'DEPOT-HYD',
+    max_route_distance_km: 110.0,
+    fuel_efficiency_km_per_l: 18.0,
+    fuel_type: 'electric',
+  },
+];
+
+export const HYD_DELIVERIES: Delivery[] = [
+  { id: 'HYD-D01', customer_name: 'Gachibowli Financial District', lat: 17.4156, lng: 78.3427, demand_kg: 55.0, priority: 'urgent', time_window_start: '09:00', time_window_end: '11:00', service_time_mins: 20, address: 'Financial District, Nanakramguda, Hyderabad, Telangana 500032' },
+  { id: 'HYD-D02', customer_name: 'Madhapur Cyber Towers', lat: 17.4504, lng: 78.3808, demand_kg: 45.0, priority: 'high', time_window_start: '09:30', time_window_end: '12:00', service_time_mins: 20, address: 'HITEC City Main Rd, Madhapur, Hyderabad, Telangana 500081' },
+  { id: 'HYD-D03', customer_name: 'Banjara Hills Commercial Rd 12', lat: 17.4165, lng: 78.4382, demand_kg: 40.0, priority: 'urgent', time_window_start: '10:00', time_window_end: '12:30', service_time_mins: 15, address: 'Road No. 12, Banjara Hills, Hyderabad, Telangana 500034' },
+  { id: 'HYD-D04', customer_name: 'Jubilee Hills Check Post Mart', lat: 17.4319, lng: 78.4073, demand_kg: 35.0, priority: 'medium', time_window_start: '10:30', time_window_end: '13:00', service_time_mins: 15, address: 'Road No. 36, Jubilee Hills, Hyderabad, Telangana 500033' },
+  { id: 'HYD-D05', customer_name: 'Begumpet Cargo Terminal', lat: 17.4447, lng: 78.4664, demand_kg: 60.0, priority: 'high', time_window_start: '11:00', time_window_end: '14:00', service_time_mins: 20, address: 'Sardar Patel Rd, Begumpet, Hyderabad, Telangana 500016' },
+  { id: 'HYD-D06', customer_name: 'Secunderabad Railway Goods Yard', lat: 17.4399, lng: 78.5017, demand_kg: 85.0, priority: 'urgent', time_window_start: '08:30', time_window_end: '11:00', service_time_mins: 25, address: 'Station Rd, Secunderabad, Telangana 500003' },
+  { id: 'HYD-D07', customer_name: 'Kondapur Botanical Garden Road', lat: 17.4650, lng: 78.3610, demand_kg: 30.0, priority: 'low', time_window_start: '12:00', time_window_end: '15:30', service_time_mins: 15, address: 'Botanical Garden Rd, Kondapur, Hyderabad, Telangana 500084' },
+  { id: 'HYD-D08', customer_name: 'Kukatpally Housing Board (KPHB)', lat: 17.4947, lng: 78.3996, demand_kg: 50.0, priority: 'medium', time_window_start: '13:00', time_window_end: '16:00', service_time_mins: 20, address: 'Phase 1, KPHB Colony, Kukatpally, Hyderabad, Telangana 500072' },
+];
+
+// ============================================================================
+// 5. CHENNAI LOGISTICS CORRIDOR (Tamil Nadu, India)
+// ============================================================================
+export const MAA_DEPOT: Depot = {
+  id: 'DEPOT-MAA',
+  name: 'RouteQ Chennai Central Hub (Guindy Industrial Estate)',
+  lat: 13.0067,
+  lng: 80.2025,
+  operating_hours_start: '08:00',
+  operating_hours_end: '19:00',
+};
+
+export const MAA_VEHICLES: Vehicle[] = [
+  {
+    id: 'MAA-V01',
+    name: 'Ashok Leyland Bada Dost',
+    capacity_kg: 750.0,
+    starting_depot_id: 'DEPOT-MAA',
+    max_route_distance_km: 150.0,
+    fuel_efficiency_km_per_l: 10.5,
+    fuel_type: 'diesel',
+  },
+  {
+    id: 'MAA-V02',
+    name: 'Tata Ace EV Express',
+    capacity_kg: 500.0,
+    starting_depot_id: 'DEPOT-MAA',
+    max_route_distance_km: 120.0,
+    fuel_efficiency_km_per_l: 19.0,
+    fuel_type: 'electric',
+  },
+  {
+    id: 'MAA-V03',
+    name: 'Mahindra Zor Grand EV',
+    capacity_kg: 450.0,
+    starting_depot_id: 'DEPOT-MAA',
+    max_route_distance_km: 100.0,
+    fuel_efficiency_km_per_l: 20.0,
+    fuel_type: 'electric',
+  },
+];
+
+export const MAA_DELIVERIES: Delivery[] = [
+  { id: 'MAA-D01', customer_name: 'Tidel Park OMR Tech Corridor', lat: 12.9893, lng: 80.2487, demand_kg: 60.0, priority: 'urgent', time_window_start: '09:00', time_window_end: '11:00', service_time_mins: 20, address: 'Rajiv Gandhi Salai (OMR), Taramani, Chennai, Tamil Nadu 600113' },
+  { id: 'MAA-D02', customer_name: 'Anna Salai T. Nagar Commercial', lat: 13.0418, lng: 80.2341, demand_kg: 45.0, priority: 'high', time_window_start: '09:30', time_window_end: '12:00', service_time_mins: 20, address: 'Pondy Bazaar, T. Nagar, Chennai, Tamil Nadu 600017' },
+  { id: 'MAA-D03', customer_name: 'Chennai Port Harbor Terminal', lat: 13.0844, lng: 80.2942, demand_kg: 95.0, priority: 'urgent', time_window_start: '08:30', time_window_end: '11:00', service_time_mins: 25, address: 'Rajaji Salai, Chennai Port, Chennai, Tamil Nadu 600001' },
+  { id: 'MAA-D04', customer_name: 'Ambattur Industrial Estate', lat: 13.0983, lng: 80.1618, demand_kg: 75.0, priority: 'high', time_window_start: '10:00', time_window_end: '12:30', service_time_mins: 25, address: 'Ambattur Industrial Estate, Chennai, Tamil Nadu 600058' },
+  { id: 'MAA-D05', customer_name: 'Adyar Cancer Institute & Hub', lat: 13.0012, lng: 80.2565, demand_kg: 35.0, priority: 'urgent', time_window_start: '10:30', time_window_end: '13:00', service_time_mins: 15, address: 'Sardar Patel Rd, Adyar, Chennai, Tamil Nadu 600020' },
+  { id: 'MAA-D06', customer_name: 'Velachery Phoenix Marketcity', lat: 12.9915, lng: 80.2170, demand_kg: 50.0, priority: 'medium', time_window_start: '11:00', time_window_end: '14:00', service_time_mins: 20, address: 'Guru Nanak College Rd, Velachery, Chennai, Tamil Nadu 600042' },
+  { id: 'MAA-D07', customer_name: 'Koyambedu Wholesale Market Complex', lat: 13.0694, lng: 80.1916, demand_kg: 90.0, priority: 'high', time_window_start: '08:30', time_window_end: '10:30', service_time_mins: 25, address: 'Jawaharlal Nehru Rd, Koyambedu, Chennai, Tamil Nadu 600107' },
+  { id: 'MAA-D08', customer_name: 'Tambaram Railway Logistics Point', lat: 12.9249, lng: 80.1000, demand_kg: 40.0, priority: 'low', time_window_start: '13:00', time_window_end: '16:30', service_time_mins: 20, address: 'GST Rd, Tambaram, Chennai, Tamil Nadu 600045' },
+];
+
+// ============================================================================
 // Multi-Hub Indian Directory
 // ============================================================================
 export interface IndiaHubInfo {
@@ -217,15 +323,6 @@ export const INDIA_HUBS: Record<string, IndiaHubInfo> = {
     vehicles: BLR_VEHICLES,
     deliveries: BLR_DELIVERIES,
   },
-  delhi: {
-    id: 'delhi',
-    name: 'Delhi-NCR Logistics Corridor',
-    city: 'Delhi-NCR',
-    state: 'Delhi / Haryana',
-    depot: DEL_DEPOT,
-    vehicles: DEL_VEHICLES,
-    deliveries: DEL_DELIVERIES,
-  },
   mumbai: {
     id: 'mumbai',
     name: 'Mumbai MMR Logistics Corridor',
@@ -235,9 +332,37 @@ export const INDIA_HUBS: Record<string, IndiaHubInfo> = {
     vehicles: BOM_VEHICLES,
     deliveries: BOM_DELIVERIES,
   },
+  delhi: {
+    id: 'delhi',
+    name: 'Delhi-NCR Logistics Corridor',
+    city: 'Delhi-NCR',
+    state: 'Delhi / Haryana',
+    depot: DEL_DEPOT,
+    vehicles: DEL_VEHICLES,
+    deliveries: DEL_DELIVERIES,
+  },
+  hyderabad: {
+    id: 'hyderabad',
+    name: 'Hyderabad Logistics Corridor',
+    city: 'Hyderabad',
+    state: 'Telangana',
+    depot: HYD_DEPOT,
+    vehicles: HYD_VEHICLES,
+    deliveries: HYD_DELIVERIES,
+  },
+  chennai: {
+    id: 'chennai',
+    name: 'Chennai Logistics Corridor',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
+    depot: MAA_DEPOT,
+    vehicles: MAA_VEHICLES,
+    deliveries: MAA_DELIVERIES,
+  },
 };
 
 // Default export compatibility (Bengaluru Primary)
 export const DEMO_DEPOT: Depot = BLR_DEPOT;
 export const DEMO_VEHICLES: Vehicle[] = BLR_VEHICLES;
 export const DEMO_DELIVERIES: Delivery[] = BLR_DELIVERIES;
+
