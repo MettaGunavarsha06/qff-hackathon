@@ -20,6 +20,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   deliveries,
   optimizationResult,
   selectedVehicleId = null,
+  onSelectVehicle,
   height = '100%',
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -200,6 +201,46 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           </div>
         `);
         group.addLayer(polyline);
+
+        // Vector Truck Marker for each active vehicle
+        if (route.waypoints.length > 1) {
+          const midWpIdx = Math.min(route.waypoints.length - 1, Math.max(1, Math.floor(route.waypoints.length / 2)));
+          const truckWp = route.waypoints[midWpIdx];
+          const truckIcon = L.divIcon({
+            className: 'custom-vehicle-truck-node',
+            html: `
+              <div style="
+                display: flex; align-items: center; justify-content: center;
+                width: 28px; height: 28px; border-radius: 8px;
+                background: #FFFFFF; border: 1.8px solid ${routeColor};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+                cursor: pointer; transition: transform 0.2s ease;
+              " title="${route.vehicle_name} (Click to highlight)">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${routeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+                  <path d="M15 18H9"/>
+                  <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
+                  <circle cx="17" cy="18" r="2"/>
+                  <circle cx="7" cy="18" r="2"/>
+                </svg>
+              </div>
+            `,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+          });
+          const truckMarker = L.marker([truckWp.lat, truckWp.lng], { icon: truckIcon });
+          truckMarker.on('click', () => {
+            if (onSelectVehicle) onSelectVehicle(route.vehicle_id);
+          });
+          truckMarker.bindPopup(`
+            <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
+              <div style="font-weight: 700; color: ${routeColor}; font-size: 13px;">${route.vehicle_name}</div>
+              <div style="font-size: 11px; color: #6B6D76; margin-top: 3px; font-family: 'IBM Plex Mono';">CAPACITY: ${route.capacity_used_kg} kg (${route.capacity_utilization_pct}%)</div>
+              <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km} km</div>
+            </div>
+          `);
+          group.addLayer(truckMarker);
+        }
 
         latLngs.forEach((coord) => bounds.extend(coord));
       }
