@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatedTruck } from './AnimatedTruck';
 import { DeliveryNode } from './DeliveryNode';
 import { GlassPanel } from './GlassPanel';
-import { Activity, ShieldCheck, Gauge, Zap } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 
 interface StopPoint {
   id: string;
@@ -23,10 +23,10 @@ const STOPS: StopPoint[] = [
   { id: 'ST-07', label: '07 Koramangala', x: 235, y: 355 },
 ];
 
-// Natural road curve SVG path (Organic city journey, no heart/circle)
+// Exact visible optimized route path (Realistic road curves starting & ending at Depot)
 const OPTIMIZED_ROUTE_PATH = `
   M 120 260
-  C 140 210, 180 165, 230 140
+  C 140 205, 180 160, 230 140
   C 280 115, 330 110, 380 110
   C 450 110, 510 125, 570 155
   C 615 180, 645 230, 635 285
@@ -37,7 +37,7 @@ const OPTIMIZED_ROUTE_PATH = `
   Z
 `;
 
-// Alternative sub-optimal routes (low opacity, thin dashed lines)
+// Alternative candidate routes (thin dashed lines with low opacity)
 const ALT_ROUTE_1 = `
   M 120 260
   C 260 210, 420 180, 635 285
@@ -55,53 +55,86 @@ const ALT_ROUTE_2 = `
 `;
 
 export const HeroRouteVisualization: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
-  const [truckPos, setTruckPos] = useState<{ x: number; y: number; angle: number }>({
-    x: 120,
-    y: 260,
-    angle: -45,
-  });
+  const truckRef = useRef<SVGGElement>(null);
   const [activeStopId, setActiveStopId] = useState<string | null>('DEPOT');
-  const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(0);
+  const lastActiveStopRef = useRef<string | null>('DEPOT');
   const animFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     const path = pathRef.current;
     if (!path) return;
 
-    const totalLength = path.getTotalLength();
-    let distance = 0;
-    const speed = 1.35; // smooth natural speed
+    let totalLength = path.getTotalLength();
+    if (totalLength <= 0) return;
 
-    const animate = () => {
-      distance = (distance + speed) % totalLength;
+    // 1. Initial positioning: Truck starts EXACTLY at the depot (distance = 0)
+    const initialPt = path.getPointAtLength(0);
+    const initialAhead = path.getPointAtLength(Math.min(totalLength, 2));
+    const initialAngle =
+      Math.atan2(initialAhead.y - initialPt.y, initialAhead.x - initialPt.x) * (180 / Math.PI);
 
-      const pt = path.getPointAtLength(distance);
-      const lookAhead = (distance + 2) % totalLength;
-      const ptNext = path.getPointAtLength(lookAhead);
+    if (truckRef.current) {
+      truckRef.current.setAttribute(
+        'transform',
+        `translate(${initialPt.x}, ${initialPt.y}) rotate(${initialAngle}) scale(0.95)`
+      );
+    }
 
-      const dx = ptNext.x - pt.x;
-      const dy = ptNext.y - pt.y;
+    // 2. High-precision continuous RAF animation loop along exact SVG path
+    let currentDistance = 0;
+    let lastTimestamp = performance.now();
+    const speedPixelsPerSecond = 88; // smooth, realistic road speed
+
+    const animate = (timestamp: number) => {
+      const dt = Math.min(0.08, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+
+      // Advance distance along the exact SVG path
+      currentDistance = (currentDistance + speedPixelsPerSecond * dt) % totalLength;
+
+      // Sample exact point on the visible path stroke
+      const pt = path.getPointAtLength(currentDistance);
+
+      // Compute smooth continuous path tangent angle (smooth across loop boundary)
+      const delta = 1.5;
+      let dAhead = currentDistance + delta;
+      let dBehind = currentDistance - delta;
+
+      if (dAhead >= totalLength) dAhead -= totalLength;
+      if (dBehind < 0) dBehind += totalLength;
+
+      const ptBehind = path.getPointAtLength(dBehind);
+      const ptAhead = path.getPointAtLength(dAhead);
+
+      const dx = ptAhead.x - ptBehind.x;
+      const dy = ptAhead.y - ptBehind.y;
       const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
-      setTruckPos({ x: pt.x, y: pt.y, angle });
+      // Update truck position and rotation directly in the SVG DOM
+      // (Bypasses React render queue for 60/120fps hardware acceleration with 0 drift)
+      if (truckRef.current) {
+        truckRef.current.setAttribute(
+          'transform',
+          `translate(${pt.x}, ${pt.y}) rotate(${angle}) scale(0.95)`
+        );
+      }
 
-      // Determine proximity to delivery stops
-      let closestId: string | null = null;
-      let minDistance = 26; // detection radius
-
+      // Check proximity to delivery stops to trigger pulsing arrival rings
+      let matchedStopId: string | null = null;
       for (let i = 0; i < STOPS.length; i++) {
         const stop = STOPS[i];
-        const distToStop = Math.hypot(pt.x - stop.x, pt.y - stop.y);
-        if (distToStop < minDistance) {
-          closestId = stop.id;
-          setActiveSegmentIndex(i);
+        const dist = Math.hypot(pt.x - stop.x, pt.y - stop.y);
+        if (dist < 26) {
+          matchedStopId = stop.id;
           break;
         }
       }
 
-      if (closestId) {
-        setActiveStopId(closestId);
+      if (matchedStopId !== lastActiveStopRef.current) {
+        lastActiveStopRef.current = matchedStopId;
+        setActiveStopId(matchedStopId);
       }
 
       animFrameRef.current = requestAnimationFrame(animate);
@@ -109,16 +142,36 @@ export const HeroRouteVisualization: React.FC = () => {
 
     animFrameRef.current = requestAnimationFrame(animate);
 
+    // 3. Responsive recalculation on container or window resize
+    const handleResize = () => {
+      if (pathRef.current) {
+        totalLength = pathRef.current.getTotalLength();
+        if (currentDistance >= totalLength) {
+          currentDistance = 0;
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
     return () => {
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
       }
+      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
     };
   }, []);
 
   return (
-    <div className="relative w-full h-[380px] sm:h-[460px] lg:h-[500px] rounded-3xl overflow-hidden border border-[#E8E6DF] bg-[#F7F6F2] shadow-[0_12px_40px_rgba(0,0,0,0.04)] select-none">
-      
+    <div
+      ref={containerRef}
+      className="relative w-full h-[380px] sm:h-[460px] lg:h-[500px] rounded-3xl overflow-hidden border border-[#E8E6DF] bg-[#F7F6F2] shadow-[0_12px_40px_rgba(0,0,0,0.04)] select-none"
+    >
       {/* ─── SVG CANVAS (Subtle City Map + Route + Animated Truck) ───────── */}
       <svg
         viewBox="0 0 760 520"
@@ -134,8 +187,8 @@ export const HeroRouteVisualization: React.FC = () => {
           </linearGradient>
 
           <linearGradient id="routeGlowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FF5B37" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="#FF4D8D" stopOpacity="0.45" />
+            <stop offset="0%" stopColor="#FF5B37" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#FF4D8D" stopOpacity="0.4" />
           </linearGradient>
 
           <radialGradient id="truckGlowGrad" cx="50%" cy="50%" r="50%">
@@ -170,12 +223,12 @@ export const HeroRouteVisualization: React.FC = () => {
           <rect x="250" y="60" width="100" height="40" rx="6" fill="#EDE9DF" opacity="0.6" />
           <rect x="420" y="80" width="110" height="50" rx="6" fill="#EDE9DF" opacity="0.6" />
           <rect x="580" y="70" width="90" height="60" rx="6" fill="#EDE9DF" opacity="0.6" />
-          
+
           <rect x="60" y="170" width="70" height="60" rx="6" fill="#EDE9DF" opacity="0.6" />
           <rect x="160" y="180" width="110" height="65" rx="6" fill="#EDE9DF" opacity="0.6" />
           <rect x="300" y="170" width="120" height="80" rx="6" fill="#EDE9DF" opacity="0.6" />
           <rect x="450" y="190" width="130" height="70" rx="6" fill="#EDE9DF" opacity="0.6" />
-          
+
           <rect x="130" y="380" width="90" height="60" rx="6" fill="#EDE9DF" opacity="0.6" />
           <rect x="250" y="420" width="100" height="55" rx="6" fill="#EDE9DF" opacity="0.6" />
           <rect x="420" y="410" width="120" height="60" rx="6" fill="#EDE9DF" opacity="0.6" />
@@ -193,7 +246,13 @@ export const HeroRouteVisualization: React.FC = () => {
         </g>
 
         {/* Tiny Map Labels */}
-        <g fill="#A6A49B" fontSize="7.5" fontFamily="IBM Plex Mono" opacity="0.65" className="select-none pointer-events-none">
+        <g
+          fill="#A6A49B"
+          fontSize="7.5"
+          fontFamily="IBM Plex Mono"
+          opacity="0.65"
+          className="select-none pointer-events-none"
+        >
           <text x="70" y="120">NORTH LOGISTICS RING</text>
           <text x="430" y="70">CBD EXPRESS CORRIDOR</text>
           <text x="630" y="240">EAST ARTERIAL</text>
@@ -219,7 +278,7 @@ export const HeroRouteVisualization: React.FC = () => {
           opacity="0.25"
         />
 
-        {/* ─── 3. OPTIMIZED ROUTE PATH (Dominant Coral/Pink Glow) ─────────── */}
+        {/* ─── 3. OPTIMIZED ROUTE PATH (The Exact Motion Path) ─────────────── */}
         {/* Soft Outer Glow */}
         <path
           d={OPTIMIZED_ROUTE_PATH}
@@ -228,10 +287,10 @@ export const HeroRouteVisualization: React.FC = () => {
           strokeWidth="8"
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity="0.4"
+          opacity="0.38"
         />
 
-        {/* Core Vibrant Line */}
+        {/* Core Vibrant Line (The exact reference for truck motion) */}
         <path
           ref={pathRef}
           d={OPTIMIZED_ROUTE_PATH}
@@ -266,17 +325,17 @@ export const HeroRouteVisualization: React.FC = () => {
           />
         ))}
 
-        {/* ─── 5. ANIMATED SMALL DELIVERY TRUCK (Motion Along Path) ─────────── */}
+        {/* ─── 5. ANIMATED DELIVERY TRUCK (Direct Motion Along SVG Path) ─────── */}
         <AnimatedTruck
-          x={truckPos.x}
-          y={truckPos.y}
-          angle={truckPos.angle}
+          ref={truckRef}
+          x={120}
+          y={260}
+          angle={-45}
           scale={0.95}
         />
       </svg>
 
       {/* ─── FLOATING GLASS HUD PANELS (Selective Glassmorphism) ──────────── */}
-      
       {/* Top Left: Optimization Engine Status */}
       <div className="absolute top-4 left-4 z-20 pointer-events-none">
         <GlassPanel glow className="flex items-center gap-3 !py-2.5 !px-3.5">
@@ -318,16 +377,11 @@ export const HeroRouteVisualization: React.FC = () => {
             01
           </div>
           <div className="flex flex-col text-[9.5px]">
-            <span className="text-[#111322] font-bold">
-              TRUCK #01 (EV VAN)
-            </span>
-            <span className="text-[#6B6D76]">
-              SPEED: 38 KM/H &bull; SLA 100%
-            </span>
+            <span className="text-[#111322] font-bold">TRUCK #01 (EV VAN)</span>
+            <span className="text-[#6B6D76]">SPEED: 38 KM/H &bull; SLA 100%</span>
           </div>
         </GlassPanel>
       </div>
-
     </div>
   );
 };
