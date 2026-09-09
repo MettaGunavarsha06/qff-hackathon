@@ -109,42 +109,42 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
   const getPriorityBadge = (p: Priority) => {
     switch (p) {
       case 'urgent':
-        return 'bg-[#EC4899]/15 text-[#EC4899]';
+        return 'bg-[#FF4D8D]/15 text-[#FF4D8D] font-bold';
       case 'high':
-        return 'bg-[#FF5500]/15 text-[#FF5500]';
+        return 'bg-[#FF5B37]/15 text-[#FF5B37] font-bold';
       case 'medium':
-        return 'bg-white/[0.08] text-white';
+        return 'bg-[#F2F1EC] text-[#1F2024] font-medium';
       case 'low':
-        return 'bg-white/[0.04] text-[#8A8A8E]';
+        return 'bg-[#F7F6F2] text-[#6B6D76]';
     }
   };
 
   return (
-    <div className="space-y-6 pb-20 text-[#F5F5F5]">
+    <div className="space-y-8 pb-24 text-[#1F2024] max-w-6xl mx-auto pt-4">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pb-4 border-b border-white/[0.06]">
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pb-4 border-b border-[#E8E6DF]">
         <div>
-          <div className="text-xs font-mono text-[#8A8A8E] uppercase tracking-wider">
+          <div className="text-xs font-mono text-[#FF5B37] uppercase tracking-wider font-semibold">
             DEMAND NETWORK &bull; {deliveries.length} NODES
           </div>
-          <h1 className="text-2xl sm:text-4xl font-bold text-white tracking-tight mt-1">
-            DELIVERY ORDERS & WAYPOINTS
+          <h1 className="text-3xl sm:text-5xl font-semibold text-[#1F2024] tracking-tight mt-1">
+            DELIVERY ORDERS
           </h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={onResetDemo}
-            className="btn-minimal-outline text-xs !py-2 !px-3"
+            className="btn-secondary-outline text-xs !py-2 !px-3.5"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-[#FF5500]" />
-            <span>Reset Demo (25)</span>
+            <RotateCcw className="w-3.5 h-3.5 text-[#FF5B37]" />
+            <span>Reset Demo</span>
           </button>
 
           <button
             onClick={openAddModal}
-            className="btn-minimal-primary text-xs !py-2 !px-4"
+            className="btn-primary-gradient text-xs !py-2 !px-4"
           >
             <Plus className="w-4 h-4" />
             <span>Add Delivery</span>
@@ -153,28 +153,28 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
       </div>
 
       {/* Search & Filter Toolbar */}
-      <div className="p-3 rounded-lg bg-[#0D0D0D] border border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-xs">
+      <div className="p-4 rounded-3xl bg-white border border-[#E8E6DF] shadow-soft-sm flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-xs">
         <div className="relative w-full sm:w-80">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8A8E]" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E909A]" />
           <input
             type="text"
-            placeholder="Search deliveries..."
+            placeholder="Search destination or ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 rounded bg-[#080808] border border-white/[0.06] text-white placeholder-[#8A8A8E] text-xs focus:outline-none focus:border-white/30"
+            className="w-full pl-10 pr-3.5 py-2 rounded-full bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] placeholder-[#8E909A] text-xs focus:outline-none focus:border-[#FF5B37]"
           />
         </div>
 
         <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-          <span className="text-[#8A8A8E] text-[10px] uppercase shrink-0">Priority:</span>
+          <span className="text-[#6B6D76] text-[11px] uppercase shrink-0">Priority:</span>
           {['all', 'urgent', 'high', 'medium', 'low'].map((p) => (
             <button
               key={p}
               onClick={() => setPriorityFilter(p)}
-              className={`px-2 py-1 rounded uppercase text-[10px] font-mono transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-full uppercase text-[10px] font-mono transition-all cursor-pointer ${
                 priorityFilter === p
-                  ? 'bg-white text-black font-semibold'
-                  : 'bg-[#080808] text-[#8A8A8E] hover:text-white'
+                  ? 'bg-[#1F2024] text-white font-bold'
+                  : 'bg-[#F7F6F2] text-[#6B6D76] hover:text-[#1F2024]'
               }`}
             >
               {p}
@@ -184,64 +184,47 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
       </div>
 
       {/* Deliveries Table */}
-      <div className="overflow-hidden rounded-lg bg-[#0D0D0D] border border-white/[0.06]">
+      <div className="overflow-hidden rounded-3xl bg-white border border-[#E8E6DF] shadow-soft">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-[#080808] text-[#8A8A8E] font-medium uppercase tracking-wider text-[10px] border-b border-white/[0.06]">
+            <thead className="bg-[#F7F6F2] text-[#6B6D76] font-medium uppercase tracking-wider text-[10px] border-b border-[#E8E6DF]">
               <tr>
-                <th className="py-3 px-4">Stop ID</th>
-                <th className="py-3 px-4">Customer Destination</th>
-                <th className="py-3 px-4">Coordinates</th>
-                <th className="py-3 px-4">Demand</th>
-                <th className="py-3 px-4">Time Window</th>
-                <th className="py-3 px-4">Priority</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-5">Stop ID</th>
+                <th className="py-3.5 px-5">Customer Destination</th>
+                <th className="py-3.5 px-5">Coordinates</th>
+                <th className="py-3.5 px-5">Demand</th>
+                <th className="py-3.5 px-5">Time Window</th>
+                <th className="py-3.5 px-5">Priority</th>
+                <th className="py-3.5 px-5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04] text-[#8A8A8E]">
+            <tbody className="divide-y divide-[#E8E6DF]">
               {filteredDeliveries.map((del) => (
-                <tr key={del.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="py-3 px-4 font-semibold text-white">
-                    {del.id}
+                <tr key={del.id} className="hover:bg-[#FAF9F6] transition-colors">
+                  <td className="py-3.5 px-5 font-bold text-[#1F2024]">{del.id}</td>
+                  <td className="py-3.5 px-5 font-sans">
+                    <div className="font-semibold text-sm text-[#1F2024]">{del.customer_name}</div>
+                    <div className="text-[11px] text-[#6B6D76] font-mono">{del.address || 'Bengaluru Logistics Grid'}</div>
                   </td>
-                  <td className="py-3 px-4">
-                    <div className="font-semibold text-white text-xs">{del.customer_name}</div>
-                    <div className="text-[11px] text-[#8A8A8E] truncate max-w-xs font-sans">
-                      {del.address || 'Bengaluru Logistics Corridor, India'}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-[#8A8A8E] text-[11px]">
-                    {del.lat.toFixed(4)}, {del.lng.toFixed(4)}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="text-white font-medium">{del.demand_kg} kg</div>
-                    <div className="text-[10px] text-[#8A8A8E]">Service: {del.service_time_mins}m</div>
-                  </td>
-                  <td className="py-3 px-4 text-white">
-                    {del.time_window_start} – {del.time_window_end}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`text-[9px] font-semibold px-2 py-0.5 rounded uppercase tracking-wider ${getPriorityBadge(
-                        del.priority
-                      )}`}
-                    >
+                  <td className="py-3.5 px-5 text-[#6B6D76]">{del.lat.toFixed(4)}, {del.lng.toFixed(4)}</td>
+                  <td className="py-3.5 px-5 font-bold text-[#1F2024]">{del.demand_kg} kg</td>
+                  <td className="py-3.5 px-5 text-[#6B6D76]">{del.time_window_start} – {del.time_window_end}</td>
+                  <td className="py-3.5 px-5">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase ${getPriorityBadge(del.priority)}`}>
                       {del.priority}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right">
+                  <td className="py-3.5 px-5 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => openEditModal(del)}
-                        title="Edit Delivery"
-                        className="p-1.5 rounded bg-white/[0.04] hover:bg-white/[0.08] text-[#8A8A8E] hover:text-white transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg hover:bg-[#F7F6F2] text-[#6B6D76] hover:text-[#1F2024] transition-colors"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => onDeleteDelivery(del.id)}
-                        title="Delete Delivery"
-                        className="p-1.5 rounded bg-white/[0.04] hover:bg-[#EC4899]/20 text-[#8A8A8E] hover:text-[#EC4899] transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg hover:bg-[#F7F6F2] text-[#6B6D76] hover:text-[#FF4D8D] transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -256,149 +239,103 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
 
       {/* Add / Edit Delivery Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-xl bg-[#0D0D0D] border border-white/[0.08] shadow-2xl p-6 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-              <div className="font-semibold text-sm text-white flex items-center gap-2">
-                <Package className="w-4 h-4 text-[#FF5500]" />
-                <span>{editingDelivery ? 'EDIT DELIVERY STOP' : 'NEW DELIVERY STOP'}</span>
+        <div className="fixed inset-0 bg-[#1F2024]/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white border border-[#E8E6DF] shadow-2xl p-6 sm:p-7 space-y-5 animate-in fade-in">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E8E6DF]">
+              <div className="font-bold text-base text-[#1F2024] flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#FF5B37]" />
+                <span>{editingDelivery ? 'EDIT STOP DESTINATION' : 'ADD NEW STOP'}</span>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-[#8A8A8E] hover:text-white"
+                className="p-1.5 rounded-full hover:bg-[#F7F6F2] text-[#6B6D76] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {formError && (
-              <div className="p-3 rounded bg-[#EC4899]/10 border border-[#EC4899]/30 text-[#EC4899] text-xs flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-[#FF4D8D]/10 border border-[#FF4D8D]/20 text-[#FF4D8D] text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-3 font-mono text-xs">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-mono">
+              <div className="space-y-1.5">
+                <label className="text-[#6B6D76] block">Customer Destination Name</label>
+                <input
+                  type="text"
+                  value={formData.customer_name}
+                  onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                  className="w-full p-2.5 rounded-xl bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] focus:outline-none focus:border-[#FF5B37]"
+                  placeholder="e.g. Indiranagar Retail Hub"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
-                    Stop ID
-                  </label>
+                <div className="space-y-1.5">
+                  <label className="text-[#6B6D76] block">Latitude</label>
                   <input
-                    type="text"
-                    value={formData.id}
-                    disabled={!!editingDelivery}
-                    onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                    className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30"
+                    type="number"
+                    step="0.0001"
+                    value={formData.lat}
+                    onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) || 0 })}
+                    className="w-full p-2.5 rounded-xl bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] focus:outline-none focus:border-[#FF5B37]"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
-                    Priority Tier
-                  </label>
+
+                <div className="space-y-1.5">
+                  <label className="text-[#6B6D76] block">Longitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={formData.lng}
+                    onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) || 0 })}
+                    className="w-full p-2.5 rounded-xl bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] focus:outline-none focus:border-[#FF5B37]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[#6B6D76] block">Demand Payload (kg)</label>
+                  <input
+                    type="number"
+                    value={formData.demand_kg}
+                    onChange={(e) => setFormData({ ...formData, demand_kg: parseFloat(e.target.value) || 0 })}
+                    className="w-full p-2.5 rounded-xl bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] focus:outline-none focus:border-[#FF5B37]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[#6B6D76] block">Priority</label>
                   <select
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
-                    className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30"
+                    className="w-full p-2.5 rounded-xl bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] focus:outline-none focus:border-[#FF5B37] capitalize"
                   >
-                    <option value="low">Low Priority</option>
-                    <option value="medium">Medium Priority</option>
-                    <option value="high">High Priority</option>
                     <option value="urgent">Urgent</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
-                  Customer Destination Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Apex BioTech Labs India"
-                  value={formData.customer_name}
-                  onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                  className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30 font-sans"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
-                  Delivery Address (India / Pincode)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 100 Feet Rd, Indiranagar, Bengaluru, Karnataka 560038"
-                  value={formData.address || ''}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30 font-sans"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
-                    Cargo Demand (kg)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formData.demand_kg}
-                    onChange={(e) => setFormData({ ...formData, demand_kg: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
-                    Service Time (mins)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.service_time_mins}
-                    onChange={(e) => setFormData({ ...formData, service_time_mins: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
-                    Window Start (HH:MM)
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.time_window_start}
-                    onChange={(e) => setFormData({ ...formData, time_window_start: e.target.value })}
-                    className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#8A8A8E] uppercase mb-1">
-                    Window End (HH:MM)
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.time_window_end}
-                    onChange={(e) => setFormData({ ...formData, time_window_end: e.target.value })}
-                    className="w-full px-3 py-2 rounded bg-[#080808] border border-white/[0.06] text-white focus:outline-none focus:border-white/30"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.06]">
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-[#E8E6DF]">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="btn-minimal-outline text-xs !py-2 !px-4"
+                  className="btn-secondary-outline !py-2 !px-4 text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-minimal-primary text-xs !py-2 !px-4"
+                  className="btn-primary-gradient !py-2 !px-5 text-xs font-semibold"
                 >
-                  {editingDelivery ? 'Save Changes' : 'Register Stop'}
+                  {editingDelivery ? 'Update Stop' : 'Save Delivery Stop'}
                 </button>
               </div>
             </form>

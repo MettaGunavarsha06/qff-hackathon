@@ -1,20 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { motion, useInView, type Variants } from 'framer-motion';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, useScroll, useTransform, useInView, type Variants } from 'framer-motion';
+import { ArrowRight, ChevronRight, Sparkles, MapPin, Gauge, ShieldCheck } from 'lucide-react';
+import { RouteMap } from '../components/Map/RouteMap';
+import type { Depot, Vehicle, Delivery, OptimizationResult, ComparisonResult } from '../types';
 
 interface LandingPageProps {
   onLaunchOptimizer: () => void;
   onExploreTech: () => void;
+  onNavigateTab?: (tab: any) => void;
+  depot?: Depot;
+  vehicles?: Vehicle[];
+  deliveries?: Delivery[];
+  optimizationResult?: OptimizationResult | null;
+  comparisonResult?: ComparisonResult | null;
+  isOptimizing?: boolean;
 }
 
-// Stagger & reveal animation variants
+// Stagger and smooth cubic-bezier easing
+const smoothEase = [0.22, 1, 0.36, 1] as const;
+
 const fadeInUp: Variants = {
-  hidden: { opacity: 0, y: 24, filter: 'blur(4px)' },
+  hidden: { opacity: 0, y: 32, filter: 'blur(6px)' },
   visible: { 
     opacity: 1, 
     y: 0, 
     filter: 'blur(0px)',
-    transition: { duration: 0.6, ease: 'easeOut' } 
+    transition: { duration: 0.7, ease: smoothEase } 
   },
 };
 
@@ -32,42 +43,31 @@ const staggerContainer: Variants = {
 export const LandingPage: React.FC<LandingPageProps> = ({
   onLaunchOptimizer,
   onExploreTech,
+  onNavigateTab,
+  depot,
+  vehicles = [],
+  deliveries = [],
+  optimizationResult,
+  isOptimizing = false,
 }) => {
   // Hero Interactive Visual state
   const [heroOptimized, setHeroOptimized] = useState(true);
 
-  // Problem section route collapse state
-  const [problemCollapsed, setProblemCollapsed] = useState(false);
+  // Storytelling route step for scroll-based route section
+  const [routeStage, setRouteStage] = useState<'possible' | 'filtering' | 'optimized'>('optimized');
 
-  // How it works active step
-  const [activeStep, setActiveStep] = useState(0);
+  // Performance numbers in-view
+  const statsRef = useRef(null);
+  const isStatsInView = useInView(statsRef, { once: true, margin: '-60px' });
 
-  // Live Map interactive node hover state
-  const [hoveredNode, setHoveredNode] = useState<{
-    id: string;
-    label: string;
-    demand: string;
-    timeWindow: string;
-    priority: string;
-    x: number;
-    y: number;
-  } | null>(null);
+  // Scroll tracking for storytelling route section
+  const routeStoryRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: routeStoryRef,
+    offset: ['start end', 'end start'],
+  });
 
-  // Vehicle animation loop on Live Route map
-  const [vehicleProgress, setVehicleProgress] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setVehicleProgress((prev) => (prev >= 100 ? 0 : prev + 0.8));
-    }, 40);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Performance numbers counter animation
-  const statsRef = React.useRef(null);
-  const isStatsInView = useInView(statsRef, { once: true, margin: '-50px' });
-
-  // Hero Nodes Data
+  // Hero Route Nodes Data
   const heroNodes = [
     { id: 'n1', x: 80, y: 90 },
     { id: 'n2', x: 220, y: 60 },
@@ -78,247 +78,238 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   ];
   const heroDepot = { x: 210, y: 170 };
 
-  // Live Route Visualization Nodes (10 delivery nodes + 1 depot) - Bengaluru Logistics Grid, India
-  const mapNodes = [
-    { id: 'BLR-01', label: 'Indiranagar 100ft Rd Hub', demand: '8.4 kg', timeWindow: '10:00–12:00', priority: 'High', x: 120, y: 130 },
-    { id: 'BLR-02', label: 'MG Road Commercial CBD', demand: '12.0 kg', timeWindow: '09:30–11:30', priority: 'Standard', x: 240, y: 80 },
-    { id: 'BLR-03', label: 'Whitefield ITPL Tech Gate', demand: '4.2 kg', timeWindow: '11:00–13:00', priority: 'Critical', x: 380, y: 100 },
-    { id: 'BLR-04', label: 'KR Puram Rail Logistics', demand: '15.6 kg', timeWindow: '10:30–12:30', priority: 'Standard', x: 490, y: 160 },
-    { id: 'BLR-05', label: 'Bellandur EcoSpace Corridor', demand: '6.1 kg', timeWindow: '13:00–15:00', priority: 'Standard', x: 460, y: 280 },
-    { id: 'BLR-06', label: 'Sarjapur Wipro Tech Campus', demand: '18.0 kg', timeWindow: '11:30–13:30', priority: 'High', x: 360, y: 340 },
-    { id: 'BLR-07', label: 'Electronic City Infosys Gate', demand: '9.5 kg', timeWindow: '14:00–16:00', priority: 'Standard', x: 220, y: 360 },
-    { id: 'BLR-08', label: 'Jayanagar 4th Block Market', demand: '3.8 kg', timeWindow: '09:00–11:00', priority: 'Critical', x: 90, y: 270 },
-    { id: 'BLR-09', label: 'HSR Layout 27th Main Rd', demand: '14.2 kg', timeWindow: '13:30–15:30', priority: 'Standard', x: 180, y: 210 },
-    { id: 'BLR-10', label: 'Koramangala Commercial Hub', demand: '7.0 kg', timeWindow: '12:00–14:00', priority: 'High', x: 330, y: 200 },
-  ];
-  const mapDepot = { x: 280, y: 230, label: 'Koramangala Central Hub (BLR)' };
+  // Vehicle animation loop on hero path
+  const [vehicleProgress, setVehicleProgress] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVehicleProgress((prev) => (prev >= 100 ? 0 : prev + 0.6));
+    }, 40);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Calculate vehicle point along route path
-  const routeWaypoints = [
-    mapDepot,
-    mapNodes[1], // D-021
-    mapNodes[2], // D-035
-    mapNodes[3], // D-042
-    mapNodes[4], // D-058
-    mapNodes[5], // D-063
-    mapNodes[6], // D-079
-    mapNodes[7], // D-088
-    mapNodes[0], // D-014
-    mapNodes[8], // D-092
-    mapNodes[9], // D-104
-    mapDepot
+  const heroWaypoints = [
+    heroDepot,
+    heroNodes[0],
+    heroNodes[1],
+    heroNodes[2],
+    heroNodes[4],
+    heroNodes[5],
+    heroNodes[3],
+    heroDepot,
   ];
-
-  const totalSegments = routeWaypoints.length - 1;
-  const currentSegmentIndex = Math.min(
-    Math.floor((vehicleProgress / 100) * totalSegments),
-    totalSegments - 1
+  const totalHeroSegments = heroWaypoints.length - 1;
+  const currHeroSegIdx = Math.min(
+    Math.floor((vehicleProgress / 100) * totalHeroSegments),
+    totalHeroSegments - 1
   );
-  const segmentFraction = ((vehicleProgress / 100) * totalSegments) - currentSegmentIndex;
-  const currentP1 = routeWaypoints[currentSegmentIndex];
-  const currentP2 = routeWaypoints[currentSegmentIndex + 1];
-  const vehicleX = currentP1.x + (currentP2.x - currentP1.x) * segmentFraction;
-  const vehicleY = currentP1.y + (currentP2.y - currentP1.y) * segmentFraction;
+  const heroFraction = ((vehicleProgress / 100) * totalHeroSegments) - currHeroSegIdx;
+  const p1 = heroWaypoints[currHeroSegIdx];
+  const p2 = heroWaypoints[currHeroSegIdx + 1];
+  const vehicleX = p1.x + (p2.x - p1.x) * heroFraction;
+  const vehicleY = p1.y + (p2.y - p1.y) * heroFraction;
 
-  const stepsData = [
-    {
-      num: '01',
-      title: 'DEMAND',
-      desc: 'Real-time order coordinates, load payload, time window SLA, and service duration ingestion.',
-    },
-    {
-      num: '02',
-      title: 'ROUTE MODEL',
-      desc: 'Dynamic graph matrix construction with real-time congestion and physical vehicle capacity constraints.',
-    },
-    {
-      num: '03',
-      title: 'QUBO',
-      desc: 'Quadratic Unconstrained Binary Optimization formulation penalizing SLA violations and sub-optimal distance.',
-    },
-    {
-      num: '04',
-      title: 'QISKIT',
-      desc: 'Hybrid quantum annealing and classical heuristics resolving the combinatorial Hamiltonian energy landscape.',
-    },
-    {
-      num: '05',
-      title: 'DISPATCH',
-      desc: 'Turn-by-turn fleet dispatch with deterministic waypoint sequencing and dynamic rerouting resilience.',
-    },
-  ];
+  // Telemetry metrics
+  const totalVehicles = vehicles.length || 5;
+  const totalDeliveries = deliveries.length || 25;
+  const totalDistance = optimizationResult ? optimizationResult.total_distance_km : 89.2;
+  const totalFuel = optimizationResult ? optimizationResult.total_fuel_l : 4.57;
+  const totalTime = optimizationResult ? optimizationResult.total_time_mins : 121.0;
+  const hours = Math.floor(totalTime / 60);
+  const mins = Math.round(totalTime % 60);
 
   return (
-    <div className="min-h-screen bg-[#080808] text-[#F5F5F5] selection:bg-[#FF5500]/20 selection:text-white">
+    <div className="w-full bg-[#F7F6F2] text-[#1F2024] selection:bg-[#FF5B37]/20 selection:text-[#1F2024]">
       
-      {/* ─── MINIMAL NAVIGATION ───────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-[#080808]/85 backdrop-blur-md border-b border-white/[0.06] transition-all">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <a href="#" className="flex items-center gap-2 tracking-widest font-display text-sm font-semibold uppercase text-white hover:text-white/80 transition-colors">
-              <span className="w-2 h-2 rounded-full bg-gradient-to-tr from-[#FF5500] to-[#EC4899]" />
-              ROUTEQ
-            </a>
-            
-            <div className="hidden md:flex items-center gap-6 text-xs text-[#8A8A8E]">
-              <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
-              <a href="#live-route" className="hover:text-white transition-colors">Live Route</a>
-              <a href="#technology" className="hover:text-white transition-colors">Technology</a>
-            </div>
-          </div>
-
-          <button
-            onClick={onLaunchOptimizer}
-            className="btn-minimal-primary text-xs !py-2 !px-4"
-          >
-            Launch App
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </nav>
-
-      <main className="max-w-6xl mx-auto px-6 space-y-36 pt-16 pb-28">
-
-        {/* ─── SECTION 1: HERO ────────────────────────────────────────────── */}
-        <motion.section 
+      {/* ─── HERO SECTION ─────────────────────────────────────────────────── */}
+      <section className="pt-24 sm:pt-32 pb-20 px-4 sm:px-6 max-w-6xl mx-auto">
+        <motion.div
           initial="hidden"
           animate="visible"
           variants={staggerContainer}
-          className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-8"
+          className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center"
         >
-          {/* Left Column */}
+          {/* Left Column: Line-by-line reveal & editorial typography */}
           <div className="lg:col-span-7 space-y-8">
-            <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 text-xs font-mono tracking-wider text-[#8A8A8E] uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500]" />
-              ROUTEQ &bull; QISKIT FALL FEST 2026
+            
+            {/* ROUTEQ badge with slight upward movement */}
+            <motion.div
+              variants={fadeInUp}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#E8E6DF] shadow-soft-sm text-xs font-mono text-[#6B6D76]"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D]" />
+              <span className="font-semibold text-[#1F2024]">ROUTEQ</span>
+              <span className="text-[#D6D4CC]">&bull;</span>
+              <span>QUANTUM MOBILITY ENGINE</span>
             </motion.div>
 
-            <motion.h1 
-              variants={fadeInUp}
-              className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.05] text-white"
-            >
-              THE SHORTEST<br />
-              PATH BETWEEN<br />
-              DEMAND AND<br />
-              <span className="accent-gradient-text">DELIVERY.</span>
-            </motion.h1>
+            {/* Line-by-line reveal heading with font-weight 600 */}
+            <div className="space-y-1">
+              <div className="overflow-hidden">
+                <motion.h1
+                  variants={{
+                    hidden: { y: 60, opacity: 0 },
+                    visible: { y: 0, opacity: 1, transition: { duration: 0.8, ease: smoothEase } }
+                  }}
+                  className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-[#1F2024] leading-[1.04]"
+                >
+                  THE SHORTEST
+                </motion.h1>
+              </div>
+              <div className="overflow-hidden">
+                <motion.h1
+                  variants={{
+                    hidden: { y: 60, opacity: 0 },
+                    visible: { y: 0, opacity: 1, transition: { duration: 0.8, delay: 0.08, ease: smoothEase } }
+                  }}
+                  className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-[#1F2024] leading-[1.04]"
+                >
+                  PATH BETWEEN
+                </motion.h1>
+              </div>
+              <div className="overflow-hidden">
+                <motion.h1
+                  variants={{
+                    hidden: { y: 60, opacity: 0 },
+                    visible: { y: 0, opacity: 1, transition: { duration: 0.8, delay: 0.16, ease: smoothEase } }
+                  }}
+                  className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-[#1F2024] leading-[1.04]"
+                >
+                  DEMAND AND
+                </motion.h1>
+              </div>
+              <div className="overflow-hidden">
+                <motion.h1
+                  variants={{
+                    hidden: { y: 60, opacity: 0 },
+                    visible: { y: 0, opacity: 1, transition: { duration: 0.8, delay: 0.24, ease: smoothEase } }
+                  }}
+                  className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight leading-[1.04]"
+                >
+                  <span className="accent-gradient-text">DELIVERY.</span>
+                </motion.h1>
+              </div>
+            </div>
 
-            <motion.p 
+            {/* Description: Light & spacious */}
+            <motion.p
               variants={fadeInUp}
-              className="text-base sm:text-lg text-[#8A8A8E] max-w-lg font-light leading-relaxed"
+              className="text-base sm:text-lg text-[#6B6D76] max-w-lg font-light leading-relaxed"
             >
-              Quantum-inspired optimization for modern last-mile fleets. Solving high-dimensional vehicle routing in milliseconds.
+              Editorial vehicle routing intelligence for enterprise last-mile logistics.
+              Dual-solver architecture harmonizing classical 2-opt heuristics with Qiskit QUBO optimization.
             </motion.p>
 
+            {/* Buttons: Primary Coral/Pink & Secondary Charcoal Outline */}
             <motion.div variants={fadeInUp} className="flex flex-wrap items-center gap-4 pt-2">
               <button
                 onClick={onLaunchOptimizer}
-                className="btn-minimal-primary"
+                className="btn-primary-gradient !py-3 !px-7 text-sm !font-semibold group"
               >
-                Launch Optimizer
-                <ArrowRight className="w-4 h-4" />
+                <span>Launch Optimizer</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
 
               <button
                 onClick={onExploreTech}
-                className="btn-minimal-outline"
+                className="btn-secondary-outline !py-3 !px-6 text-sm"
               >
-                Explore Technology
+                <span>Explore Technology</span>
               </button>
             </motion.div>
           </div>
 
-          {/* Right Column: ONE Single Clean Visual (Abstract Route Network) */}
-          <motion.div 
-            variants={fadeInUp}
+          {/* Right Column: ONE Sophisticated Hero Visual (Map & Route lines) */}
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, scale: 0.97 },
+              visible: { opacity: 1, scale: 1, transition: { duration: 0.9, delay: 0.2, ease: smoothEase } }
+            }}
             className="lg:col-span-5 flex justify-center"
           >
-            <div className="relative w-full max-w-md aspect-square rounded-2xl bg-[#0D0D0D] border border-white/[0.08] p-6 flex flex-col justify-between overflow-hidden shadow-2xl">
+            <div className="relative w-full max-w-md aspect-square rounded-3xl bg-white border border-[#E8E6DF] p-6 flex flex-col justify-between overflow-hidden shadow-soft">
               
-              {/* Subtle top indicator */}
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#8A8A8E]">
+              {/* Card Header Telemetry */}
+              <div className="flex items-center justify-between text-xs font-mono text-[#6B6D76]">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500] animate-pulse" />
-                  <span>HAMILTONIAN TOPOLOGY</span>
+                  <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D]" />
+                  <span className="font-semibold text-[#1F2024]">HAMILTONIAN TOPOLOGY</span>
                 </div>
-                <button 
+                <button
                   onClick={() => setHeroOptimized(!heroOptimized)}
-                  className="hover:text-white transition-colors cursor-pointer"
+                  className="px-2.5 py-1 rounded-full bg-[#F7F6F2] hover:bg-[#EFEFEB] text-[#1F2024] font-semibold text-[11px] transition-colors cursor-pointer"
                 >
-                  [{heroOptimized ? 'OPTIMIZED' : 'UNORDERED'}]
+                  {heroOptimized ? 'OPTIMIZED' : 'UNORDERED'}
                 </button>
               </div>
 
-              {/* Minimal SVG Network */}
+              {/* Minimal Cartographic SVG Canvas */}
               <div className="relative w-full flex-1 flex items-center justify-center">
                 <svg viewBox="0 0 420 380" className="w-full h-full">
                   <defs>
-                    <linearGradient id="heroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#FF5500" />
-                      <stop offset="100%" stopColor="#EC4899" />
+                    <linearGradient id="heroGradientLight" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FF5B37" />
+                      <stop offset="100%" stopColor="#FF4D8D" />
                     </linearGradient>
-                    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="3" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
+                    <pattern id="lightGrid" width="30" height="30" patternUnits="userSpaceOnUse">
+                      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#F2F1EC" strokeWidth="1" />
+                    </pattern>
                   </defs>
 
-                  {/* Connecting Route Lines */}
+                  {/* Subtle Cartographic Grid Lines */}
+                  <rect width="100%" height="100%" fill="url(#lightGrid)" />
+
+                  {/* Progressive Route Lines */}
                   {heroOptimized ? (
-                    // Optimized Clean Loop
-                    <g filter="url(#subtleGlow)">
-                      <path
-                        d="M 210,170 L 80,90 L 220,60 L 340,110 L 310,220 L 210,310 L 130,230 Z"
-                        fill="none"
-                        stroke="url(#heroGradient)"
-                        strokeWidth="2"
-                        strokeDasharray="400"
-                        strokeDashoffset="0"
-                        className="transition-all duration-700"
-                      />
-                    </g>
+                    <motion.path
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 1.4, ease: smoothEase }}
+                      d="M 210,170 L 80,90 L 220,60 L 340,110 L 310,220 L 210,310 L 130,230 Z"
+                      fill="none"
+                      stroke="url(#heroGradientLight)"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   ) : (
-                    // Unoptimized Criss-Cross
-                    <g opacity="0.3">
-                      <path
-                        d="M 210,170 L 340,110 L 130,230 L 220,60 L 210,310 L 80,90 L 310,220 Z"
-                        fill="none"
-                        stroke="#8A8A8E"
-                        strokeWidth="1.5"
-                        strokeDasharray="4 4"
-                      />
-                    </g>
+                    <path
+                      d="M 210,170 L 340,110 L 130,230 L 220,60 L 210,310 L 80,90 L 310,220 Z"
+                      fill="none"
+                      stroke="#B6B8C2"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 4"
+                    />
                   )}
 
-                  {/* Delivery Nodes */}
+                  {/* Delivery Nodes: Small Elegant Circles */}
                   {heroNodes.map((node) => (
                     <g key={node.id} className="transition-transform duration-300 hover:scale-125">
                       <circle
                         cx={node.x}
                         cy={node.y}
-                        r="4.5"
-                        fill="#0D0D0D"
-                        stroke="#F5F5F5"
-                        strokeWidth="1.5"
+                        r="5"
+                        fill="#FFFFFF"
+                        stroke="#FF5B37"
+                        strokeWidth="2"
                       />
                       <circle
                         cx={node.x}
                         cy={node.y}
-                        r="1.5"
-                        fill="#FF5500"
+                        r="2"
+                        fill="#1F2024"
                       />
                     </g>
                   ))}
 
-                  {/* Central Depot Node */}
+                  {/* Depot: Custom Geometric Marker */}
                   <g>
                     <rect
-                      x={heroDepot.x - 7}
-                      y={heroDepot.y - 7}
-                      width="14"
-                      height="14"
-                      rx="3"
-                      fill="#F5F5F5"
+                      x={heroDepot.x - 8}
+                      y={heroDepot.y - 8}
+                      width="16"
+                      height="16"
+                      rx="4"
+                      fill="#1F2024"
                     />
                     <rect
                       x={heroDepot.x - 3}
@@ -326,491 +317,322 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       width="6"
                       height="6"
                       rx="1"
-                      fill="#080808"
+                      fill="#FFFFFF"
                     />
                   </g>
+
+                  {/* Vehicle Gliding along route */}
+                  {heroOptimized && (
+                    <g transform={`translate(${vehicleX}, ${vehicleY})`}>
+                      <circle r="7" fill="rgba(255, 91, 55, 0.2)" className="animate-ping" />
+                      <circle r="4" fill="#FF5B37" stroke="#FFFFFF" strokeWidth="1.5" />
+                    </g>
+                  )}
                 </svg>
               </div>
 
               {/* Minimal Telemetry Footer */}
-              <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-[#8A8A8E]">
+              <div className="pt-3 border-t border-[#E8E6DF] flex items-center justify-between text-[11px] font-mono text-[#6B6D76]">
                 <span>NODES: 06</span>
-                <span className="text-white">ENERGY H(x): {heroOptimized ? '-142.8 J' : '-48.2 J'}</span>
-                <span className={heroOptimized ? 'text-[#FF5500]' : 'text-[#8A8A8E]'}>
+                <span className="text-[#1F2024] font-medium">H(x): {heroOptimized ? '-142.8 J' : '-48.2 J'}</span>
+                <span className={heroOptimized ? 'text-[#FF5B37] font-semibold' : 'text-[#6B6D76]'}>
                   {heroOptimized ? 'CONVERGED' : 'SEARCHING'}
                 </span>
               </div>
-
             </div>
           </motion.div>
-        </motion.section>
+        </motion.div>
+      </section>
 
-        {/* ─── SECTION 2: PROBLEM ─────────────────────────────────────────── */}
-        <motion.section 
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-60px' }}
-          variants={fadeInUp}
-          className="border-t border-white/[0.08] pt-24"
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
-            {/* Editorial Statement Left */}
-            <div className="lg:col-span-6 space-y-6">
-              <span className="text-xs font-mono text-[#8A8A8E] uppercase tracking-wider">
-                01 &bull; COMPLEXITY
-              </span>
-
-              <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white leading-tight">
-                DELIVERY IS EASY.<br />
-                <span className="text-[#8A8A8E]">OPTIMIZATION ISN'T.</span>
-              </h2>
-
-              <p className="text-base text-[#8A8A8E] font-light leading-relaxed">
-                Dynamic demand, traffic, vehicle capacity and delivery time windows create a difficult combinatorial optimization problem. As stop counts grow linearly, possible route permutations explode factorially at <span className="font-mono text-white">O(n!)</span>.
-              </p>
-
-              <div className="pt-4 flex items-center gap-6 text-xs font-mono text-[#8A8A8E]">
-                <div>
-                  <span className="block text-white text-lg font-semibold">25 Stops</span>
-                  <span>1.5 &times; 10²⁵ combinations</span>
-                </div>
-                <div className="h-8 w-px bg-white/[0.08]" />
-                <div>
-                  <span className="block text-white text-lg font-semibold">&lt; 400 ms</span>
-                  <span>RouteQ solution time</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Simple Animated Route Network Right */}
-            <div className="lg:col-span-6 flex justify-center">
-              <div 
-                onClick={() => setProblemCollapsed(!problemCollapsed)}
-                className="w-full max-w-md bg-[#0D0D0D] border border-white/[0.08] rounded-xl p-6 cursor-pointer hover:border-white/20 transition-all"
-              >
-                <div className="flex justify-between text-[11px] font-mono text-[#8A8A8E] mb-4">
-                  <span>SOLUTION SPACE COLLAPSE</span>
-                  <span className="text-[#FF5500]">[CLICK TO TOGGLE]</span>
-                </div>
-
-                <svg viewBox="0 0 380 260" className="w-full h-48">
-                  {/* Multiple faint potential routes */}
-                  {!problemCollapsed && (
-                    <g opacity="0.18" stroke="#8A8A8E" strokeWidth="1" strokeDasharray="2 3">
-                      <path d="M 60,60 L 190,40 L 320,80 L 260,200 L 120,210 Z" fill="none" />
-                      <path d="M 60,60 L 260,200 L 190,40 L 120,210 L 320,80 Z" fill="none" />
-                      <path d="M 190,40 L 60,60 L 120,210 L 320,80 L 260,200 Z" fill="none" />
-                    </g>
-                  )}
-
-                  {/* Clean Optimal Hamiltonian Path */}
-                  <path
-                    d="M 60,60 L 190,40 L 320,80 L 260,200 L 120,210 Z"
-                    fill="none"
-                    stroke={problemCollapsed ? '#FF5500' : 'rgba(255,255,255,0.85)'}
-                    strokeWidth={problemCollapsed ? '2.5' : '1.5'}
-                    className="transition-all duration-500"
-                  />
-
-                  {/* Nodes */}
-                  {[
-                    { x: 60, y: 60, label: 'N1' },
-                    { x: 190, y: 40, label: 'N2' },
-                    { x: 320, y: 80, label: 'N3' },
-                    { x: 260, y: 200, label: 'N4' },
-                    { x: 120, y: 210, label: 'N5' },
-                  ].map((p, idx) => (
-                    <circle
-                      key={idx}
-                      cx={p.x}
-                      cy={p.y}
-                      r="4"
-                      fill="#0D0D0D"
-                      stroke="#F5F5F5"
-                      strokeWidth="1.5"
-                    />
-                  ))}
-                </svg>
-
-                <p className="text-xs text-[#8A8A8E] text-center font-mono mt-2">
-                  {problemCollapsed 
-                    ? '✓ Quantum Annealing collapsed 3.6M paths to 1 global minimum' 
-                    : 'Searching 120 factorial permutations in classical matrix'}
-                </p>
-              </div>
-            </div>
-
-          </div>
-        </motion.section>
-
-        {/* ─── SECTION 3: HOW IT WORKS ────────────────────────────────────── */}
-        <motion.section 
-          id="how-it-works"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-60px' }}
-          variants={fadeInUp}
-          className="border-t border-white/[0.08] pt-24 space-y-12"
-        >
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-2">
-              <span className="text-xs font-mono text-[#8A8A8E] uppercase tracking-wider">
-                02 &bull; PIPELINE
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-                HOW IT WORKS
-              </h2>
-            </div>
-            <p className="text-xs font-mono text-[#8A8A8E]">
-              5-STAGE DETERMINISTIC REASONING
-            </p>
-          </div>
-
-          {/* 5 Horizontal Steps Desktop */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
-            {stepsData.map((step, idx) => {
-              const isSelected = activeStep === idx;
-              return (
-                <div
-                  key={step.num}
-                  onMouseEnter={() => setActiveStep(idx)}
-                  className={`relative p-5 rounded-lg border transition-all duration-300 cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#121212] border-white/20 shadow-lg'
-                      : 'bg-[#0D0D0D] border-white/[0.06] hover:border-white/12'
-                  }`}
-                >
-                  {/* Subtle top indicator bar */}
-                  {isSelected && (
-                    <div className="absolute top-0 left-4 right-4 h-0.5 bg-gradient-to-r from-[#FF5500] to-[#EC4899] rounded-full" />
-                  )}
-
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-mono text-[#8A8A8E] font-medium">
-                      {step.num}
-                    </span>
-                    {idx < stepsData.length - 1 && (
-                      <ChevronRight className="hidden md:block w-3.5 h-3.5 text-white/20" />
-                    )}
-                  </div>
-
-                  <h3 className={`text-sm font-display font-semibold mb-2 tracking-wide ${
-                    isSelected ? 'text-white' : 'text-[#8A8A8E]'
-                  }`}>
-                    {step.title}
-                  </h3>
-
-                  <p className="text-xs text-[#8A8A8E] leading-relaxed font-light">
-                    {step.desc}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </motion.section>
-
-        {/* ─── SECTION 4: LIVE ROUTE VISUALIZATION & PERFORMANCE ───────────── */}
-        <motion.section 
-          id="live-route"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-60px' }}
-          variants={fadeInUp}
-          className="border-t border-white/[0.08] pt-24 space-y-16"
-        >
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-2">
-              <span className="text-xs font-mono text-[#8A8A8E] uppercase tracking-wider">
-                03 &bull; LIVE CARTOGRAPHY &bull; INDIA OPERATIONS
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-                LIVE ROUTE VISUALIZATION
-              </h2>
-            </div>
-            <div className="text-xs font-mono text-[#8A8A8E] flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-              <span>ACTIVE DISPATCH TELEMETRY (IST)</span>
-            </div>
-          </div>
-
-          {/* Large Interactive Minimal Dark Map */}
-          <div className="relative w-full aspect-[16/9] sm:aspect-[21/9] rounded-xl bg-[#0D0D0D] border border-white/[0.08] overflow-hidden p-4 sm:p-8 flex items-center justify-center">
-            
-            {/* India Operations Watermark Tag */}
-            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded bg-[#080808]/90 border border-white/[0.08] font-mono text-[10px] text-[#8A8A8E] shadow-md">
-              <span className="text-sm leading-none select-none">🇮🇳</span>
-              <span className="text-white font-semibold tracking-wider">BENGALURU LOGISTICS GRID</span>
-              <span className="text-white/20">|</span>
-              <span>KARNATAKA, INDIA</span>
-            </div>
-            
-            <svg viewBox="0 0 580 420" className="w-full h-full max-w-4xl">
-              <defs>
-                <linearGradient id="routeGradLive" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#FF5500" />
-                  <stop offset="100%" stopColor="#EC4899" />
-                </linearGradient>
-              </defs>
-
-              {/* Grid Background */}
-              <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.025)" strokeWidth="1" />
-              </pattern>
-              <rect width="100%" height="100%" fill="url(#gridPattern)" />
-
-              {/* Optimized SVG Route Polyline */}
-              <path
-                d="M 280,230 L 240,80 L 380,100 L 490,160 L 460,280 L 360,340 L 220,360 L 90,270 L 120,130 L 180,210 L 330,200 Z"
-                fill="none"
-                stroke="url(#routeGradLive)"
-                strokeWidth="2"
-                strokeDasharray="6 4"
-              />
-
-              {/* Delivery Nodes */}
-              {mapNodes.map((node) => (
-                <g 
-                  key={node.id} 
-                  onMouseEnter={() => setHoveredNode(node)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  className="cursor-pointer"
-                >
-                  <circle
-                    cx={node.x}
-                    cy={node.y}
-                    r={hoveredNode?.id === node.id ? "7" : "5"}
-                    fill="#0D0D0D"
-                    stroke={hoveredNode?.id === node.id ? "#FF5500" : "#F5F5F5"}
-                    strokeWidth="1.5"
-                    className="transition-all duration-200"
-                  />
-                  <circle
-                    cx={node.x}
-                    cy={node.y}
-                    r="2"
-                    fill={hoveredNode?.id === node.id ? "#FF5500" : "rgba(255,255,255,0.4)"}
-                  />
-                  <text
-                    x={node.x + 8}
-                    y={node.y + 3}
-                    fill="#8A8A8E"
-                    fontSize="9"
-                    fontFamily="monospace"
-                  >
-                    {node.id}
-                  </text>
-                </g>
-              ))}
-
-              {/* Depot Node */}
-              <g>
-                <rect
-                  x={mapDepot.x - 9}
-                  y={mapDepot.y - 9}
-                  width="18"
-                  height="18"
-                  rx="4"
-                  fill="#F5F5F5"
-                />
-                <rect
-                  x={mapDepot.x - 4}
-                  y={mapDepot.y - 4}
-                  width="8"
-                  height="8"
-                  rx="1"
-                  fill="#080808"
-                />
-                <text
-                  x={mapDepot.x - 22}
-                  y={mapDepot.y + 20}
-                  fill="#F5F5F5"
-                  fontSize="9"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                >
-                  DEPOT
-                </text>
-              </g>
-
-              {/* Moving Vehicle Marker Pulse */}
-              <g transform={`translate(${vehicleX}, ${vehicleY})`}>
-                <circle r="8" fill="rgba(255, 85, 0, 0.25)" className="animate-ping" />
-                <circle r="4" fill="#FF5500" stroke="#FFFFFF" strokeWidth="1" />
-              </g>
-            </svg>
-
-            {/* Hover Tooltip Overlay */}
-            {hoveredNode && (
-              <div 
-                className="absolute z-20 pointer-events-none bg-[#121212] border border-white/20 rounded-md p-3 text-xs shadow-2xl space-y-1 transition-all"
-                style={{
-                  left: `${(hoveredNode.x / 580) * 85}%`,
-                  top: `${(hoveredNode.y / 420) * 80}%`,
-                }}
-              >
-                <div className="font-mono font-semibold text-white flex items-center justify-between gap-4">
-                  <span>{hoveredNode.id}</span>
-                  <span className={`text-[10px] uppercase ${
-                    hoveredNode.priority === 'Critical' ? 'text-[#EC4899]' : 'text-[#8A8A8E]'
-                  }`}>
-                    {hoveredNode.priority}
-                  </span>
-                </div>
-                <div className="text-[11px] text-[#8A8A8E]">{hoveredNode.label}</div>
-                <div className="text-[11px] font-mono text-white/80 pt-1 border-t border-white/[0.08] flex justify-between gap-4">
-                  <span>Demand: {hoveredNode.demand}</span>
-                  <span>{hoveredNode.timeWindow}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Performance Section: 4 Large Numbers Separated by Thin Vertical Lines */}
-          <div ref={statsRef} className="pt-8">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 py-8 border-y border-white/[0.08]">
-              
-              {/* Metric 1 */}
-              <div className="space-y-1 text-center lg:text-left">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold font-display text-white tracking-tight">
-                  {isStatsInView ? '12.8%' : '0.0%'}
-                </div>
-                <div className="text-xs font-mono text-[#8A8A8E] tracking-wider uppercase">
-                  Distance Reduction
-                </div>
-              </div>
-
-              {/* Metric 2 */}
-              <div className="space-y-1 text-center lg:text-left lg:border-l lg:border-white/[0.08] lg:pl-8">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold font-display text-white tracking-tight">
-                  {isStatsInView ? '8.4%' : '0.0%'}
-                </div>
-                <div className="text-xs font-mono text-[#8A8A8E] tracking-wider uppercase">
-                  Fuel Saved
-                </div>
-              </div>
-
-              {/* Metric 3 */}
-              <div className="space-y-1 text-center lg:text-left lg:border-l lg:border-white/[0.08] lg:pl-8">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold font-display text-white tracking-tight">
-                  {isStatsInView ? '11.2%' : '0.0%'}
-                </div>
-                <div className="text-xs font-mono text-[#8A8A8E] tracking-wider uppercase">
-                  CO₂ Reduction
-                </div>
-              </div>
-
-              {/* Metric 4 */}
-              <div className="space-y-1 text-center lg:text-left lg:border-l lg:border-white/[0.08] lg:pl-8">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold font-display text-white tracking-tight">
-                  {isStatsInView ? '2H 01M' : '0H 00M'}
-                </div>
-                <div className="text-xs font-mono text-[#8A8A8E] tracking-wider uppercase">
-                  Time Saved / Shift
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </motion.section>
-
-        {/* ─── SECTION 5: QUANTUM TECHNOLOGY + FINAL CTA ───────────────────── */}
-        <motion.section 
-          id="technology"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-60px' }}
-          variants={fadeInUp}
-          className="border-t border-white/[0.08] pt-24 space-y-24"
-        >
-          {/* Quantum Technology Flow Diagram */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
-            <div className="lg:col-span-6 space-y-6">
-              <span className="text-xs font-mono text-[#8A8A8E] uppercase tracking-wider">
-                04 &bull; HYBRID ARCHITECTURE
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white leading-tight">
-                OPTIMIZATION,<br />
-                <span className="accent-gradient-text">RETHOUGHT.</span>
-              </h2>
-
-              <div className="space-y-4 text-sm text-[#8A8A8E] font-light leading-relaxed">
-                <p>
-                  Classical solvers struggle with exponential state spaces when balancing multiple dynamic constraints. RouteQ transforms vehicle capacity, time windows, and traffic delays into a Quadratic Unconstrained Binary Optimization (QUBO) Hamiltonian.
-                </p>
-                <p>
-                  Using IBM Qiskit and simulated quantum annealing algorithms, the solver tunnels through local energy barriers to identify mathematically optimal fleet configurations in sub-second intervals.
-                </p>
-              </div>
-            </div>
-
-            {/* Clean Flow Diagram Right */}
-            <div className="lg:col-span-6 flex justify-center">
-              <div className="w-full max-w-md bg-[#0D0D0D] border border-white/[0.08] rounded-xl p-6 space-y-4">
-                <div className="text-[11px] font-mono text-[#8A8A8E] uppercase tracking-wider border-b border-white/[0.06] pb-3 flex justify-between">
-                  <span>EXECUTION WORKFLOW</span>
-                  <span className="text-white">IBM QISKIT HYBRID</span>
-                </div>
-
-                {/* Workflow Stack */}
-                <div className="space-y-2 font-mono text-xs">
-                  {[
-                    { step: '01', title: 'CLASSICAL PREPROCESSING', desc: 'Haversine distance & traffic matrix' },
-                    { step: '02', title: 'QUBO FORMULATION', desc: 'H(x) = xᵀ Q x + λ_penalties' },
-                    { step: '03', title: 'QISKIT / SQA ENGINE', desc: 'Transverse field annealing Γ(t)' },
-                    { step: '04', title: 'ENERGY MINIMIZATION', desc: 'Constraint validation & pruning' },
-                    { step: '05', title: 'OPTIMAL ROUTE DISPATCH', desc: 'Deterministic turn-by-turn routes' },
-                  ].map((item) => (
-                    <div key={item.step} className="flex items-center gap-3 p-2.5 rounded bg-[#121212] border border-white/[0.04]">
-                      <span className="text-[10px] text-[#FF5500] font-bold">{item.step}</span>
-                      <div className="flex-1">
-                        <div className="text-[#F5F5F5] font-semibold text-[11px]">{item.title}</div>
-                        <div className="text-[10px] text-[#8A8A8E]">{item.desc}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-              </div>
-            </div>
-
-          </div>
-
-          {/* Final CTA: Large Heading & Single Button */}
-          <div className="pt-16 pb-8 text-center space-y-8">
-            <h2 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white">
-              OPTIMIZE<br />
-              <span className="text-[#8A8A8E]">THE LAST MILE.</span>
+      {/* ─── SECTION 9: SCROLL-BASED ROUTE STORYTELLING ANIMATION ─────────── */}
+      <section
+        ref={routeStoryRef}
+        className="py-24 px-4 sm:px-6 max-w-6xl mx-auto border-t border-[#E8E6DF]"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          
+          {/* Left Narrative */}
+          <div className="lg:col-span-5 space-y-6">
+            <span className="text-xs font-mono text-[#FF5B37] uppercase tracking-wider font-semibold">
+              01 &bull; COMBINATORIAL ROUTE SEARCH
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-[#1F2024] leading-tight">
+              FROM CHAOS TO<br />
+              <span className="accent-gradient-text">OPTIMAL TRAJECTORY.</span>
             </h2>
+            <p className="text-base text-[#6B6D76] font-light leading-relaxed">
+              When routing delivery fleets, millions of possible vehicle paths exist.
+              Conventional algorithms get trapped in local suboptimal loops. RouteQ progressively eliminates inefficient paths, collapsing the factorial search space to the globally optimal schedule.
+            </p>
 
-            <div className="flex justify-center pt-2">
+            {/* Interactive State Toggle Buttons */}
+            <div className="flex items-center gap-2 pt-2">
               <button
-                onClick={onLaunchOptimizer}
-                className="btn-minimal-primary text-base !py-3.5 !px-8"
+                onClick={() => setRouteStage('possible')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all cursor-pointer ${
+                  routeStage === 'possible'
+                    ? 'bg-[#1F2024] text-white shadow-sm'
+                    : 'bg-white border border-[#E8E6DF] text-[#6B6D76] hover:text-[#1F2024]'
+                }`}
               >
-                Launch Route Optimizer
-                <ArrowRight className="w-4 h-4" />
+                1. POSSIBLE ROUTES
+              </button>
+              <button
+                onClick={() => setRouteStage('filtering')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all cursor-pointer ${
+                  routeStage === 'filtering'
+                    ? 'bg-[#1F2024] text-white shadow-sm'
+                    : 'bg-white border border-[#E8E6DF] text-[#6B6D76] hover:text-[#1F2024]'
+                }`}
+              >
+                2. FILTERING
+              </button>
+              <button
+                onClick={() => setRouteStage('optimized')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all cursor-pointer ${
+                  routeStage === 'optimized'
+                    ? 'bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D] text-white shadow-[0_2px_10px_rgba(255,91,55,0.28)]'
+                    : 'bg-white border border-[#E8E6DF] text-[#6B6D76] hover:text-[#1F2024]'
+                }`}
+              >
+                3. OPTIMIZED ROUTE
               </button>
             </div>
-
-            <p className="text-xs font-mono text-[#8A8A8E]">
-              Zero installation required &bull; Browser-accelerated SQA & Qiskit API
-            </p>
           </div>
 
-        </motion.section>
+          {/* Right: SVG Storytelling Path Canvas */}
+          <div className="lg:col-span-7 flex justify-center">
+            <div className="w-full bg-white border border-[#E8E6DF] rounded-3xl p-6 sm:p-8 shadow-soft relative overflow-hidden">
+              <div className="flex justify-between items-center text-xs font-mono text-[#6B6D76] mb-4">
+                <span>STAGE: {routeStage.toUpperCase()}</span>
+                <span className="text-[#FF5B37] font-semibold">
+                  {routeStage === 'possible' ? '120 FACTORIAL PERMUTATIONS' : routeStage === 'filtering' ? 'PRUNING SUBOPTIMAL EDGES' : 'GLOBAL MINIMUM FOUND'}
+                </span>
+              </div>
 
-      </main>
+              <svg viewBox="0 0 520 300" className="w-full h-64">
+                <defs>
+                  <linearGradient id="storyRouteGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FF5B37" />
+                    <stop offset="100%" stopColor="#FF4D8D" />
+                  </linearGradient>
+                </defs>
 
-      {/* ─── MINIMAL FOOTER ──────────────────────────────────────────────── */}
-      <footer className="border-t border-white/[0.06] py-8 text-xs font-mono text-[#8A8A8E]">
+                {/* Inefficient faint paths */}
+                {routeStage !== 'optimized' && (
+                  <g
+                    opacity={routeStage === 'possible' ? 0.35 : 0.12}
+                    stroke="#8E909A"
+                    strokeWidth="1.2"
+                    strokeDasharray="4 4"
+                    className="transition-opacity duration-500"
+                  >
+                    <path d="M 80,80 L 260,50 L 440,100 L 360,240 L 160,250 Z" fill="none" />
+                    <path d="M 80,80 L 360,240 L 260,50 L 160,250 L 440,100 Z" fill="none" />
+                    <path d="M 260,50 L 80,80 L 160,250 L 440,100 L 360,240 Z" fill="none" />
+                  </g>
+                )}
+
+                {/* Optimized Route Line */}
+                <motion.path
+                  d="M 80,80 L 260,50 L 440,100 L 360,240 L 160,250 Z"
+                  fill="none"
+                  stroke={routeStage === 'optimized' ? 'url(#storyRouteGrad)' : '#1F2024'}
+                  strokeWidth={routeStage === 'optimized' ? 3.5 : 2}
+                  className="transition-all duration-700"
+                />
+
+                {/* Nodes */}
+                {[
+                  { x: 80, y: 80, label: 'D-01' },
+                  { x: 260, y: 50, label: 'D-02' },
+                  { x: 440, y: 100, label: 'D-03' },
+                  { x: 360, y: 240, label: 'D-04' },
+                  { x: 160, y: 250, label: 'D-05' },
+                ].map((p, idx) => (
+                  <g key={idx}>
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r="6"
+                      fill="#FFFFFF"
+                      stroke={routeStage === 'optimized' ? '#FF5B37' : '#1F2024'}
+                      strokeWidth="2"
+                    />
+                    <text
+                      x={p.x + 9}
+                      y={p.y + 4}
+                      fill="#6B6D76"
+                      fontSize="10"
+                      fontFamily="IBM Plex Mono"
+                    >
+                      {p.label}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+
+              <p className="text-xs text-center font-mono text-[#6B6D76] mt-4 pt-4 border-t border-[#E8E6DF]">
+                {routeStage === 'optimized'
+                  ? '✓ Minimum energy Hamiltonian state identified — 12.8% distance saved.'
+                  : 'Evaluating penalty costs: vehicle capacities, road congestion & time window SLA.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── SECTION 10: MINIMAL PERFORMANCE SECTION ──────────────────────── */}
+      <section ref={statsRef} className="py-20 px-4 sm:px-6 max-w-6xl mx-auto border-t border-[#E8E6DF]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 py-4">
+          
+          {/* Metric 1 */}
+          <div className="space-y-1 text-center lg:text-left">
+            <div className="text-4xl sm:text-5xl font-bold font-sans text-[#1F2024] tracking-tight">
+              {isStatsInView ? '12.8%' : '0.0%'}
+            </div>
+            <div className="text-xs font-mono text-[#6B6D76] uppercase tracking-wider">
+              Distance Reduction
+            </div>
+          </div>
+
+          {/* Metric 2 */}
+          <div className="space-y-1 text-center lg:text-left lg:border-l lg:border-[#E8E6DF] lg:pl-8">
+            <div className="text-4xl sm:text-5xl font-bold font-sans text-[#1F2024] tracking-tight">
+              {isStatsInView ? '8.4%' : '0.0%'}
+            </div>
+            <div className="text-xs font-mono text-[#6B6D76] uppercase tracking-wider">
+              Fuel Saved
+            </div>
+          </div>
+
+          {/* Metric 3 */}
+          <div className="space-y-1 text-center lg:text-left lg:border-l lg:border-[#E8E6DF] lg:pl-8">
+            <div className="text-4xl sm:text-5xl font-bold font-sans text-[#1F2024] tracking-tight">
+              {isStatsInView ? '11.2%' : '0.0%'}
+            </div>
+            <div className="text-xs font-mono text-[#6B6D76] uppercase tracking-wider">
+              CO₂ Reduction
+            </div>
+          </div>
+
+          {/* Metric 4 */}
+          <div className="space-y-1 text-center lg:text-left lg:border-l lg:border-[#E8E6DF] lg:pl-8">
+            <div className="text-4xl sm:text-5xl font-bold font-sans text-[#1F2024] tracking-tight">
+              {isStatsInView ? '2h 01m' : '0h 00m'}
+            </div>
+            <div className="text-xs font-mono text-[#6B6D76] uppercase tracking-wider">
+              Time Saved
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ─── SECTION 14: OPERATIONS CONSOLE (FLEET OVERVIEW) ──────────────── */}
+      {depot && (
+        <section className="py-20 px-4 sm:px-6 max-w-6xl mx-auto border-t border-[#E8E6DF] space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <span className="text-xs font-mono text-[#FF5B37] uppercase tracking-wider font-semibold">
+                FLEET OVERVIEW
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight text-[#1F2024] mt-1">
+                Real-time optimization environment
+              </h2>
+            </div>
+
+            {/* Clean Horizontal Telemetry Strip */}
+            <div className="flex items-center gap-4 text-xs font-mono bg-white border border-[#E8E6DF] rounded-full px-4 py-2 shadow-soft-sm text-[#6B6D76]">
+              <span className="text-[#1F2024] font-semibold">{totalVehicles.toString().padStart(2, '0')} Vehicles</span>
+              <span className="text-[#E8E6DF]">|</span>
+              <span className="text-[#1F2024] font-semibold">{totalDeliveries} Deliveries</span>
+              <span className="text-[#E8E6DF]">|</span>
+              <span className="text-[#1F2024] font-semibold">{totalDistance.toFixed(1)} km</span>
+              <span className="text-[#E8E6DF]">|</span>
+              <span className="text-[#1F2024] font-semibold">{totalFuel.toFixed(2)} L</span>
+              <span className="text-[#E8E6DF]">|</span>
+              <span className="text-[#1F2024] font-semibold">{hours}h {mins}m</span>
+            </div>
+          </div>
+
+          {/* Main Map & Side Panel */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-9 h-[520px] rounded-3xl overflow-hidden border border-[#E8E6DF] shadow-soft">
+              <RouteMap
+                depot={depot}
+                vehicles={vehicles}
+                deliveries={deliveries}
+                optimizationResult={optimizationResult}
+              />
+            </div>
+
+            {/* Side Panel: OPTIMIZATION STATUS */}
+            <div className="lg:col-span-3 bg-white border border-[#E8E6DF] rounded-3xl p-6 shadow-soft flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
+                <div className="pb-3 border-b border-[#E8E6DF]">
+                  <div className="text-xs font-mono text-[#8E909A] uppercase tracking-wider">
+                    SIDE PANEL
+                  </div>
+                  <h3 className="text-base font-bold text-[#1F2024] mt-0.5">
+                    OPTIMIZATION STATUS
+                  </h3>
+                </div>
+
+                <div className="space-y-3 text-xs font-mono">
+                  <div className="flex justify-between py-1.5 border-b border-[#F2F1EC]">
+                    <span className="text-[#6B6D76]">Engine</span>
+                    <span className="text-[#1F2024] font-semibold">Qiskit Hybrid</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-[#F2F1EC]">
+                    <span className="text-[#6B6D76]">Status</span>
+                    <span className="text-[#10B981] font-semibold flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                      {optimizationResult ? 'Optimized' : 'Ready'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-[#F2F1EC]">
+                    <span className="text-[#6B6D76]">Last run</span>
+                    <span className="text-[#1F2024] font-semibold">09:42:18</span>
+                  </div>
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-[#6B6D76]">Convergence</span>
+                    <span className="text-[#FF5B37] font-semibold">Sub-second</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => onNavigateTab?.('routes')}
+                  className="w-full btn-primary-gradient !py-2.5 !text-xs !font-semibold"
+                >
+                  <span>Explore Routes</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={onLaunchOptimizer}
+                  disabled={isOptimizing}
+                  className="w-full btn-secondary-outline !py-2 !text-xs"
+                >
+                  {isOptimizing ? 'Optimizing...' : 'Re-run Optimizer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── EDITORIAL FOOTER ────────────────────────────────────────────── */}
+      <footer className="border-t border-[#E8E6DF] py-10 text-xs font-mono text-[#6B6D76]">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500]" />
-            <span>ROUTEQ &bull; USE CASE 04</span>
+            <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D]" />
+            <span className="font-bold text-[#1F2024]">ROUTEQ</span>
+            <span>&bull;</span>
+            <span>PREMIUM MOBILITY TECHNOLOGY</span>
           </div>
-          <div>QISKIT FALL FEST 2026</div>
+          <div>QISKIT FALL FEST 2026 &bull; USE CASE 04</div>
         </div>
       </footer>
 

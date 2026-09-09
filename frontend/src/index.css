@@ -4,22 +4,22 @@
 
 @layer base {
   :root {
-    --bg-primary: #080808;
-    --bg-surface: #0D0D0D;
-    --bg-elevated: #121212;
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(255, 255, 255, 0.16);
-    --text-primary: #F5F5F5;
-    --text-muted: #8A8A8E;
-    --accent-orange: #FF5500;
-    --accent-pink: #EC4899;
+    --bg-primary: #F7F6F2;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #FAF9F6;
+    --border-subtle: #E8E6DF;
+    --border-hover: #D6D4CC;
+    --text-primary: #1F2024;
+    --text-muted: #6B6D76;
+    --accent-orange: #FF5B37;
+    --accent-pink: #FF4D8D;
   }
 
   body {
     margin: 0;
-    font-family: 'Sora', 'Inter', system-ui, sans-serif;
-    background-color: #080808;
-    color: #F5F5F5;
+    font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #F7F6F2;
+    color: #1F2024;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -27,70 +27,124 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', 'Sora', sans-serif;
-    letter-spacing: -0.03em;
+    font-family: 'Manrope', sans-serif;
+    letter-spacing: -0.025em;
     font-weight: 600;
   }
 
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'IBM Plex Mono', monospace;
   }
 }
 
-/* Minimal Custom Scrollbar */
+/* Minimal Custom Warm Light Scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #080808;
+  background: #F7F6F2;
 }
 ::-webkit-scrollbar-thumb {
-  background: #262626;
-  border-radius: 2px;
+  background: #D6D4CC;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: #B8B6AE;
 }
 
-/* Text Gradient Accent */
+/* Text Gradient Accent: Coral -> Pink */
 .accent-gradient-text {
-  background: linear-gradient(135deg, #FF5500 0%, #EC4899 100%);
+  background: linear-gradient(135deg, #FF5B37 0%, #FF4D8D 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .accent-gradient-bg {
-  background: linear-gradient(135deg, #FF5500 0%, #EC4899 100%);
+  background: linear-gradient(135deg, #FF5B37 0%, #FF4D8D 100%);
 }
 
-.accent-border-gradient {
-  border-image: linear-gradient(135deg, #FF5500 0%, #EC4899 100%) 1;
+.accent-gradient-soft {
+  background: linear-gradient(135deg, rgba(255, 91, 55, 0.08) 0%, rgba(255, 77, 141, 0.08) 100%);
 }
 
-/* Minimalist Clean Button Styles */
+/* ─── PREMIUM BUTTONS ─────────────────────────────────────────────────── */
+/* Primary: Orange -> Coral -> Pink Gradient */
+.btn-primary-gradient {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #FF5B37 0%, #FF6347 50%, #FF4D8D 100%);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(255, 91, 55, 0.22);
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
+
+.btn-primary-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(255, 91, 55, 0.32);
+  opacity: 0.96;
+}
+
+.btn-primary-gradient:active {
+  transform: translateY(0);
+}
+
+/* Secondary: White / Transparent with Charcoal Border */
+.btn-secondary-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.3rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #1F2024;
+  background-color: #FFFFFF;
+  border: 1px solid #E5E4DE;
+  border-radius: 9999px;
+  box-shadow: 0 2px 6px rgba(31, 32, 36, 0.03);
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
+
+.btn-secondary-outline:hover {
+  border-color: #D6D4CC;
+  background-color: #FAF9F6;
+  color: #141518;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(31, 32, 36, 0.06);
+}
+
+/* Backwards-compatibility aliases */
 .btn-minimal-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #080808;
-  background-color: #F5F5F5;
-  border-radius: 0.375rem;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0.65rem 1.3rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #FF5B37 0%, #FF4D8D 100%);
+  border-radius: 9999px;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: pointer;
-  border: 1px solid #F5F5F5;
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 91, 55, 0.2);
 }
 
 .btn-minimal-primary:hover {
-  background: linear-gradient(135deg, #FF5500 0%, #EC4899 100%);
-  border-color: transparent;
-  color: #FFFFFF;
-  box-shadow: 0 4px 20px rgba(255, 85, 0, 0.2);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 91, 55, 0.3);
+  opacity: 0.95;
 }
 
 .btn-minimal-outline {
@@ -98,21 +152,20 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.875rem;
+  padding: 0.65rem 1.3rem;
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: #F5F5F5;
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.375rem;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #1F2024;
+  background-color: #FFFFFF;
+  border: 1px solid #E5E4DE;
+  border-radius: 9999px;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: pointer;
 }
 
 .btn-minimal-outline:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #FFFFFF;
+  background-color: #FAF9F6;
+  border-color: #D6D4CC;
   transform: translateY(-1px);
 }
 
@@ -121,66 +174,77 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.875rem;
+  padding: 0.65rem 1.3rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #FFFFFF;
-  background: linear-gradient(135deg, #FF5500 0%, #EC4899 100%);
-  border-radius: 0.375rem;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  background: linear-gradient(135deg, #FF5B37 0%, #FF4D8D 100%);
+  border-radius: 9999px;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: pointer;
-  border: 1px solid transparent;
+  border: none;
 }
 
-.btn-minimal-accent:hover {
-  opacity: 0.92;
-  box-shadow: 0 4px 24px rgba(255, 85, 0, 0.3);
-  transform: translateY(-1px);
+/* ─── UI CARDS & SURFACES ────────────────────────────────────────────── */
+.card-editorial {
+  background-color: #FFFFFF;
+  border: 1px solid #E8E6DF;
+  border-radius: 1.125rem; /* 18px */
+  box-shadow: 0 4px 20px rgba(31, 32, 36, 0.03);
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Minimal Surface Cards */
+.card-editorial:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(31, 32, 36, 0.06);
+  border-color: #D6D4CC;
+}
+
+/* Surface Minimal backwards compatibility */
 .surface-minimal {
-  background-color: #0D0D0D;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 0.5rem;
+  background-color: #FFFFFF;
+  border: 1px solid #E8E6DF;
+  border-radius: 1rem;
+  box-shadow: 0 2px 10px rgba(31, 32, 36, 0.02);
 }
 
 .surface-minimal-interactive {
-  background-color: #0D0D0D;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 0.5rem;
-  transition: border-color 0.25s ease, background-color 0.25s ease;
+  background-color: #FFFFFF;
+  border: 1px solid #E8E6DF;
+  border-radius: 1rem;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .surface-minimal-interactive:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  background-color: #121212;
+  border-color: #D6D4CC;
+  box-shadow: 0 6px 20px rgba(31, 32, 36, 0.05);
+  transform: translateY(-2px);
 }
 
-/* Subtle Leaflet Dark Cartography */
+/* ─── LEAFLET LIGHT CARTOGRAPHY ───────────────────────────────────────── */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  background: #080808 !important;
-  font-family: 'Sora', 'Inter', sans-serif;
+  background: #F2F1EC !important;
+  font-family: 'Manrope', system-ui, sans-serif;
   z-index: 10;
 }
 
 .leaflet-popup-content-wrapper {
-  background: #0D0D0D !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 6px !important;
-  color: #F5F5F5 !important;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.8) !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E8E6DF !important;
+  border-radius: 12px !important;
+  color: #1F2024 !important;
+  box-shadow: 0 12px 32px rgba(31, 32, 36, 0.08) !important;
   padding: 0 !important;
 }
 
 .leaflet-popup-content {
-  margin: 10px 14px !important;
-  line-height: 1.4 !important;
+  margin: 12px 16px !important;
+  line-height: 1.5 !important;
 }
 
 .leaflet-popup-tip {
-  background: #0D0D0D !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E8E6DF !important;
 }
