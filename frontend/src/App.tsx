@@ -244,7 +244,6 @@ export const App: React.FC = () => {
       setComparisonResult(comp);
 
       showToast(`✓ Optimization complete: ${res.routes.length} routes · ${res.total_distance_km} km · ${res.solver?.name || solverLabel}`);
-      setCurrentTab('routes');
     } catch (err: any) {
       console.error('[RouteQ] Optimization failed:', err);
       const errMsg = err?.message || 'Failed to execute optimization';
@@ -252,10 +251,9 @@ export const App: React.FC = () => {
       // Restore previous result so the page doesn't stay blank
       setOptimizationResult(baselineResult);
       showToast('Optimization error: ' + errMsg);
-      setCurrentTab('routes');
+      setShowOptimizationModal(false);
     } finally {
       setIsOptimizing(false);
-      setShowOptimizationModal(false);
     }
   };
 

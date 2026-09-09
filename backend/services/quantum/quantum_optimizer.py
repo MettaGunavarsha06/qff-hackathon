@@ -3,6 +3,7 @@ Quantum VRP Optimizer for RouteQ.
 Orchestrates high-level routing optimization using genuine Qiskit QAOA circuits.
 """
 import time
+import math
 from typing import List, Dict, Tuple, Optional, Any
 import numpy as np
 
@@ -46,6 +47,9 @@ def build_vrp_cost_matrix(
     for d in deliveries:
         coords[d.id] = (d.lat, d.lng)
 
+    obj = (objective or "balanced").lower().replace("min_", "")
+    avg_demand = sum(d.get_demand() for d in deliveries) / max(1, len(deliveries)) if deliveries else 10.0
+
     cost_matrix = np.zeros((n, n), dtype=float)
 
     for i in range(n):
@@ -56,31 +60,45 @@ def build_vrp_cost_matrix(
                 id_i = nodes[i]
                 id_j = nodes[j]
 
+                p1 = coords[id_i]
+                p2 = coords[id_j]
+
                 if distance_matrix and (id_i, id_j) in distance_matrix:
                     dist = distance_matrix[(id_i, id_j)]
-                    t_mins = (
-                        time_matrix.get((id_i, id_j), calculate_travel_time(dist, traffic_level))
-                        if time_matrix
-                        else calculate_travel_time(dist, traffic_level)
-                    )
                 else:
-                    p1 = coords[id_i]
-                    p2 = coords[id_j]
                     dist = haversine_distance(p1[0], p1[1], p2[0], p2[1]) * 1.3
-                    t_mins = calculate_travel_time(dist, traffic_level)
 
-                fuel = dist / 12.0
-                co2 = fuel * 2.68
+                mid_lat = (p1[0] + p2[0]) / 2.0
+                mid_lng = (p1[1] + p2[1]) / 2.0
+                dist_to_center = haversine_distance(depot.lat, depot.lng, mid_lat, mid_lng)
 
-                if objective == "distance":
+                cong_mult = 1.0
+                if traffic_level in ("heavy", "rush_hour", "high"):
+                    cong_mult = 2.25 if dist_to_center < 6.0 else 1.15
+                elif traffic_level in ("moderate", "medium"):
+                    cong_mult = 1.45 if dist_to_center < 6.0 else 1.05
+
+                base_speed = 36.0 / cong_mult
+                t_mins = (
+                    time_matrix.get((id_i, id_j), (dist / max(8.0, base_speed)) * 60.0)
+                    if time_matrix
+                    else (dist / max(8.0, base_speed)) * 60.0
+                )
+
+                v_demand = deliveries[j - 1].get_demand() if j > 0 else 0.0
+
+                if obj in ("distance", "min_distance"):
                     cost = dist
-                elif objective == "time":
+                elif obj in ("travel_time", "time", "min_travel_time"):
                     cost = t_mins
-                elif objective == "fuel":
-                    cost = fuel
-                elif objective == "co2":
-                    cost = co2
+                elif obj in ("fuel", "min_fuel"):
+                    weight_benefit = (v_demand / max(1.0, avg_demand)) * 0.40
+                    cost = dist * (1.25 - weight_benefit)
+                elif obj in ("co2", "min_co2"):
+                    cost = dist * 0.70 + t_mins * 0.60
                 else:  # balanced multi-objective
+                    fuel = (dist / 12.0) * (1.0 + (v_demand / max(1.0, avg_demand)) * 0.15)
+                    co2 = fuel * 2.68
                     cost = (
                         distance_weight * dist
                         + time_weight * t_mins
@@ -167,17 +185,27 @@ class QuantumVRPOptimizer:
         optimal_perm_indices = qiskit_result.optimal_sequence_indices
         ordered_delivery_ids = [nodes[idx] for idx in optimal_perm_indices if idx < len(nodes)]
 
-        # 4. Multi-Vehicle Capacity Partitioning
+        # 4. Multi-Vehicle Fleet Capacity & Stop Partitioning
         num_vehicles = len(self.vehicles)
         vehicle_assignments: List[List[str]] = [[] for _ in range(num_vehicles)]
         vehicle_loads = [0.0 for _ in range(num_vehicles)]
+
+        target_stops = max(1, math.ceil(len(ordered_delivery_ids) / num_vehicles))
+        total_demand = sum(self.deliveries_map[did].get_demand() for did in ordered_delivery_ids)
+        target_load = max(
+            max(self.deliveries_map[did].get_demand() for did in ordered_delivery_ids),
+            (total_demand / num_vehicles) * 1.25
+        )
 
         current_veh = 0
         for did in ordered_delivery_ids:
             demand = self.deliveries_map[did].get_demand()
             if (
-                vehicle_loads[current_veh] + demand > self.vehicles[current_veh].capacity
-                and current_veh < num_vehicles - 1
+                current_veh < num_vehicles - 1
+                and (
+                    len(vehicle_assignments[current_veh]) >= target_stops
+                    or vehicle_loads[current_veh] + demand > min(self.vehicles[current_veh].capacity, target_load)
+                )
             ):
                 current_veh += 1
 

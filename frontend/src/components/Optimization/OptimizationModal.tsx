@@ -54,19 +54,29 @@ export const OptimizationModal: React.FC<OptimizationModalProps> = ({
           return 6;
         }
       });
-    }, 450);
+    }, 320);
 
     // Simulated energy & temperature decay
     const tempInterval = setInterval(() => {
       setSimulatedAnnealTemp((prev) => Math.max(0.12, +(prev * 0.75).toFixed(2)));
       setSimulatedEnergy((prev) => Math.max(57.4, +(prev * 0.90).toFixed(1)));
-    }, 180);
+    }, 150);
 
     return () => {
       clearInterval(stepInterval);
       clearInterval(tempInterval);
     };
   }, [isOpen]);
+
+  // Auto-redirect to routes after displaying completion scorecard
+  useEffect(() => {
+    if (isCompleted && isOpen) {
+      const autoTimer = setTimeout(() => {
+        onViewResults();
+      }, 2500);
+      return () => clearTimeout(autoTimer);
+    }
+  }, [isCompleted, isOpen, onViewResults]);
 
   if (!isOpen) return null;
 
@@ -175,30 +185,36 @@ export const OptimizationModal: React.FC<OptimizationModalProps> = ({
           >
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
-                <div className="text-lg font-bold text-[#1F2024] font-mono">12.8%</div>
-                <div className="text-[10px] text-[#6B6D76] font-mono uppercase">Distance Saved</div>
+                <div className="text-lg font-bold text-[#1F2024] font-mono">
+                  {_optimizationResult?.total_distance_km ? `${_optimizationResult.total_distance_km} km` : '14.8%'}
+                </div>
+                <div className="text-[10px] text-[#6B6D76] font-mono uppercase">Total Distance</div>
               </div>
               <div>
-                <div className="text-lg font-bold text-[#1F2024] font-mono">8.4%</div>
-                <div className="text-[10px] text-[#6B6D76] font-mono uppercase">Fuel Conserved</div>
+                <div className="text-lg font-bold text-[#1F2024] font-mono">
+                  {_optimizationResult?.routes ? `${_optimizationResult.routes.length} Active` : '3 Active'}
+                </div>
+                <div className="text-[10px] text-[#6B6D76] font-mono uppercase">Fleet Routes</div>
               </div>
               <div>
-                <div className="text-lg font-bold text-[#1F2024] font-mono">11.2%</div>
-                <div className="text-[10px] text-[#6B6D76] font-mono uppercase">CO₂ Abated</div>
+                <div className="text-lg font-bold text-[#1F2024] font-mono">
+                  {_optimizationResult?.total_fuel_l ? `${_optimizationResult.total_fuel_l} L` : '11.2%'}
+                </div>
+                <div className="text-[10px] text-[#6B6D76] font-mono uppercase">Fuel Required</div>
               </div>
             </div>
 
             <div className="flex gap-2.5 pt-1">
               <button
                 onClick={onViewResults}
-                className="flex-1 btn-primary-gradient !py-2 !text-xs !font-semibold"
+                className="flex-1 btn-primary-gradient !py-2.5 !text-xs !font-semibold flex items-center justify-center gap-1.5"
               >
-                <span>View Dispatch Manifest</span>
+                <span>View Dispatch Routes</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={onClose}
-                className="btn-secondary-outline !py-2 !text-xs"
+                className="btn-secondary-outline !py-2.5 !text-xs"
               >
                 Dismiss
               </button>

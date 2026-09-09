@@ -1,4 +1,5 @@
 import time
+import math
 from typing import List, Dict, Any, Tuple, Optional
 from models.schemas import (
     OptimizationRequestInput,
@@ -9,57 +10,27 @@ from models.schemas import (
     VehicleInput,
     DeliveryInput,
 )
-from utils.distance import haversine_distance
-from services.metrics import build_route_details
+from utils.distance import haversine_distance, calculate_travel_time
+from services.metrics import build_route_details, parse_time_to_minutes
 
 VEHICLE_COLORS = [
-    "#10b981",  # Emerald
-    "#06b6d4",  # Cyan
-    "#8b5cf6",  # Violet
-    "#f59e0b",  # Amber
-    "#ec4899",  # Rose
-    "#3b82f6",  # Blue
-    "#14b8a6",  # Teal
+    "#FF5B37",  # RouteQ Coral Orange
+    "#3B82F6",  # Blue
+    "#10B981",  # Emerald
+    "#8B5CF6",  # Violet
+    "#F59E0B",  # Amber
+    "#EC4899",  # Rose
+    "#06B6D4",  # Cyan
+    "#14B8A6",  # Teal
 ]
 
-def run_2opt(
-    route: List[str],
-    cost_fn: Any
-) -> List[str]:
-    """2-opt local search heuristic to untangle route crossings using edge costs."""
-    if len(route) <= 3:
-        return route
-
-    best = list(route)
-    improved = True
-    iterations = 0
-
-    def calc_cost(r: List[str]) -> float:
-        return sum(cost_fn(r[k], r[k+1]) for k in range(len(r) - 1))
-
-    best_cost = calc_cost(best)
-
-    while improved and iterations < 40:
-        improved = False
-        iterations += 1
-        for i in range(1, len(best) - 2):
-            for j in range(i + 1, len(best) - 1):
-                new_route = best[:i] + best[i:j+1][::-1] + best[j+1:]
-                new_cost = calc_cost(new_route)
-                if new_cost < best_cost - 1e-4:
-                    best = new_route
-                    best_cost = new_cost
-                    improved = True
-                    break
-            if improved:
-                break
-
-    return best
 
 class ClassicalOptimizer:
     """
-    Classical baseline optimizer using Capacity-aware Clarke-Wright Savings
-    and 2-Opt local search refinement, powered by real road distance & traffic matrices.
+    Classical baseline optimizer using Capacity-aware & Multi-Vehicle Clarke-Wright Savings
+    with time-window constrained 2-Opt local search refinement.
+    Differentiates routes by objective (distance, travel time, fuel, CO2, balanced),
+    traffic conditions (congestion multipliers on central corridors), and time window SLAs.
     """
     def __init__(
         self,
@@ -73,11 +44,19 @@ class ClassicalOptimizer:
     ):
         self.request = request
         self.depot = request.depot or DepotInput(id="DEPOT", lat=12.9279, lng=77.6271)
-        self.vehicles = request.vehicles
-        self.deliveries = request.deliveries
-        self.traffic_level = request.traffic_level or "medium"
+        self.vehicles = request.vehicles or []
+        self.deliveries = request.deliveries or []
+        self.traffic_level = (request.traffic_level or "medium").lower()
+        self.time_window_mode = (request.time_window_mode or "soft").lower()
+        self.capacity_mode = (request.capacity_mode or "strict").lower()
+        self.objective = (request.objective or "balanced").lower()
+
         self.deliveries_map = {d.id: d for d in self.deliveries}
-        
+        self.avg_demand = (
+            sum(d.get_demand() for d in self.deliveries) / max(1, len(self.deliveries))
+            if self.deliveries else 10.0
+        )
+
         self.distance_matrix = distance_matrix
         self.time_matrix = time_matrix
         self.is_live_traffic_used = is_live_traffic_used
@@ -92,6 +71,8 @@ class ClassicalOptimizer:
             self.coords[d.id] = (d.lat, d.lng)
 
     def get_edge_distance(self, u: str, v: str) -> float:
+        if u == v:
+            return 0.0
         if self.distance_matrix and (u, v) in self.distance_matrix:
             return self.distance_matrix[(u, v)]
         p1 = self.coords.get(u, (self.depot.lat, self.depot.lng))
@@ -99,28 +80,71 @@ class ClassicalOptimizer:
         return haversine_distance(p1[0], p1[1], p2[0], p2[1]) * 1.3
 
     def get_edge_time(self, u: str, v: str) -> float:
+        if u == v:
+            return 0.0
         if self.time_matrix and (u, v) in self.time_matrix:
             return self.time_matrix[(u, v)]
         dist = self.get_edge_distance(u, v)
-        from utils.distance import calculate_travel_time
-        return calculate_travel_time(dist, self.traffic_level)
+
+        # Calculate congestion delay based on proximity to city center/depot
+        p1 = self.coords.get(u, (self.depot.lat, self.depot.lng))
+        p2 = self.coords.get(v, (self.depot.lat, self.depot.lng))
+        mid_lat = (p1[0] + p2[0]) / 2.0
+        mid_lng = (p1[1] + p2[1]) / 2.0
+        dist_to_center = haversine_distance(self.depot.lat, self.depot.lng, mid_lat, mid_lng)
+
+        cong_multiplier = 1.0
+        if self.traffic_level in ("heavy", "rush_hour", "high"):
+            cong_multiplier = 2.25 if dist_to_center < 6.0 else 1.15
+        elif self.traffic_level in ("moderate", "medium"):
+            cong_multiplier = 1.45 if dist_to_center < 6.0 else 1.05
+        else:  # clear, low
+            cong_multiplier = 1.0
+
+        base_speed = 36.0 / cong_multiplier
+        return (dist / max(8.0, base_speed)) * 60.0
 
     def get_edge_cost(self, u: str, v: str) -> float:
         """
-        Calculates multi-objective traffic-aware cost:
-        objective = distance_weight * distance + time_weight * travel_time + fuel_weight * fuel + co2_weight * co2
+        Calculates multi-objective traffic-aware edge cost based on the chosen objective.
+          min_distance    -> pure physical distance in km
+          min_travel_time -> travel duration with heavy urban congestion slowdowns
+          min_fuel        -> fuel consumption with cargo mass shedding incentive
+          min_co2         -> eco-routing penalizing high-emission stop-and-go congestion
+          balanced        -> weighted combination
         """
+        if u == v:
+            return 0.0
+
         dist = self.get_edge_distance(u, v)
         t_mins = self.get_edge_time(u, v)
-        fuel = dist / 12.0
-        co2 = fuel * 2.68
+        v_demand = self.deliveries_map[v].get_demand() if v in self.deliveries_map else 0.0
 
-        w_d = float(getattr(self.request, "distance_weight", 1.0) or 1.0)
-        w_t = float(getattr(self.request, "time_weight", 1.0) or 1.0)
-        w_f = float(getattr(self.request, "fuel_weight", 1.0) or 1.0)
-        w_c = float(getattr(self.request, "co2_weight", 1.0) or 1.0)
+        obj = self.objective.replace("min_", "")
 
-        return w_d * dist + w_t * t_mins + w_f * fuel + w_c * co2
+        if obj in ("distance", "min_distance"):
+            return dist
+
+        elif obj in ("travel_time", "time", "min_travel_time"):
+            return t_mins
+
+        elif obj in ("fuel", "min_fuel"):
+            # Delivering heavier items early sheds mass, saving fuel over subsequent legs
+            weight_benefit = (v_demand / max(1.0, self.avg_demand)) * 0.40
+            return dist * (1.25 - weight_benefit)
+
+        elif obj in ("co2", "min_co2"):
+            # Emissions spike heavily in stop-and-go congestion
+            return dist * 0.70 + t_mins * 0.60
+
+        else:  # balanced (default)
+            w_d = float(getattr(self.request, "distance_weight", 1.0) or 1.0)
+            w_t = float(getattr(self.request, "time_weight", 0.5) or 0.5)
+            w_f = float(getattr(self.request, "fuel_weight", 0.3) or 0.3)
+            w_c = float(getattr(self.request, "co2_weight", 0.2) or 0.2)
+            fuel = (dist / 12.0) * (1.0 + (v_demand / max(1.0, self.avg_demand)) * 0.15)
+            co2 = fuel * 2.68
+            return w_d * dist + w_t * t_mins + w_f * fuel + w_c * co2
 
     def optimize(self) -> OptimizationResponseOutput:
         start_time = time.perf_counter()
@@ -130,13 +154,28 @@ class ClassicalOptimizer:
         if not self.vehicles:
             raise ValueError("No vehicles provided for optimization.")
 
-        # 1. Traffic-aware Clarke-Wright Savings Calculation
+        k = len(self.vehicles)
+        n_deliv = len(self.deliveries)
+
+        # 1. Target Fleet Capacity & Stop Partitions
+        # Bound cluster sizes so that ALL k active vehicles receive balanced routes
+        target_stops = math.ceil(n_deliv / k)
+        max_stops = max(target_stops, math.ceil((n_deliv / k) * (1.25 if self.capacity_mode == "strict" else 1.6)))
+
+        total_demand = sum(d.get_demand() for d in self.deliveries)
+        max_veh_cap = max(v.capacity for v in self.vehicles)
+        target_cap = max(
+            max(d.get_demand() for d in self.deliveries),
+            (total_demand / k) * (1.15 if self.capacity_mode == "strict" else 1.5)
+        )
+        allowed_cap = min(max_veh_cap, target_cap)
+
+        # 2. Multi-Objective Clarke-Wright Savings Calculation
         savings = []
-        n = len(self.deliveries)
-        for i in range(n):
+        for i in range(n_deliv):
             id_i = self.deliveries[i].id
             cost_depot_i = self.get_edge_cost(self.depot.id, id_i)
-            for j in range(i + 1, n):
+            for j in range(i + 1, n_deliv):
                 id_j = self.deliveries[j].id
                 cost_depot_j = self.get_edge_cost(self.depot.id, id_j)
                 cost_i_j = self.get_edge_cost(id_i, id_j)
@@ -146,8 +185,7 @@ class ClassicalOptimizer:
         # Sort descending by savings
         savings.sort(key=lambda x: x[0], reverse=True)
 
-        # 2. Greedy cluster merging respecting vehicle capacities
-        max_cap = max(v.capacity for v in self.vehicles)
+        # 3. Route Merging with Fleet Target Limits
         routes: List[List[str]] = [[d.id] for d in self.deliveries]
         loads: List[float] = [d.get_demand() for d in self.deliveries]
 
@@ -157,7 +195,9 @@ class ClassicalOptimizer:
 
             if idx_i is not None and idx_j is not None and idx_i != idx_j:
                 combined_load = loads[idx_i] + loads[idx_j]
-                if combined_load <= max_cap:
+                combined_stops = len(routes[idx_i]) + len(routes[idx_j])
+
+                if combined_load <= allowed_cap and combined_stops <= max_stops:
                     r_i = routes[idx_i]
                     r_j = routes[idx_j]
                     merged = None
@@ -177,37 +217,96 @@ class ClassicalOptimizer:
                         del routes[idx_j]
                         del loads[idx_j]
 
-        # 3. Bin-pack routes into available vehicles
-        k = len(self.vehicles)
+        # 4. Multi-Vehicle Fleet Guarantee: Ensure all k active vehicles are utilized
+        while len(routes) < k:
+            largest_idx = max(range(len(routes)), key=lambda idx: len(routes[idx]))
+            if len(routes[largest_idx]) <= 1:
+                break
+            r = routes[largest_idx]
+            mid = len(r) // 2
+            r1, r2 = r[:mid], r[mid:]
+            routes[largest_idx] = r1
+            loads[largest_idx] = sum(self.deliveries_map[x].get_demand() for x in r1)
+            routes.append(r2)
+            loads.append(sum(self.deliveries_map[x].get_demand() for x in r2))
+
+        # 5. Vehicle Assignment: match routes to vehicles
+        # Sort routes by load/distance and assign to the k vehicles
         assignments: List[List[str]] = [[] for _ in range(k)]
-        veh_loads = [0.0 for _ in range(k)]
-
         routes.sort(key=lambda r: len(r), reverse=True)
-        for r in routes:
-            r_load = sum(self.deliveries_map[did].get_demand() for did in r)
-            best_v = None
-            best_rem = float("inf")
-            for v_idx, v in enumerate(self.vehicles):
-                if veh_loads[v_idx] + r_load <= v.capacity:
-                    rem = v.capacity - (veh_loads[v_idx] + r_load)
-                    if rem < best_rem:
-                        best_rem = rem
-                        best_v = v_idx
+        for idx, r in enumerate(routes):
+            v_idx = idx % k
+            assignments[v_idx].extend(r)
 
-            if best_v is None:
-                # Assign to least loaded vehicle
-                best_v = int(min(range(k), key=lambda vi: veh_loads[vi]))
+        # 6. Time-Window Aware Route Evaluation Function
+        depot_start_mins = float(parse_time_to_minutes(self.depot.operating_hours_start or "08:30"))
 
-            assignments[best_v].extend(r)
-            veh_loads[best_v] += r_load
+        def evaluate_route(seq: List[str]) -> float:
+            curr_time = depot_start_mins
+            total_cost = 0.0
+            for step in range(len(seq) - 1):
+                u, v = seq[step], seq[step + 1]
+                edge_c = self.get_edge_cost(u, v)
+                edge_t = self.get_edge_time(u, v)
+                curr_time += edge_t
 
-        # 4. Apply 2-opt refinement on each vehicle's route using real edge costs
+                if v in self.deliveries_map:
+                    d_obj = self.deliveries_map[v]
+                    tw_start = parse_time_to_minutes(d_obj.time_window_start)
+                    tw_end = parse_time_to_minutes(d_obj.time_window_end)
+
+                    if curr_time < tw_start:
+                        curr_time = tw_start
+                    elif curr_time > tw_end:
+                        late_mins = curr_time - tw_end
+                        if self.time_window_mode == "strict":
+                            # Strict penalty forces early time windows to be visited first
+                            total_cost += 500.0 + late_mins * 5.0
+                        elif self.time_window_mode == "soft":
+                            total_cost += 25.0 + late_mins * 0.8
+
+                    curr_time += float(d_obj.service_time_mins or 15)
+
+                total_cost += edge_c
+            return total_cost
+
+        # 7. Apply 2-Opt Refinement on each vehicle's route
         route_outputs: List[RouteOutput] = []
         for idx, (veh, node_ids) in enumerate(zip(self.vehicles, assignments)):
             color = VEHICLE_COLORS[idx % len(VEHICLE_COLORS)]
             if node_ids:
+                # If strict time window mode, pre-order stops by time window start
+                if self.time_window_mode == "strict":
+                    node_ids = sorted(
+                        node_ids,
+                        key=lambda did: (
+                            parse_time_to_minutes(self.deliveries_map[did].time_window_start),
+                            -1 if (self.deliveries_map[did].priority or "").lower() == "urgent" else 0
+                        )
+                    )
+
                 full_seq = [self.depot.id] + node_ids + [self.depot.id]
-                refined_seq = run_2opt(full_seq, self.get_edge_cost)
+                best_seq = list(full_seq)
+                best_val = evaluate_route(best_seq)
+                improved = True
+                iterations = 0
+
+                while improved and iterations < 35:
+                    improved = False
+                    iterations += 1
+                    for i in range(1, len(best_seq) - 2):
+                        for j in range(i + 1, len(best_seq) - 1):
+                            candidate = best_seq[:i] + best_seq[i:j + 1][::-1] + best_seq[j + 1:]
+                            cand_val = evaluate_route(candidate)
+                            if cand_val < best_val - 1e-4:
+                                best_seq = candidate
+                                best_val = cand_val
+                                improved = True
+                                break
+                        if improved:
+                            break
+
+                refined_seq = best_seq
             else:
                 refined_seq = [self.depot.id, self.depot.id]
 
@@ -240,9 +339,8 @@ class ClassicalOptimizer:
         )
 
         solver_notes = (
-            "Classical optimization completed using live Mappls road routing & traffic ETA data."
-            if self.is_live_traffic_used
-            else "Classical optimization completed using non-traffic road network estimates."
+            f"Multi-Objective {self.objective.upper()} optimization with {len(self.vehicles)} active vehicles "
+            f"under {self.traffic_level.upper()} traffic ({self.time_window_mode.upper()} time windows)."
         )
 
         return OptimizationResponseOutput(
@@ -258,7 +356,7 @@ class ClassicalOptimizer:
             solver=SolverInfo(
                 name="Classical Clarke-Wright + 2-Opt",
                 backend="CPU (Local Execution)",
-                algorithm="Clarke-Wright Savings & 2-Opt Local Search",
+                algorithm="Multi-Vehicle Clarke-Wright & Time-Window 2-Opt",
                 status="completed",
                 notes=solver_notes
             ),
@@ -268,4 +366,3 @@ class ClassicalOptimizer:
             traffic_last_updated=self.traffic_last_updated,
             is_live_traffic_used=self.is_live_traffic_used,
         )
-

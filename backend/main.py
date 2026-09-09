@@ -205,6 +205,16 @@ def optimize_classical(req: OptimizationRequestInput):
         _last_optimization_status["status"] = "running"
         _last_optimization_status["last_method"] = "classical"
 
+        # ─── Debug: log every request parameter so UI changes are verifiable ─
+        print(f"[RouteQ CLASSICAL] "
+              f"objective={req.objective!r}, "
+              f"traffic={req.traffic_level!r}, "
+              f"vehicles={len(req.vehicles)}, "
+              f"deliveries={len(req.deliveries)}, "
+              f"time_window_mode={req.time_window_mode!r}, "
+              f"capacity_mode={req.capacity_mode!r}, "
+              f"weights=(d={req.distance_weight}, t={req.time_weight}, f={req.fuel_weight}, co2={req.co2_weight})")
+
         dist_matrix, time_matrix, is_live, tr_status, tr_provider, tr_updated = prepare_traffic_matrix(req)
 
         optimizer = ClassicalOptimizer(
@@ -217,6 +227,11 @@ def optimize_classical(req: OptimizationRequestInput):
             traffic_last_updated=tr_updated,
         )
         result = optimizer.optimize()
+
+        print(f"[RouteQ CLASSICAL RESULT] "
+              f"routes={len(result.routes)}, "
+              f"total_dist={result.total_distance_km}km, "
+              f"time={result.estimated_time_minutes}min")
 
         _last_optimization_status.update({
             "status": "completed",
@@ -262,6 +277,16 @@ def optimize_quantum(req: OptimizationRequestInput):
         _last_optimization_status["status"] = "running"
         _last_optimization_status["last_method"] = "qiskit"
 
+        # ─── Debug: log every request parameter so UI changes are verifiable ─
+        print(f"[RouteQ QUANTUM] "
+              f"objective={req.objective!r}, "
+              f"traffic={req.traffic_level!r}, "
+              f"vehicles={len(req.vehicles)}, "
+              f"deliveries={len(req.deliveries)}, "
+              f"time_window_mode={req.time_window_mode!r}, "
+              f"capacity_mode={req.capacity_mode!r}, "
+              f"weights=(d={req.distance_weight}, t={req.time_weight}, f={req.fuel_weight}, co2={req.co2_weight})")
+
         dist_matrix, time_matrix, is_live, tr_status, tr_provider, tr_updated = prepare_traffic_matrix(req)
 
         optimizer = QuantumVRPOptimizer(
@@ -274,6 +299,11 @@ def optimize_quantum(req: OptimizationRequestInput):
             traffic_last_updated=tr_updated,
         )
         result = optimizer.optimize()
+
+        print(f"[RouteQ QUANTUM RESULT] "
+              f"routes={len(result.routes)}, "
+              f"total_dist={result.total_distance_km}km, "
+              f"solver={result.solver.name}")
 
         _last_optimization_status.update({
             "status": "completed",

@@ -16,6 +16,27 @@ import { DEMO_DEPOT, DEMO_VEHICLES, DEMO_DELIVERIES } from '../data/demoData';
 
 const API_BASE_URL = '/api';
 
+/**
+ * Maps an optimization objective string to explicit cost weights.
+ * These weights are sent to the backend so the optimizer cost function
+ * actually reflects the user's selected objective.
+ */
+function objectiveToWeights(objective: string): {
+  distance_weight: number;
+  time_weight: number;
+  fuel_weight: number;
+  co2_weight: number;
+} {
+  switch (objective) {
+    case 'min_distance':    return { distance_weight: 1.0, time_weight: 0.0, fuel_weight: 0.0, co2_weight: 0.0 };
+    case 'min_travel_time': return { distance_weight: 0.0, time_weight: 1.0, fuel_weight: 0.0, co2_weight: 0.0 };
+    case 'min_fuel':        return { distance_weight: 0.0, time_weight: 0.0, fuel_weight: 1.0, co2_weight: 0.0 };
+    case 'min_co2':         return { distance_weight: 0.0, time_weight: 0.0, fuel_weight: 0.0, co2_weight: 1.0 };
+    case 'balanced':
+    default:                return { distance_weight: 1.0, time_weight: 0.5, fuel_weight: 0.3, co2_weight: 0.2 };
+  }
+}
+
 
 const VEHICLE_COLORS = [
   '#00F0FF', // Electric Cyan
@@ -164,11 +185,46 @@ export function solveLocalOptimization(
 
   const getTime = (a: string, b: string): number => {
     const d = getDist(a, b);
-    const speed = Math.max(8, 38 / TRAFFIC_MULTIPLIERS[traffic]);
+    const p1 = nodeCoords[a];
+    const p2 = nodeCoords[b];
+    const midLat = (p1.lat + p2.lat) / 2;
+    const midLng = (p1.lng + p2.lng) / 2;
+    const distToDepot = haversineDistKm(depot.lat, depot.lng, midLat, midLng);
+
+    let cong = 1.0;
+    if (traffic === 'heavy' || traffic === 'rush_hour') {
+      cong = distToDepot < 6.0 ? 2.25 : 1.15;
+    } else if (traffic === 'moderate') {
+      cong = distToDepot < 6.0 ? 1.45 : 1.05;
+    }
+    const speed = Math.max(8, (38 / (TRAFFIC_MULTIPLIERS[traffic] || 1.0)) / cong);
     return (d / speed) * 60;
   };
 
-  const k = vehicles.length;
+  const obj = (req.objective || 'balanced').toLowerCase().replace('min_', '');
+  const avgDemand = deliveries.reduce((acc, d) => acc + d.demand_kg, 0) / Math.max(1, deliveries.length);
+
+  const getCost = (a: string, b: string): number => {
+    if (a === b) return 0;
+    const d = getDist(a, b);
+    const t = getTime(a, b);
+    const vDemand = delivMap[b]?.demand_kg || 0;
+
+    if (obj === 'distance') {
+      return d;
+    } else if (obj === 'travel_time' || obj === 'time') {
+      return t;
+    } else if (obj === 'fuel') {
+      const weightBenefit = (vDemand / Math.max(1, avgDemand)) * 0.40;
+      return d * (1.25 - weightBenefit);
+    } else if (obj === 'co2') {
+      return d * 0.70 + t * 0.60;
+    } else {
+      return d * 1.0 + t * 0.45;
+    }
+  };
+
+  const k = Math.max(1, vehicles.length);
   let assignments: string[][] = Array.from({ length: k }, () => []);
   const convergence: ConvergencePoint[] = [];
 
@@ -177,14 +233,14 @@ export function solveLocalOptimization(
     deliveries.forEach((d, i) => {
       assignments[i % k].push(d.id);
     });
-  } else if (mode === 'classical_baseline') {
-    // Classical Clarke-Wright savings
+  } else {
+    // Multi-Vehicle Clarke-Wright savings with target stop & capacity bounds
     const pairs: { s: number; i: string; j: string }[] = [];
     for (let i = 0; i < deliveries.length; i++) {
       for (let j = i + 1; j < deliveries.length; j++) {
         const idI = deliveries[i].id;
         const idJ = deliveries[j].id;
-        const s = getDist('DEPOT', idI) + getDist('DEPOT', idJ) - getDist(idI, idJ);
+        const s = getCost('DEPOT', idI) + getCost('DEPOT', idJ) - getCost(idI, idJ);
         pairs.push({ s, i: idI, j: idJ });
       }
     }
@@ -192,13 +248,25 @@ export function solveLocalOptimization(
 
     let routes: string[][] = deliveries.map((d) => [d.id]);
     let loads: number[] = deliveries.map((d) => d.demand_kg);
-    const maxCap = Math.max(...vehicles.map((v) => v.capacity_kg));
+
+    const targetStops = Math.ceil(deliveries.length / k);
+    const maxStops = Math.max(targetStops, Math.ceil((deliveries.length / k) * (req.capacity_mode === 'strict' ? 1.25 : 1.6)));
+    const totalLoad = deliveries.reduce((acc, d) => acc + d.demand_kg, 0);
+    const maxVehicleCap = Math.max(...vehicles.map((v) => v.capacity_kg));
+    const targetCap = Math.max(
+      Math.max(...deliveries.map((d) => d.demand_kg)),
+      (totalLoad / k) * (req.capacity_mode === 'strict' ? 1.15 : 1.5)
+    );
+    const allowedCap = Math.min(maxVehicleCap, targetCap);
 
     for (const p of pairs) {
       const idxI = routes.findIndex((r) => r.includes(p.i));
       const idxJ = routes.findIndex((r) => r.includes(p.j));
       if (idxI !== -1 && idxJ !== -1 && idxI !== idxJ) {
-        if (loads[idxI] + loads[idxJ] <= maxCap) {
+        if (
+          loads[idxI] + loads[idxJ] <= allowedCap &&
+          routes[idxI].length + routes[idxJ].length <= maxStops
+        ) {
           const rI = routes[idxI];
           const rJ = routes[idxJ];
           let merged: string[] | null = null;
@@ -206,7 +274,7 @@ export function solveLocalOptimization(
           else if (rJ[rJ.length - 1] === p.j && rI[0] === p.i) merged = [...rJ, ...rI];
           else if (rI[rI.length - 1] === p.i && rJ[rJ.length - 1] === p.j)
             merged = [...rI, ...[...rJ].reverse()];
-          else if (rI[0] === p.i && rJ[0] === p.j) merged = [[...rI].reverse(), ...rJ].flat();
+          else if (rI[0] === p.i && rJ[0] === p.j) merged = [[...rI].reverse(), ...rJ];
 
           if (merged) {
             routes[idxI] = merged;
@@ -218,38 +286,48 @@ export function solveLocalOptimization(
       }
     }
 
-    // Bin pack into available vehicles
-    const vehLoads = new Array(k).fill(0);
-    routes.sort((a, b) => b.length - a.length);
-    for (const r of routes) {
-      const rLoad = r.reduce((acc, id) => acc + (delivMap[id]?.demand_kg || 0), 0);
-      let bestV = 0;
-      let bestRemaining = Infinity;
-      for (let v = 0; v < k; v++) {
-        if (vehLoads[v] + rLoad <= vehicles[v].capacity_kg) {
-          const rem = vehicles[v].capacity_kg - (vehLoads[v] + rLoad);
-          if (rem < bestRemaining) {
-            bestRemaining = rem;
-            bestV = v;
-          }
+    // Ensure all k vehicles receive active routes
+    while (routes.length < k) {
+      let largestIdx = 0;
+      let maxLen = 0;
+      routes.forEach((r, idx) => {
+        if (r.length > maxLen) {
+          maxLen = r.length;
+          largestIdx = idx;
         }
-      }
-      assignments[bestV].push(...r);
-      vehLoads[bestV] += rLoad;
+      });
+      if (routes[largestIdx].length <= 1) break;
+      const r = routes[largestIdx];
+      const mid = Math.floor(r.length / 2);
+      const r1 = r.slice(0, mid);
+      const r2 = r.slice(mid);
+      routes[largestIdx] = r1;
+      loads[largestIdx] = r1.reduce((acc, id) => acc + (delivMap[id]?.demand_kg || 0), 0);
+      routes.push(r2);
+      loads.push(r2.reduce((acc, id) => acc + (delivMap[id]?.demand_kg || 0), 0));
     }
 
-    // Untangle 2-opt
-    assignments = assignments.map((a) => {
-      if (a.length <= 2) return a;
-      const full = ['DEPOT', ...a, 'DEPOT'];
-      return localRun2Opt(full, getDist).filter((n) => n !== 'DEPOT');
+    // Assign routes to vehicles
+    routes.sort((a, b) => b.length - a.length);
+    routes.forEach((r, idx) => {
+      assignments[idx % k].push(...r);
     });
-  } else {
-    // Quantum-inspired local baseline fallback (used when offline)
+
+    // Time-window aware 2-Opt local refinement
+    const twMode = req.time_window_mode || 'soft';
     assignments = assignments.map((a) => {
-      if (a.length <= 2) return a;
-      const full = ['DEPOT', ...a, 'DEPOT'];
-      return localRun2Opt(full, getDist).filter((n) => n !== 'DEPOT');
+      if (a.length <= 1) return a;
+      let nodeIds = [...a];
+      if (twMode === 'strict') {
+        nodeIds.sort((x, y) => {
+          const tX = delivMap[x]?.time_window_start || '09:00';
+          const tY = delivMap[y]?.time_window_start || '09:00';
+          return tX.localeCompare(tY);
+        });
+      }
+
+      const full = ['DEPOT', ...nodeIds, 'DEPOT'];
+      return localRun2Opt(full, getCost).filter((n) => n !== 'DEPOT');
     });
   }
 
@@ -557,6 +635,11 @@ export async function optimizeClassical(req: OptimizationRequest): Promise<Optim
     ? { id: req.depot.id, lat: req.depot.lat, lng: req.depot.lng, name: req.depot.name }
     : { id: 'DEPOT', lat: 12.9279, lng: 77.6271, name: 'Central Hub' };
 
+  // Map objective string to explicit cost weights so the backend
+  // actually uses a different cost function per objective
+  const objectiveStr = req.objective || 'balanced';
+  const weights = objectiveToWeights(objectiveStr);
+
   const payload = {
     depot: depotPayload,
     vehicles: req.vehicles.map((v) => ({
@@ -580,20 +663,27 @@ export async function optimizeClassical(req: OptimizationRequest): Promise<Optim
       address: d.address || '',
     })),
     optimization_method: 'classical',
-    traffic_level: req.traffic_level || 'medium',
-    objective: req.objective || 'balanced',
+    traffic_level: req.traffic_level || 'moderate',
+    objective: objectiveStr,
     time_window_mode: req.time_window_mode || 'soft',
     capacity_mode: req.capacity_mode || 'strict',
     use_live_traffic: req.use_live_traffic ?? false,
     allow_non_traffic_fallback: true,
     allow_classical_fallback: true,
-    distance_weight: req.distance_weight ?? 1.0,
-    time_weight: req.time_weight ?? 1.0,
-    fuel_weight: req.fuel_weight ?? 1.0,
-    co2_weight: req.co2_weight ?? 1.0,
+    // Use caller-supplied weights if provided, otherwise derive from objective
+    distance_weight: req.distance_weight ?? weights.distance_weight,
+    time_weight: req.time_weight ?? weights.time_weight,
+    fuel_weight: req.fuel_weight ?? weights.fuel_weight,
+    co2_weight: req.co2_weight ?? weights.co2_weight,
   };
 
-  console.log('[RouteQ API] Calling POST /api/optimize/classical with', req.deliveries.length, 'deliveries');
+  console.log('[RouteQ API] POST /api/optimize/classical →', {
+    deliveries: req.deliveries.length,
+    vehicles: req.vehicles.length,
+    objective: objectiveStr,
+    traffic: payload.traffic_level,
+    weights,
+  });
 
   let res: Response;
   try {
@@ -609,7 +699,7 @@ export async function optimizeClassical(req: OptimizationRequest): Promise<Optim
 
   if (res.ok) {
     const data = await res.json();
-    console.log('[RouteQ API] Classical result received:', data.total_distance_km, 'km,', data.routes?.length, 'routes');
+    console.log('[RouteQ API] Classical result:', data.total_distance_km, 'km,', data.routes?.length, 'routes, solver:', data.solver?.name);
     return adaptBackendResponse(data, req);
   } else {
     let detail = `Server returned ${res.status}: ${res.statusText}`;
@@ -633,6 +723,10 @@ export async function optimizeQiskit(req: OptimizationRequest): Promise<Optimiza
   if (targetDeliveries.length > 10) {
     console.log(`[RouteQ API] ${targetDeliveries.length} stops exceed QAOA qubit limit — backend will apply classical fallback automatically.`);
   }
+
+  // Map objective to explicit cost weights
+  const objectiveStr = req.objective || 'balanced';
+  const weights = objectiveToWeights(objectiveStr);
 
   const payload = {
     depot: req.depot
@@ -664,21 +758,28 @@ export async function optimizeQiskit(req: OptimizationRequest): Promise<Optimiza
       address: d.address || '',
     })),
     optimization_method: 'qiskit',
-    traffic_level: req.traffic_level || 'medium',
-    objective: req.objective || 'balanced',
+    traffic_level: req.traffic_level || 'moderate',
+    objective: objectiveStr,
     time_window_mode: req.time_window_mode || 'soft',
     capacity_mode: req.capacity_mode || 'strict',
     quantum_backend: 'aer_simulator',
     use_live_traffic: req.use_live_traffic ?? false,
     allow_non_traffic_fallback: true,
     allow_classical_fallback: true,
-    distance_weight: req.distance_weight ?? 1.0,
-    time_weight: req.time_weight ?? 1.0,
-    fuel_weight: req.fuel_weight ?? 1.0,
-    co2_weight: req.co2_weight ?? 1.0,
+    // Use caller-supplied weights if provided, otherwise derive from objective
+    distance_weight: req.distance_weight ?? weights.distance_weight,
+    time_weight: req.time_weight ?? weights.time_weight,
+    fuel_weight: req.fuel_weight ?? weights.fuel_weight,
+    co2_weight: req.co2_weight ?? weights.co2_weight,
   };
 
-  console.log(`[RouteQ API] Calling POST /api/quantum/optimize with ${targetDeliveries.length} deliveries, ${targetVehicles.length} vehicles`);
+  console.log(`[RouteQ API] POST /api/quantum/optimize →`, {
+    deliveries: targetDeliveries.length,
+    vehicles: targetVehicles.length,
+    objective: objectiveStr,
+    traffic: payload.traffic_level,
+    weights,
+  });
 
   let res: Response;
   try {
@@ -696,7 +797,7 @@ export async function optimizeQiskit(req: OptimizationRequest): Promise<Optimiza
 
   if (res.ok) {
     const data = await res.json();
-    console.log('[RouteQ API] Qiskit result received:', data.total_distance_km, 'km,', data.routes?.length, 'routes, solver:', data.solver?.name);
+    console.log('[RouteQ API] Qiskit result:', data.total_distance_km, 'km,', data.routes?.length, 'routes, solver:', data.solver?.name);
     return adaptBackendResponse(data, req);
   } else {
     let detail = `Server returned status ${res.status}: ${res.statusText}`;
@@ -729,6 +830,10 @@ export async function optimizeWithMethod(req: OptimizationRequest): Promise<Opti
   const vehicleList = (req.vehicles && req.vehicles.length > 0) ? req.vehicles : DEMO_VEHICLES;
   const deliveryList = (req.deliveries && req.deliveries.length > 0) ? req.deliveries : DEMO_DELIVERIES;
 
+  // Map objective to explicit cost weights sent to the backend
+  const objectiveStr = req.objective || 'balanced';
+  const weights = objectiveToWeights(objectiveStr);
+
   const payload = {
     depot: depotPayload,
     vehicles: vehicleList.map((v) => ({
@@ -758,21 +863,29 @@ export async function optimizeWithMethod(req: OptimizationRequest): Promise<Opti
       state: d.state,
     })),
     optimization_method: optimizationMethod,
-    traffic_level: req.traffic_level || 'medium',
-    objective: req.objective || 'balanced',
+    traffic_level: req.traffic_level || 'moderate',
+    objective: objectiveStr,
     time_window_mode: req.time_window_mode || 'soft',
     capacity_mode: req.capacity_mode || 'strict',
     quantum_backend: 'aer_simulator',
     use_live_traffic: req.use_live_traffic ?? false,
     allow_non_traffic_fallback: true,
     allow_classical_fallback: true,
-    distance_weight: req.distance_weight ?? 1.0,
-    time_weight: req.time_weight ?? 1.0,
-    fuel_weight: req.fuel_weight ?? 1.0,
-    co2_weight: req.co2_weight ?? 1.0,
+    // Use caller-supplied weights if provided, otherwise derive from objective
+    distance_weight: req.distance_weight ?? weights.distance_weight,
+    time_weight: req.time_weight ?? weights.time_weight,
+    fuel_weight: req.fuel_weight ?? weights.fuel_weight,
+    co2_weight: req.co2_weight ?? weights.co2_weight,
   };
 
-  console.log(`[RouteQ] optimizeWithMethod: method=${optimizationMethod}, stops=${deliveryList.length}, vehicles=${vehicleList.length}`);
+  console.log(`[RouteQ] optimizeWithMethod →`, {
+    method: optimizationMethod,
+    stops: deliveryList.length,
+    vehicles: vehicleList.length,
+    objective: objectiveStr,
+    traffic: payload.traffic_level,
+    weights,
+  });
 
   let res: Response;
   try {

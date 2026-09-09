@@ -8,8 +8,9 @@ import {
   ArrowRight,
   CheckCircle2,
   RefreshCw,
-  Radio,
   Sliders,
+  CheckCheck,
+  AlertCircle,
 } from 'lucide-react';
 import type {
   OptimizationObjective,
@@ -50,6 +51,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   onRefreshTraffic,
   isRefreshingTraffic,
 }) => {
+  // ─── Optimization Configuration State (single source of truth) ───────────
   const [objective, setObjective] = useState<OptimizationObjective>('balanced');
   const [trafficLevel, setTrafficLevel] = useState<TrafficLevel>('moderate');
   const [timeWindowMode, setTimeWindowMode] = useState<'strict' | 'soft' | 'ignore'>('soft');
@@ -59,26 +61,70 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   const [useLiveTraffic, setUseLiveTraffic] = useState<boolean>(true);
   const [allowNonTrafficFallback, setAllowNonTrafficFallback] = useState<boolean>(true);
 
+  // ─── Local UI state — does NOT control whether the form is shown ──────────
+  // Bug fix: these states are separate from isOptimizing so the form is
+  // NEVER conditionally hidden based on optimization lifecycle.
+  const [lastRunSolverLabel, setLastRunSolverLabel] = useState<string | null>(null);
+  const [lastRunError, setLastRunError] = useState<string | null>(null);
+
+  // ─── Objective → weights mapping ─────────────────────────────────────────
+  const objectiveWeights = (obj: OptimizationObjective) => {
+    switch (obj) {
+      case 'min_distance':    return { distance_weight: 1.0, time_weight: 0.0, fuel_weight: 0.0, co2_weight: 0.0 };
+      case 'min_travel_time': return { distance_weight: 0.0, time_weight: 1.0, fuel_weight: 0.0, co2_weight: 0.0 };
+      case 'min_fuel':        return { distance_weight: 0.0, time_weight: 0.0, fuel_weight: 1.0, co2_weight: 0.0 };
+      case 'min_co2':         return { distance_weight: 0.0, time_weight: 0.0, fuel_weight: 0.0, co2_weight: 1.0 };
+      case 'balanced':
+      default:                return { distance_weight: 1.0, time_weight: 0.5, fuel_weight: 0.3, co2_weight: 0.2 };
+    }
+  };
+
   const handleStartOptimization = async () => {
+    const subsetVehicles = vehicles.slice(0, activeVehiclesCount);
+    const weights = objectiveWeights(objective);
+
+    const req: OptimizationRequest = {
+      depot,
+      vehicles: subsetVehicles,
+      deliveries,
+      objective,
+      traffic_level: trafficLevel,
+      time_window_mode: timeWindowMode,
+      capacity_mode: capacityMode,
+      solver_type: solverType,
+      use_live_traffic: useLiveTraffic,
+      allow_non_traffic_fallback: allowNonTrafficFallback,
+      ...weights,
+    };
+
+    // Debug log: verify current config is being sent
+    console.log('[OptimizationPage] Starting optimization with config:', {
+      solver_type: solverType,
+      objective,
+      traffic_level: trafficLevel,
+      time_window_mode: timeWindowMode,
+      capacity_mode: capacityMode,
+      vehicles: subsetVehicles.length,
+      deliveries: deliveries.length,
+      weights,
+    });
+
+    setLastRunError(null);
+    setLastRunSolverLabel(null);
+
     try {
-      const subsetVehicles = vehicles.slice(0, activeVehiclesCount);
-      const req: OptimizationRequest = {
-        depot,
-        vehicles: subsetVehicles,
-        deliveries,
-        objective,
-        traffic_level: trafficLevel,
-        time_window_mode: timeWindowMode,
-        capacity_mode: capacityMode,
-        solver_type: solverType,
-        use_live_traffic: useLiveTraffic,
-        allow_non_traffic_fallback: allowNonTrafficFallback,
-      };
       await onRunOptimization(req);
-      onNavigateTab('routes');
-    } catch (err) {
-      console.error('[RouteQ Optimizer Studio] Optimization error:', err);
-      onNavigateTab('routes');
+      // ─── BUG FIX: Do NOT call onNavigateTab here. ─────────────────────────
+      // Calling setCurrentTab('routes') causes AnimatePresence to unmount
+      // this component, destroying all checkbox/form state. The user can
+      // manually navigate to Routes, or click "View Results" in the modal.
+      const label = solverType === 'classical'
+        ? 'Classical Clarke-Wright + 2-Opt'
+        : 'Qiskit QAOA (Aer Simulator)';
+      setLastRunSolverLabel(label);
+    } catch (err: any) {
+      console.error('[OptimizationPage] Optimization failed:', err);
+      setLastRunError(err?.message || 'Optimization failed');
     }
   };
 
@@ -130,7 +176,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   return (
     <div className="space-y-8 pb-24 text-[#1F2024] max-w-6xl mx-auto pt-4">
       
-      {/* ─── STUDIO HEADER (OPTIMIZE THE NETWORK) ─────────────────────────── */}
+      {/* ─── STUDIO HEADER ─────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4 pb-4 border-b border-[#E8E6DF]">
         <div>
           <div className="text-xs font-mono text-[#FF5B37] uppercase tracking-wider font-semibold">
@@ -145,12 +191,55 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
         <button
           onClick={handleStartOptimization}
           disabled={isOptimizing}
-          className="btn-primary-gradient !py-3 !px-7 text-xs !font-semibold group self-start md:self-auto cursor-pointer"
+          className="btn-primary-gradient !py-3 !px-7 text-xs !font-semibold group self-start md:self-auto cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <span>{isOptimizing ? 'Running Qiskit Optimizer...' : 'Run Route Optimizer'}</span>
+          <span>{isOptimizing ? 'Running Optimizer...' : 'Run Route Optimizer'}</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>
+
+      {/* ─── INLINE RESULT BANNER (shown after optimization completes) ────── */}
+      {/* Bug fix: this banner appears INSTEAD of navigating away, so the form */}
+      {/* stays visible and checkbox state is preserved.                        */}
+      {lastRunSolverLabel && optimizationResult && !isOptimizing && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+              <CheckCheck className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <div className="text-xs font-mono font-bold text-emerald-800 uppercase tracking-wider">
+                Optimization Complete
+              </div>
+              <div className="text-xs text-emerald-700 mt-0.5">
+                <span className="font-semibold">{lastRunSolverLabel}</span>
+                {' · '}{optimizationResult.routes?.length} routes
+                {' · '}{optimizationResult.total_distance_km} km
+                {' · '}{optimizationResult.execution_time_ms}ms
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('routes')}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white font-mono text-xs font-semibold hover:bg-emerald-700 transition-colors cursor-pointer"
+          >
+            View Routes <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* ─── ERROR BANNER ──────────────────────────────────────────────────── */}
+      {lastRunError && !isOptimizing && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+          <div>
+            <div className="text-xs font-mono font-bold text-rose-800 uppercase tracking-wider">
+              Optimization Error
+            </div>
+            <div className="text-xs text-rose-700 mt-0.5 font-mono">{lastRunError}</div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
@@ -162,7 +251,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <div className="text-[10px] font-mono text-[#6B6D76] uppercase tracking-wider">
-                  REAL-TIME TRAFFIC & ROUTING &bull; INDIA
+                  REAL-TIME TRAFFIC &amp; ROUTING &bull; INDIA
                 </div>
                 <h3 className="text-base font-bold text-[#1F2024] tracking-tight flex items-center gap-2 mt-0.5">
                   <span
@@ -315,7 +404,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
           <div className="p-6 rounded-3xl bg-white border border-[#E8E6DF] shadow-soft space-y-6">
             <div className="pb-3 border-b border-[#E8E6DF] flex items-center justify-between">
               <div className="text-xs font-mono font-semibold text-[#1F2024] uppercase tracking-wider">
-                3. FLEET & CONSTRAINTS
+                3. FLEET &amp; CONSTRAINTS
               </div>
               <Sliders className="w-3.5 h-3.5 text-[#6B6D76]" />
             </div>
@@ -411,12 +500,20 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
               )}
             </div>
 
+            {/* Loading indicator shown while optimization runs — form stays visible */}
+            {isOptimizing && (
+              <div className="p-3 rounded-2xl bg-[#FFF8F6] border border-[#FF5B37]/20 text-xs font-mono text-[#FF5B37] flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border-2 border-[#FF5B37] border-t-transparent animate-spin shrink-0" />
+                <span>Optimizer running — form preserved…</span>
+              </div>
+            )}
+
             <button
               onClick={handleStartOptimization}
               disabled={isOptimizing}
-              className="w-full btn-primary-gradient !py-3 text-xs text-center justify-center font-bold tracking-wide mt-2 cursor-pointer"
+              className="w-full btn-primary-gradient !py-3 text-xs text-center justify-center font-bold tracking-wide mt-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <span>{isOptimizing ? 'Running Qiskit Optimizer...' : 'Run Route Optimizer →'}</span>
+              <span>{isOptimizing ? 'Running Optimizer...' : 'Run Route Optimizer →'}</span>
             </button>
           </div>
 
