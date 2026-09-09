@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@maplibre/maplibre-gl-leaflet": "^0.1.4",
     "framer-motion": "^13.2.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
+    "maplibre-gl": "^6.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.7.0"
