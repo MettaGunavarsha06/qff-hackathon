@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -30,7 +30,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
-  const baseTileLayerRef = useRef<L.Layer | null>(null);
+  const baseRasterLayerRef = useRef<L.TileLayer | null>(null);
+  const baseVectorLayerRef = useRef<L.Layer | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<string | null>(selectedVehicleId);
   const [mapStyle, setMapStyle] = useState<OpenFreeMapStyle>('positron');
@@ -47,29 +48,94 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     [37.5, 97.5],  // Northeast corner of India
   ]);
 
+  // Apply base layers reliably: baseline raster + optional vector layer
+  const applyBaseLayers = useCallback((map: L.Map, style: OpenFreeMapStyle) => {
+    // 1. Clean up previous vector layer if present
+    if (baseVectorLayerRef.current) {
+      try {
+        map.removeLayer(baseVectorLayerRef.current);
+      } catch (e) {
+        // ignore
+      }
+      baseVectorLayerRef.current = null;
+    }
+
+    // 2. Clean up previous raster layer if present
+    if (baseRasterLayerRef.current) {
+      try {
+        map.removeLayer(baseRasterLayerRef.current);
+      } catch (e) {
+        // ignore
+      }
+      baseRasterLayerRef.current = null;
+    }
+
+    // 3. Immediately attach baseline raster layer matching selected style
+    // positron -> CartoDB Positron
+    // liberty -> CartoDB Voyager
+    // bright -> OpenStreetMap Bright
+    let rasterUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    let subdomains = 'abcd';
+    if (style === 'liberty') {
+      rasterUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    } else if (style === 'bright') {
+      rasterUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      subdomains = 'abc';
+    }
+
+    const rasterLayer = L.tileLayer(rasterUrl, {
+      maxZoom: 19,
+      subdomains,
+      attribution: 'OpenFreeMap &bull; &copy; OpenStreetMap',
+    }).addTo(map);
+    baseRasterLayerRef.current = rasterLayer;
+
+    // 4. Try loading OpenFreeMap vector layer (https://github.com/hyperknot/openfreemap)
+    try {
+      const vectorLayer = maplibreGL({
+        style: `https://tiles.openfreemap.org/styles/${style}`,
+      });
+      vectorLayer.addTo(map);
+      baseVectorLayerRef.current = vectorLayer;
+    } catch (err) {
+      console.warn('OpenFreeMap vector layer fallback to high-speed raster tiles:', err);
+    }
+  }, []);
+
   // Initialize Map container
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    if (!mapInstanceRef.current) {
-      const map = L.map(mapContainerRef.current, {
-        center: [depot.lat, depot.lng],
-        zoom: 13,
-        minZoom: 4,
-        maxBounds: INDIA_BOUNDS,
-        maxBoundsViscosity: 0.85,
-        zoomControl: false,
-        attributionControl: false,
-      });
-
-      layerGroupRef.current = L.layerGroup().addTo(map);
-      mapInstanceRef.current = map;
-
-      // Delayed resize invalidation to ensure Leaflet renders properly inside dynamic layouts
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 200);
+    // Destroy any existing map instance before creating a new one (React 19 / StrictMode safe)
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
     }
+
+    const map = L.map(mapContainerRef.current, {
+      center: [depot.lat, depot.lng],
+      zoom: 13,
+      minZoom: 4,
+      maxBounds: INDIA_BOUNDS,
+      maxBoundsViscosity: 0.85,
+      zoomControl: false,
+      attributionControl: false,
+    });
+
+    layerGroupRef.current = L.layerGroup().addTo(map);
+    mapInstanceRef.current = map;
+
+    // Synchronously apply base layers immediately
+    applyBaseLayers(map, mapStyle);
+
+    // Staggered size invalidation so tiles load immediately even inside dynamic flex / grid
+    [50, 150, 400, 800].forEach((delay) => {
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, delay);
+    });
 
     const handleResize = () => {
       mapInstanceRef.current?.invalidateSize();
@@ -85,36 +151,20 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     };
   }, []);
 
-  // Update Base Layer whenever mapStyle changes (OpenFreeMap vector tiles)
+  // Handle mapStyle change
   useEffect(() => {
     if (!mapInstanceRef.current) return;
-    const map = mapInstanceRef.current;
+    applyBaseLayers(mapInstanceRef.current, mapStyle);
+  }, [mapStyle, applyBaseLayers]);
 
-    if (baseTileLayerRef.current) {
-      map.removeLayer(baseTileLayerRef.current);
-      baseTileLayerRef.current = null;
-    }
+  // Handle depot location change (e.g. switching Indian hubs)
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    mapInstanceRef.current.setView([depot.lat, depot.lng], 13);
+    mapInstanceRef.current.invalidateSize();
+  }, [depot.lat, depot.lng]);
 
-    try {
-      // OpenFreeMap vector layer (https://github.com/hyperknot/openfreemap)
-      const openFreeMapLayer = maplibreGL({
-        style: `https://tiles.openfreemap.org/styles/${mapStyle}`,
-      });
-      openFreeMapLayer.addTo(map);
-      baseTileLayerRef.current = openFreeMapLayer;
-    } catch (err) {
-      console.warn('OpenFreeMap vector tiles fallback to CartoDB raster tiles:', err);
-      const fallbackLayer = L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        {
-          maxZoom: 19,
-          subdomains: 'abcd',
-        }
-      ).addTo(map);
-      baseTileLayerRef.current = fallbackLayer;
-    }
-  }, [mapStyle]);
-
+  // Handle container height change
   useEffect(() => {
     if (mapInstanceRef.current) {
       const timer = setTimeout(() => {
@@ -123,6 +173,16 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       return () => clearTimeout(timer);
     }
   }, [height]);
+
+  // Observe container dimensions with ResizeObserver for responsive layout changes
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      mapInstanceRef.current?.invalidateSize();
+    });
+    observer.observe(mapContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Draw Depot, Routes & Delivery Nodes
   useEffect(() => {
