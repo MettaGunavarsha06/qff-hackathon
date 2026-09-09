@@ -19,6 +19,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   depot,
   deliveries,
   optimizationResult,
+
   selectedVehicleId = null,
   height = '100%',
 }) => {

@@ -4,6 +4,7 @@ import { TopNavbar } from './components/Navigation/TopNavbar';
 import type { NavTab } from './components/Navigation/TopNavbar';
 import { OptimizationModal } from './components/Optimization/OptimizationModal';
 import { LandingPage } from './pages/LandingPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { DeliveriesPage } from './pages/DeliveriesPage';
 import { VehiclesPage } from './pages/VehiclesPage';
 import { OptimizationPage } from './pages/OptimizationPage';
@@ -33,6 +34,10 @@ import {
 const smoothEase = [0.22, 1, 0.36, 1] as const;
 
 export const App: React.FC = () => {
+  // TWO DISTINCT EXPERIENCES: 'landing' (public site) vs 'app' (optimizer application)
+  const [experienceMode, setExperienceMode] = useState<'landing' | 'app'>('landing');
+
+  // Application Tab State
   const [currentTab, setCurrentTab] = useState<NavTab>('overview');
   const [selectedHubKey, setSelectedHubKey] = useState<string>('bengaluru');
   const [depot, setDepot] = useState<Depot>(DEMO_DEPOT);
@@ -98,6 +103,13 @@ export const App: React.FC = () => {
 
     initApp();
   }, []);
+
+  // Handler: Transition into Application
+  const handleLaunchOptimizer = (tab: NavTab = 'overview') => {
+    setExperienceMode('app');
+    setCurrentTab(tab);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
 
   // Handler: Run Optimization Sequence
   const handleRunOptimization = async (req?: OptimizationRequest) => {
@@ -223,24 +235,24 @@ export const App: React.FC = () => {
   })();
 
   return (
-    <div className="min-h-screen bg-[#F7F6F2] text-[#1F2024] flex flex-col font-sans selection:bg-[#FF5B37]/20 selection:text-[#1F2024] overflow-x-hidden">
+    <div className="min-h-screen bg-[#F6F3EC] text-[#202124] flex flex-col font-sans selection:bg-[#FF6B4A]/20 selection:text-[#202124] overflow-x-hidden">
       
-      {/* Toast Notification Alert (Light Ivory Card) */}
+      {/* Toast Notification Alert (Warm Ivory Card) */}
       <AnimatePresence>
         {toastMessage && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-20 right-6 z-50 px-4 py-2.5 rounded-2xl bg-white text-[#1F2024] font-mono text-xs shadow-soft-lg border border-[#E8E6DF] flex items-center gap-2.5"
+            className="fixed top-20 right-6 z-50 px-4 py-2.5 rounded-2xl bg-white text-[#202124] font-mono text-xs shadow-soft-lg border border-[#E8E6DF] flex items-center gap-2.5"
           >
-            <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D]" />
+            <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[#FF6B4A] to-[#E95AA8]" />
             <span>{toastMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Cinematic 6-Stage Optimization Progress Modal */}
+      {/* 6-Stage Optimization Progress Modal */}
       <OptimizationModal
         isOpen={showOptimizationModal}
         onClose={() => setShowOptimizationModal(false)}
@@ -251,121 +263,157 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Global Minimal Floating Navigation Bar */}
-      <TopNavbar
-        currentTab={currentTab}
-        onSelectTab={setCurrentTab}
-        onQuickOptimize={() => handleRunOptimization()}
-        onLoadDemo={handleLoadDemo}
-        onSelectHub={handleSelectHub}
-        selectedHubKey={selectedHubKey}
-        isOptimizing={isOptimizing}
-        isOptimized={!!optimizationResult}
-        backendOnline={backendOnline}
-        totalDeliveries={deliveries.length}
-        totalVehicles={vehicles.length}
-        trafficStatus={trafficStatus}
-        onRefreshTraffic={handleRefreshLiveTraffic}
-        isRefreshingTraffic={isRefreshingTraffic}
-      />
-
-      {/* ─── SECTION 4: SMOOTH WORKSPACE PAGE TRANSITION ──────────────────── */}
-      <div className="w-full flex-1 pt-12 sm:pt-14">
-        <AnimatePresence mode="wait">
+      {/* ─── TWO DISTINCT EXPERIENCES SWITCHER ─────────────────────────────── */}
+      <AnimatePresence mode="wait">
+        
+        {/* EXPERIENCE 1: PUBLIC LANDING PAGE (NO APP CONTROLS / NO NAV TABS) */}
+        {experienceMode === 'landing' ? (
           <motion.div
-            key={activeCanonical}
-            initial={{ opacity: 0, y: 12, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0.2, y: -8, filter: 'blur(4px)' }}
+            key="experience-landing"
+            initial={{ opacity: 0, filter: 'blur(8px)', y: -12 }}
+            animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+            exit={{ opacity: 0, filter: 'blur(8px)', y: -16 }}
             transition={{ duration: 0.55, ease: smoothEase }}
-            className="w-full h-full"
+            className="w-full flex-1"
           >
-            {activeCanonical === 'overview' && (
-              <LandingPage
-                onLaunchOptimizer={() => setCurrentTab('optimize')}
-                onExploreTech={() => setCurrentTab('technology')}
-                onNavigateTab={setCurrentTab}
-                depot={depot}
-                vehicles={vehicles}
-                deliveries={deliveries}
-                optimizationResult={optimizationResult}
-                comparisonResult={comparisonResult}
-                isOptimizing={isOptimizing}
-              />
-            )}
-
-            {activeCanonical === 'routes' && (
-              <ResultsPage
-                depot={depot}
-                deliveries={deliveries}
-                optimizationResult={optimizationResult}
-                comparisonResult={comparisonResult}
-                onNavigateTab={setCurrentTab}
-              />
-            )}
-
-            {activeCanonical === 'vehicles' && (
-              <VehiclesPage
-                vehicles={vehicles}
-                routes={optimizationResult?.routes}
-                onAddVehicle={handleAddVehicle}
-                onUpdateVehicle={handleUpdateVehicle}
-                onDeleteVehicle={handleDeleteVehicle}
-              />
-            )}
-
-            {activeCanonical === 'optimize' && (
-              <OptimizationPage
-                depot={depot}
-                vehicles={vehicles}
-                deliveries={deliveries}
-                optimizationResult={optimizationResult}
-                comparisonResult={comparisonResult}
-                isOptimizing={isOptimizing}
-                onRunOptimization={handleRunOptimization}
-                onNavigateTab={setCurrentTab}
-                trafficStatus={trafficStatus}
-                onRefreshTraffic={handleRefreshLiveTraffic}
-                isRefreshingTraffic={isRefreshingTraffic}
-              />
-            )}
-
-            {activeCanonical === 'analytics' && (
-              <AnalyticsPage
-                optimizationResult={optimizationResult}
-                comparisonResult={comparisonResult}
-                vehicles={vehicles}
-              />
-            )}
-
-            {activeCanonical === 'technology' && (
-              <QuantumAIPage
-                optimizationResult={optimizationResult}
-                comparisonResult={comparisonResult}
-              />
-            )}
-
-            {activeCanonical === 'deliveries' && (
-              <DeliveriesPage
-                deliveries={deliveries}
-                onAddDelivery={handleAddDelivery}
-                onUpdateDelivery={handleUpdateDelivery}
-                onDeleteDelivery={handleDeleteDelivery}
-                onResetDemo={handleLoadDemo}
-              />
-            )}
-
-            {activeCanonical === 'settings' && (
-              <SettingsPage
-                depot={depot}
-                onUpdateDepot={setDepot}
-                onResetAllData={handleLoadDemo}
-                backendOnline={backendOnline}
-              />
-            )}
+            <LandingPage
+              onLaunchOptimizer={() => handleLaunchOptimizer('overview')}
+            />
           </motion.div>
-        </AnimatePresence>
-      </div>
+        ) : (
+          
+          /* EXPERIENCE 2: ACTUAL ROUTE OPTIMIZER APPLICATION */
+          <motion.div
+            key="experience-app"
+            initial={{ opacity: 0, filter: 'blur(8px)', y: 16 }}
+            animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+            exit={{ opacity: 0, filter: 'blur(8px)', y: 16 }}
+            transition={{ duration: 0.55, ease: smoothEase }}
+            className="w-full flex-1 flex flex-col"
+          >
+            {/* Application-Only Floating Navigation Bar */}
+            <TopNavbar
+              currentTab={currentTab}
+              onSelectTab={setCurrentTab}
+              onQuickOptimize={() => handleRunOptimization()}
+              onLoadDemo={handleLoadDemo}
+              onSelectHub={handleSelectHub}
+              selectedHubKey={selectedHubKey}
+              isOptimizing={isOptimizing}
+              isOptimized={!!optimizationResult}
+              backendOnline={backendOnline}
+              totalDeliveries={deliveries.length}
+              totalVehicles={vehicles.length}
+              trafficStatus={trafficStatus}
+              onRefreshTraffic={handleRefreshLiveTraffic}
+              isRefreshingTraffic={isRefreshingTraffic}
+              onExitToLanding={() => {
+                setExperienceMode('landing');
+                window.scrollTo({ top: 0, behavior: 'instant' });
+              }}
+            />
+
+            {/* Application Content with 500-650ms Page Blur/Fade/Translate Transitions */}
+            <div className="w-full flex-1 pt-20 sm:pt-24 pb-12">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeCanonical}
+                  initial={{ opacity: 0, y: 12, filter: 'blur(8px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, y: -8, filter: 'blur(6px)' }}
+                  transition={{ duration: 0.58, ease: smoothEase }}
+                  className="w-full h-full"
+                >
+                  {activeCanonical === 'overview' && (
+                    <DashboardPage
+                      depot={depot}
+                      vehicles={vehicles}
+                      deliveries={deliveries}
+                      optimizationResult={optimizationResult}
+                      comparisonResult={comparisonResult}
+                      onOptimizeClick={() => handleRunOptimization()}
+                      onLoadDemo={handleLoadDemo}
+                      onNavigateTab={setCurrentTab}
+                      isOptimizing={isOptimizing}
+                    />
+                  )}
+
+                  {activeCanonical === 'routes' && (
+                    <ResultsPage
+                      depot={depot}
+                      deliveries={deliveries}
+                      optimizationResult={optimizationResult}
+                      comparisonResult={comparisonResult}
+                      onNavigateTab={setCurrentTab}
+                    />
+                  )}
+
+                  {activeCanonical === 'vehicles' && (
+                    <VehiclesPage
+                      vehicles={vehicles}
+                      routes={optimizationResult?.routes}
+                      onAddVehicle={handleAddVehicle}
+                      onUpdateVehicle={handleUpdateVehicle}
+                      onDeleteVehicle={handleDeleteVehicle}
+                    />
+                  )}
+
+                  {activeCanonical === 'optimize' && (
+                    <OptimizationPage
+                      depot={depot}
+                      vehicles={vehicles}
+                      deliveries={deliveries}
+                      optimizationResult={optimizationResult}
+                      comparisonResult={comparisonResult}
+                      isOptimizing={isOptimizing}
+                      onRunOptimization={handleRunOptimization}
+                      onNavigateTab={setCurrentTab}
+                      trafficStatus={trafficStatus}
+                      onRefreshTraffic={handleRefreshLiveTraffic}
+                      isRefreshingTraffic={isRefreshingTraffic}
+                    />
+                  )}
+
+                  {activeCanonical === 'analytics' && (
+                    <AnalyticsPage
+                      optimizationResult={optimizationResult}
+                      comparisonResult={comparisonResult}
+                      vehicles={vehicles}
+                    />
+                  )}
+
+                  {activeCanonical === 'technology' && (
+                    <QuantumAIPage
+                      optimizationResult={optimizationResult}
+                      comparisonResult={comparisonResult}
+                    />
+                  )}
+
+                  {activeCanonical === 'deliveries' && (
+                    <DeliveriesPage
+                      deliveries={deliveries}
+                      onAddDelivery={handleAddDelivery}
+                      onUpdateDelivery={handleUpdateDelivery}
+                      onDeleteDelivery={handleDeleteDelivery}
+                      onResetDemo={handleLoadDemo}
+                    />
+                  )}
+
+                  {activeCanonical === 'settings' && (
+                    <SettingsPage
+                      depot={depot}
+                      onUpdateDepot={setDepot}
+                      onResetAllData={handleLoadDemo}
+                      backendOnline={backendOnline}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+
+      </AnimatePresence>
 
     </div>
   );
