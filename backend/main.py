@@ -242,8 +242,22 @@ def optimize_quantum(req: OptimizationRequestInput):
     """
     Executes genuine Qiskit QAOA quantum circuits via StatevectorSampler
     with real road distance and travel-time matrices.
+    If instance size > 10 stops or simulator error occurs, gracefully falls back to classical heuristic.
     """
     req.optimization_method = "qiskit"
+    allow_fb = getattr(req, "allow_classical_fallback", True)
+    if allow_fb is None:
+        allow_fb = True
+
+    if len(req.deliveries) > 10 and allow_fb:
+        classical_res = optimize_classical(req)
+        classical_res.solver.notes = (
+            f"Classical Heuristic Baseline: Instance has {len(req.deliveries)} deliveries "
+            f"(exceeds quantum statevector simulation limit of 10 qubits). "
+            f"Optimized via Classical Clarke-Wright + 2-Opt."
+        )
+        return classical_res
+
     try:
         _last_optimization_status["status"] = "running"
         _last_optimization_status["last_method"] = "qiskit"
@@ -272,11 +286,32 @@ def optimize_quantum(req: OptimizationRequestInput):
         })
         return result
     except HTTPException:
+        if allow_fb:
+            classical_res = optimize_classical(req)
+            classical_res.solver.notes = (
+                f"Classical Fallback Active: Qiskit quantum solver encountered an issue. "
+                f"Falling back to Classical Clarke-Wright + 2-Opt baseline."
+            )
+            return classical_res
         raise
     except ValueError as ve:
+        if allow_fb:
+            classical_res = optimize_classical(req)
+            classical_res.solver.notes = (
+                f"Classical Fallback Active: {str(ve)}. "
+                f"Falling back to Classical Clarke-Wright + 2-Opt baseline."
+            )
+            return classical_res
         _last_optimization_status["status"] = "error"
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
+        if allow_fb:
+            classical_res = optimize_classical(req)
+            classical_res.solver.notes = (
+                f"Classical Fallback Active: Qiskit quantum solver error ({str(e)}). "
+                f"Falling back to Classical Clarke-Wright + 2-Opt baseline."
+            )
+            return classical_res
         _last_optimization_status["status"] = "error"
         raise HTTPException(status_code=500, detail=f"Quantum optimization error: {str(e)}")
 
@@ -289,17 +324,25 @@ def optimize_generic(req: OptimizationRequestInput):
     """
     method = (req.optimization_method or "classical").lower()
     if method in ("qiskit", "quantum", "qaoa"):
+        if len(req.deliveries) > 10:
+            classical_res = optimize_classical(req)
+            classical_res.solver.notes = (
+                f"Classical Heuristic Baseline: Instance has {len(req.deliveries)} deliveries "
+                f"(exceeds quantum statevector simulation limit of 10 qubits). "
+                f"Optimized via Classical Clarke-Wright + 2-Opt."
+            )
+            return classical_res
         try:
             return optimize_quantum(req)
-        except HTTPException as he:
-            # Explicit fallback if quantum simulator limit exceeded or quantum fails
+        except (HTTPException, Exception) as he:
             allow_fb = getattr(req, "allow_classical_fallback", True)
             if allow_fb is None:
-                allow_fb = getattr(req, "allow_non_traffic_fallback", True)
+                allow_fb = True
             if allow_fb:
+                detail = getattr(he, "detail", str(he))
                 classical_res = optimize_classical(req)
                 classical_res.solver.notes = (
-                    f"Classical Fallback Active: Qiskit quantum solver could not complete ({he.detail}). "
+                    f"Classical Fallback Active: Qiskit quantum solver ({detail}). "
                     f"Falling back to Classical Clarke-Wright + 2-Opt baseline."
                 )
                 return classical_res

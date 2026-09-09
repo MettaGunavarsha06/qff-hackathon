@@ -102,7 +102,9 @@ def build_route_details(
         distance_from_prev_km=0.0,
         travel_time_mins=0.0,
         is_depot=True,
-        is_late=False
+        is_late=False,
+        district=depot.district,
+        state=depot.state,
     ))
 
     for i in range(1, len(stop_ids)):
@@ -140,7 +142,9 @@ def build_route_details(
                 distance_from_prev_km=round(leg_dist, 2),
                 travel_time_mins=round(leg_time, 1),
                 is_depot=True,
-                is_late=False
+                is_late=False,
+                district=depot.district,
+                state=depot.state,
             ))
         else:
             deliv = deliveries_map[curr_id]
@@ -178,7 +182,9 @@ def build_route_details(
                 is_depot=False,
                 is_late=is_late,
                 time_window_start=deliv.time_window_start,
-                time_window_end=deliv.time_window_end
+                time_window_end=deliv.time_window_end,
+                district=deliv.district or depot.district,
+                state=deliv.state or depot.state,
             ))
 
     fuel_l, co2_kg = calculate_fuel_and_co2(total_dist_km, vehicle, total_cargo / 2.0)

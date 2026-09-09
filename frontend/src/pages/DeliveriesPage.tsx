@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Delivery, Priority } from '../types';
+import { getAllStates, getDistrictsForState } from '../data/indiaDistricts';
 
 interface DeliveriesPageProps {
   deliveries: Delivery[];
@@ -31,6 +32,9 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
 
+  const defaultState = deliveries[0]?.state || 'Karnataka';
+  const defaultDistrict = deliveries[0]?.district || 'Bengaluru Urban';
+
   const [formData, setFormData] = useState<Delivery>({
     id: '',
     customer_name: '',
@@ -42,6 +46,8 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
     time_window_end: '12:00',
     service_time_mins: 15,
     address: '',
+    district: defaultDistrict,
+    state: defaultState,
   });
 
   const [formError, setFormError] = useState<string | null>(null);
@@ -52,6 +58,9 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
     const newId = `${prefix}-D${nextNum < 10 ? '0' + nextNum : nextNum}`;
     const baseLat = deliveries[0]?.lat || 12.9279;
     const baseLng = deliveries[0]?.lng || 77.6271;
+    const activeState = deliveries[0]?.state || 'Karnataka';
+    const activeDistrict = deliveries[0]?.district || 'Bengaluru Urban';
+
     setEditingDelivery(null);
     setFormData({
       id: newId,
@@ -64,6 +73,8 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
       time_window_end: '13:00',
       service_time_mins: 15,
       address: '',
+      district: activeDistrict,
+      state: activeState,
     });
     setFormError(null);
     setIsModalOpen(true);
@@ -71,7 +82,11 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
 
   const openEditModal = (del: Delivery) => {
     setEditingDelivery(del);
-    setFormData({ ...del });
+    setFormData({
+      ...del,
+      district: del.district || defaultDistrict,
+      state: del.state || defaultState,
+    });
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -96,10 +111,14 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
   };
 
   const filteredDeliveries = deliveries.filter((del) => {
+    const q = searchTerm.toLowerCase().trim();
     const matchesSearch =
-      del.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      del.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (del.address && del.address.toLowerCase().includes(searchTerm.toLowerCase()));
+      !q ||
+      del.customer_name.toLowerCase().includes(q) ||
+      del.id.toLowerCase().includes(q) ||
+      (del.district && del.district.toLowerCase().includes(q)) ||
+      (del.state && del.state.toLowerCase().includes(q)) ||
+      (del.address && del.address.toLowerCase().includes(q));
 
     const matchesPriority = priorityFilter === 'all' || del.priority === priorityFilter;
 
@@ -191,6 +210,7 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
               <tr>
                 <th className="py-3.5 px-5">Stop ID</th>
                 <th className="py-3.5 px-5">Customer Destination</th>
+                <th className="py-3.5 px-5">District & State</th>
                 <th className="py-3.5 px-5">Coordinates</th>
                 <th className="py-3.5 px-5">Demand</th>
                 <th className="py-3.5 px-5">Time Window</th>
@@ -204,7 +224,11 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                   <td className="py-3.5 px-5 font-bold text-[#1F2024]">{del.id}</td>
                   <td className="py-3.5 px-5 font-sans">
                     <div className="font-semibold text-sm text-[#1F2024]">{del.customer_name}</div>
-                    <div className="text-[11px] text-[#6B6D76] font-mono">{del.address || 'Bengaluru Logistics Grid'}</div>
+                    <div className="text-[11px] text-[#6B6D76] font-mono">{del.address || 'Grid Location'}</div>
+                  </td>
+                  <td className="py-3.5 px-5">
+                    <div className="font-semibold text-[#1F2024]">{del.district || 'District Centre'}</div>
+                    <div className="text-[10px] text-[#8E909A]">{del.state || 'Karnataka'}</div>
                   </td>
                   <td className="py-3.5 px-5 text-[#6B6D76]">{del.lat.toFixed(4)}, {del.lng.toFixed(4)}</td>
                   <td className="py-3.5 px-5 font-bold text-[#1F2024]">{del.demand_kg} kg</td>
@@ -271,6 +295,47 @@ export const DeliveriesPage: React.FC<DeliveriesPageProps> = ({
                   className="w-full p-2.5 rounded-xl bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] focus:outline-none focus:border-[#FF5B37]"
                   placeholder="e.g. Indiranagar Retail Hub"
                 />
+              </div>
+
+              {/* State & District Selectors */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[#6B6D76] block">State / UT</label>
+                  <select
+                    value={formData.state || 'Karnataka'}
+                    onChange={(e) => {
+                      const newState = e.target.value;
+                      const dists = getDistrictsForState(newState);
+                      setFormData({
+                        ...formData,
+                        state: newState,
+                        district: dists[0] || '',
+                      });
+                    }}
+                    className="w-full p-2.5 rounded-xl bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] focus:outline-none focus:border-[#FF5B37]"
+                  >
+                    {getAllStates().map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[#6B6D76] block">District</label>
+                  <select
+                    value={formData.district || ''}
+                    onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024] focus:outline-none focus:border-[#FF5B37]"
+                  >
+                    {getDistrictsForState(formData.state || 'Karnataka').map((dist) => (
+                      <option key={dist} value={dist}>
+                        {dist}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

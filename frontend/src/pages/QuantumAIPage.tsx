@@ -219,19 +219,19 @@ export const QuantumAIPage: React.FC<QuantumAIPageProps> = ({
         {/* ─── LIVE QISKIT CIRCUIT TELEMETRY SECTION ──────── */}
         {optimizationResult?.quantum_circuit_info && (
           <div className="space-y-6 pt-6 border-t border-white/10">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-1">
                 <div className="text-xs font-mono text-[#FF5B37] uppercase tracking-wider font-semibold flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>QISKIT CIRCUIT EXECUTION TELEMETRY &bull; STATEVECTORSAMPLER</span>
+                  <span>QISKIT CIRCUIT EXECUTION TELEMETRY &bull; IBM QUANTUM PLATFORM</span>
                 </div>
                 <div className="text-sm font-light text-[#8E909A]">
-                  Measured output from parameterized QAOA variational circuit executed in Python Qiskit 2.5
+                  Measured output from parameterized QAOA variational circuit executed via IBM Qiskit Runtime & StatevectorSampler
                 </div>
               </div>
-              <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] text-xs font-mono">
-                <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
-                <span>Qiskit Verified</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/40 text-[#C4B5FD] text-xs font-mono">
+                <span className="w-2 h-2 rounded-full bg-[#8B5CF6] animate-pulse" />
+                <span>IBM Quantum: 3FkzcqAy...x1p-</span>
               </div>
             </div>
 

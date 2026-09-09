@@ -23,6 +23,7 @@ import type {
   TrafficStatus,
 } from './types';
 import { DEMO_DEPOT, DEMO_VEHICLES, DEMO_DELIVERIES, INDIA_HUBS } from './data/demoData';
+import { resolveDistrictHub } from './data/indiaDistricts';
 import {
   checkBackendHealth,
   fetchDemoData,
@@ -283,20 +284,33 @@ export const App: React.FC = () => {
   };
 
   // Handler: Select Specific India Hub — loads data & triggers real backend optimization
-  const handleSelectHub = (hubKey: string) => {
-    const hub = INDIA_HUBS[hubKey];
+  const handleSelectHub = (hubKey: string, stateName?: string, districtName?: string) => {
+    let hub = INDIA_HUBS[hubKey];
+    if (!hub) {
+      hub = resolveDistrictHub(hubKey, stateName, districtName);
+    }
     if (hub) {
-      setDepot(hub.depot);
+      const enrichedDepot: Depot = {
+        ...hub.depot,
+        district: hub.district,
+        state: hub.state,
+      };
+      const enrichedDeliveries: Delivery[] = hub.deliveries.map((del) => ({
+        ...del,
+        district: del.district || hub.district,
+        state: del.state || hub.state,
+      }));
+      setDepot(enrichedDepot);
       setVehicles(hub.vehicles);
-      setDeliveries(hub.deliveries);
-      setSelectedHubKey(hubKey);
-      showToast(`Loading ${hub.name} (${hub.deliveries.length} stops) — optimizing...`);
+      setDeliveries(enrichedDeliveries);
+      setSelectedHubKey(hub.id || hubKey);
+      showToast(`Loading ${hub.name} (${hub.district}, ${hub.state}) — optimizing...`);
       // Trigger real backend optimization with hub data
       setTimeout(() => {
         handleRunOptimization({
-          depot: hub.depot,
+          depot: enrichedDepot,
           vehicles: hub.vehicles,
-          deliveries: hub.deliveries,
+          deliveries: enrichedDeliveries,
           objective: 'balanced',
           traffic_level: 'moderate',
           time_window_mode: 'soft',

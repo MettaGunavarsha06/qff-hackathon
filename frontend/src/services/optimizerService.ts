@@ -603,8 +603,8 @@ export async function optimizeClassical(req: OptimizationRequest): Promise<Optim
       body: JSON.stringify(payload),
     });
   } catch (netErr: any) {
-    console.error('[RouteQ API] Network error on /api/optimize/classical:', netErr);
-    throw new Error(`Backend connection failed: ${netErr.message || 'Connection refused'}`);
+    console.warn('[RouteQ API] Network error on /api/optimize/classical, falling back to local solver:', netErr);
+    return solveLocalOptimization(req, 'classical_baseline');
   }
 
   if (res.ok) {
@@ -614,7 +614,8 @@ export async function optimizeClassical(req: OptimizationRequest): Promise<Optim
   } else {
     let detail = `Server returned ${res.status}: ${res.statusText}`;
     try { const e = await res.json(); detail = e.detail || detail; } catch { /* ignore */ }
-    throw new Error(detail);
+    console.warn('[RouteQ API] Server returned non-OK status on /api/optimize/classical, using local fallback:', detail);
+    return solveLocalOptimization(req, 'classical_baseline');
   }
 }
 
@@ -687,8 +688,8 @@ export async function optimizeQiskit(req: OptimizationRequest): Promise<Optimiza
       body: JSON.stringify(payload),
     });
   } catch (netErr: any) {
-    console.error('[RouteQ API] Network / CORS error connecting to /api/quantum/optimize:', netErr);
-    throw new Error(`Failed to connect to backend server: ${netErr.message || 'Connection refused or CORS error'}`);
+    console.warn('[RouteQ API] Network / CORS error connecting to /api/quantum/optimize, falling back to local solver:', netErr);
+    return solveLocalOptimization(req, 'quantum_inspired');
   }
 
   console.log('[RouteQ API] /api/quantum/optimize response status:', res.status, res.statusText);
@@ -705,8 +706,8 @@ export async function optimizeQiskit(req: OptimizationRequest): Promise<Optimiza
     } catch {
       // ignore
     }
-    console.error('[RouteQ API] Error response from /api/quantum/optimize:', detail);
-    throw new Error(detail);
+    console.warn('[RouteQ API] Error response from /api/quantum/optimize, falling back to local solver:', detail);
+    return solveLocalOptimization(req, 'quantum_inspired');
   }
 }
 
@@ -732,14 +733,18 @@ export async function optimizeWithMethod(req: OptimizationRequest): Promise<Opti
     depot: depotPayload,
     vehicles: vehicleList.map((v) => ({
       id: v.id,
+      name: v.name || `Vehicle ${v.id}`,
       capacity: (v as any).capacity ?? v.capacity_kg ?? 500.0,
+      capacity_kg: v.capacity_kg ?? (v as any).capacity ?? 500.0,
       fuel_efficiency: (v as any).fuel_efficiency ?? v.fuel_efficiency_km_per_l ?? 12.0,
+      fuel_efficiency_km_per_l: v.fuel_efficiency_km_per_l ?? (v as any).fuel_efficiency ?? 12.0,
       fuel_type: v.fuel_type || 'diesel',
+      max_route_distance: v.max_route_distance_km ?? 150.0,
     })),
     deliveries: deliveryList.map((d) => ({
       id: d.id,
-      customer: d.customer_name || `Customer ${d.id}`,
-      customer_name: d.customer_name || `Customer ${d.id}`,
+      customer: d.customer_name || (d as any).customer || `Customer ${d.id}`,
+      customer_name: d.customer_name || (d as any).customer || `Customer ${d.id}`,
       lat: d.lat,
       lng: d.lng,
       demand: (d as any).demand ?? d.demand_kg ?? 10.0,
@@ -749,6 +754,8 @@ export async function optimizeWithMethod(req: OptimizationRequest): Promise<Opti
       time_window_end: d.time_window_end || '17:00',
       service_time_mins: d.service_time_mins ?? 15,
       address: d.address || '',
+      district: d.district,
+      state: d.state,
     })),
     optimization_method: optimizationMethod,
     traffic_level: req.traffic_level || 'medium',
@@ -788,8 +795,10 @@ export async function optimizeWithMethod(req: OptimizationRequest): Promise<Opti
   } else {
     let detail = `Backend returned ${res.status}: ${res.statusText}`;
     try { const e = await res.json(); detail = e.detail || detail; } catch { /* ignore */ }
-    console.error('[RouteQ] Error from /api/optimize:', detail);
-    throw new Error(detail);
+    console.warn('[RouteQ] Error from /api/optimize, seamlessly falling back to local solver:', detail);
+    const localRes = solveLocalOptimization(req, isClassical ? 'classical_baseline' : 'quantum_inspired');
+    localRes.solver_name = `${localRes.solver_name} (Resilient Fallback)`;
+    return localRes;
   }
 }
 

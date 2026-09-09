@@ -178,3 +178,43 @@ python -m unittest test_suite.py
 
 ## 📜 License
 Developed for Hackathon Use Case 04: Last-Mile Delivery and Vehicle Routing Optimization.
+
+Final Deliverable: **VRP-Hackathon-Deliverables-Team13**
+
+This project is a proof-of-concept for a hybrid classical-quantum last-mile delivery optimization platform. The backend implements both the industry-standard **Clarke-Wright Savings algorithm** and a **Variational Quantum Optimization Algorithm (QAOA)** executed locally via Qiskit Aer, showcasing a hybrid workflow for routing and fleet management. The frontend provides a dashboard for vehicle telemetry, route planning, and ESG sustainability tracking.
+
+### Key Features:
+
+- **Hybrid Routing Engine**: Seamlessly switch between classical (Clarke-Wright + 2-Opt) and quantum (QAOA via Qiskit Aer) optimization methods.
+- **Interactive Fleet Operations Dashboard**: Real-time KPIs, vehicle tracking on Leaflet maps, and before-vs-after savings visualization.
+- **Route Optimization Studio**: Configure optimization profiles (multi-objective, distance, time, fuel, CO2) and traffic scenarios (clear, moderate, heavy, rush hour).
+- **Turn-by-Turn Manifests**: Detailed waypoint itineraries with ETA, payload, and compliance tracking.
+- **CRUD Vehicle & Delivery Management**: Full lifecycle management for fleet assets and delivery stops.
+- **ESG Sustainability Analytics**: Carbon footprint calculation, offset equivalency tracking, and quantum hardware transparency.
+
+### Installation & Running:
+
+**Backend:**
+```bash
+cd backend
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --host [IP_ADDRESS] --port 8000 --reload
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+**Tests:**
+```bash
+cd backend
+python -m unittest test_suite.py
+```
+
+**API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
+**Web Application:** [http://localhost:5173](http://localhost:5173)
+
+For detailed API specifications, installation instructions, and workflow documentation, refer to the comprehensive README.md in the backend and frontend directories.

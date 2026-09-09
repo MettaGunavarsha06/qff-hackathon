@@ -8,14 +8,31 @@ class DepotInput(BaseModel):
     lng: float = 77.6271
     operating_hours_start: Optional[str] = "08:00"
     operating_hours_end: Optional[str] = "18:00"
+    district: Optional[str] = None
+    state: Optional[str] = None
 
 class VehicleInput(BaseModel):
     id: str
     name: Optional[str] = None
     capacity: float = Field(default=500.0, description="Payload capacity in kg")
+    capacity_kg: Optional[float] = None
     fuel_efficiency: float = Field(default=12.0, description="km per liter")
+    fuel_efficiency_km_per_l: Optional[float] = None
     fuel_type: Optional[str] = "diesel"  # "diesel", "electric", "hybrid"
     max_route_distance: Optional[float] = 150.0
+
+    def __init__(self, **data):
+        if "capacity_kg" in data and ("capacity" not in data or data["capacity"] is None):
+            data["capacity"] = data["capacity_kg"]
+        elif "capacity" in data and ("capacity_kg" not in data or data["capacity_kg"] is None):
+            data["capacity_kg"] = data["capacity"]
+
+        if "fuel_efficiency_km_per_l" in data and ("fuel_efficiency" not in data or data["fuel_efficiency"] is None):
+            data["fuel_efficiency"] = data["fuel_efficiency_km_per_l"]
+        elif "fuel_efficiency" in data and ("fuel_efficiency_km_per_l" not in data or data["fuel_efficiency_km_per_l"] is None):
+            data["fuel_efficiency_km_per_l"] = data["fuel_efficiency"]
+
+        super().__init__(**data)
 
 class DeliveryInput(BaseModel):
     id: str
@@ -30,6 +47,8 @@ class DeliveryInput(BaseModel):
     time_window_end: Optional[str] = "17:00"
     service_time_mins: Optional[int] = 15
     address: Optional[str] = ""
+    district: Optional[str] = None
+    state: Optional[str] = None
 
     def get_customer_name(self) -> str:
         return self.customer or self.customer_name or f"Customer {self.id}"
@@ -89,6 +108,8 @@ class RouteWaypoint(BaseModel):
     is_late: bool = False
     time_window_start: Optional[str] = None
     time_window_end: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
 
 class RouteOutput(BaseModel):
     vehicle_id: str

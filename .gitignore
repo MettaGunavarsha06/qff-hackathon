@@ -58,3 +58,6 @@ Thumbs.db
 
 # Submodules / External Repositories
 qiskit-materials/
+
+# Scratch directory
+scratch/

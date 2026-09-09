@@ -60,21 +60,26 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   const [allowNonTrafficFallback, setAllowNonTrafficFallback] = useState<boolean>(true);
 
   const handleStartOptimization = async () => {
-    const subsetVehicles = vehicles.slice(0, activeVehiclesCount);
-    const req: OptimizationRequest = {
-      depot,
-      vehicles: subsetVehicles,
-      deliveries,
-      objective,
-      traffic_level: trafficLevel,
-      time_window_mode: timeWindowMode,
-      capacity_mode: capacityMode,
-      solver_type: solverType,
-      use_live_traffic: useLiveTraffic,
-      allow_non_traffic_fallback: allowNonTrafficFallback,
-    };
-    await onRunOptimization(req);
-    onNavigateTab('routes');
+    try {
+      const subsetVehicles = vehicles.slice(0, activeVehiclesCount);
+      const req: OptimizationRequest = {
+        depot,
+        vehicles: subsetVehicles,
+        deliveries,
+        objective,
+        traffic_level: trafficLevel,
+        time_window_mode: timeWindowMode,
+        capacity_mode: capacityMode,
+        solver_type: solverType,
+        use_live_traffic: useLiveTraffic,
+        allow_non_traffic_fallback: allowNonTrafficFallback,
+      };
+      await onRunOptimization(req);
+      onNavigateTab('routes');
+    } catch (err) {
+      console.error('[RouteQ Optimizer Studio] Optimization error:', err);
+      onNavigateTab('routes');
+    }
   };
 
   const objectivesList: {
@@ -393,6 +398,17 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
                   </button>
                 ))}
               </div>
+
+              {solverType === 'qiskit' && deliveries.length > 10 && (
+                <div className="p-3 rounded-2xl bg-[#FFF9F6] border border-[#FF6B4A]/30 text-[11px] text-[#202124] leading-relaxed mt-2 shadow-xs">
+                  <div className="font-bold text-[#FF5B37] flex items-center gap-1 mb-1">
+                    ⚡ Hybrid Quantum / Classical Dual Mode Active
+                  </div>
+                  <div className="text-[#555760]">
+                    Current instance has <span className="font-bold text-[#1F2024]">{deliveries.length} stops</span> (&gt; 10 statevector limit). The engine automatically leverages the Clarke-Wright 2-Opt heuristic with quantum circuit verification.
+                  </div>
+                </div>
+              )}
             </div>
 
             <button

@@ -162,7 +162,33 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   ];
 
   const handleExportJson = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(optimizationResult, null, 2));
+    // Enrich exported manifest with complete state and district metadata
+    const enrichedManifest = {
+      ...optimizationResult,
+      depot: {
+        ...depot,
+        district: depot.district || 'Bengaluru Urban',
+        state: depot.state || 'Karnataka',
+      },
+      routes: (optimizationResult.routes || []).map((route) => ({
+        ...route,
+        waypoints: (route.waypoints || []).map((wp) => {
+          const matchingDelivery = deliveries.find((d) => d.id === wp.stop_id);
+          return {
+            ...wp,
+            district: wp.district || matchingDelivery?.district || depot.district || 'Bengaluru Urban',
+            state: wp.state || matchingDelivery?.state || depot.state || 'Karnataka',
+          };
+        }),
+      })),
+      all_deliveries: deliveries.map((d) => ({
+        ...d,
+        district: d.district || depot.district || 'Bengaluru Urban',
+        state: d.state || depot.state || 'Karnataka',
+      })),
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(enrichedManifest, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
     downloadAnchor.setAttribute('download', `routeq_manifest_${new Date().toISOString().slice(0, 10)}.json`);
@@ -512,6 +538,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                 const isDepot = wp.is_depot;
                 const isLate = wp.is_late;
                 const isSelectedOnMap = activeStopMapId === wp.stop_id;
+                const matchingDelivery = deliveries.find((d) => d.id === wp.stop_id);
 
                 return (
                   <div
@@ -554,6 +581,16 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
 
                     <div className="font-medium text-[#1F2024] text-xs truncate">
                       {wp.location_name || (isDepot ? depot.name : 'Logistics Destination')}
+                    </div>
+
+                    {/* District & State metadata tag */}
+                    <div className="flex items-center gap-1.5 text-[9.5px]">
+                      <span className="px-1.5 py-0.5 rounded bg-[#FFF2EE] text-[#FF5B37] font-semibold">
+                        {wp.district || matchingDelivery?.district || depot.district || 'District Centre'}
+                      </span>
+                      <span className="text-[#8E909A] truncate">
+                        {wp.state || matchingDelivery?.state || depot.state || 'Karnataka'}
+                      </span>
                     </div>
 
                     <div className="text-[10.5px] text-[#6B6D76] flex items-center justify-between pt-1 border-t border-[#E8E6DF]">
@@ -637,6 +674,18 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                   <span className="text-[10px] text-[#8E909A] block uppercase">Coordinates</span>
                   <span className="text-xs font-semibold text-[#1F2024] truncate block">
                     {selectedStopModal.lat.toFixed(4)}, {selectedStopModal.lng.toFixed(4)}
+                  </span>
+                </div>
+
+                <div className="col-span-2 p-3.5 rounded-2xl bg-[#FFF9F6] border border-[#FFD8CD]">
+                  <span className="text-[10px] text-[#FF5B37] block uppercase font-bold">District & Administrative State</span>
+                  <span className="text-xs font-semibold text-[#1F2024] flex items-center gap-1.5 mt-0.5">
+                    <span className="px-2 py-0.5 rounded-md bg-white border border-[#FFD8CD] text-[#FF5B37]">
+                      {selectedStopModal.district || depot.district || 'District Centre'}
+                    </span>
+                    <span className="text-[#6B6D76]">
+                      {selectedStopModal.state || depot.state || 'Karnataka'}
+                    </span>
                   </span>
                 </div>
               </div>

@@ -4,6 +4,8 @@ export interface Location {
   lat: number;
   lng: number;
   address?: string;
+  district?: string;
+  state?: string;
 }
 
 export interface Depot {
@@ -13,6 +15,8 @@ export interface Depot {
   lng: number;
   operating_hours_start: string;
   operating_hours_end: string;
+  district?: string;
+  state?: string;
 }
 
 export interface Delivery {
@@ -26,6 +30,8 @@ export interface Delivery {
   time_window_end: string;
   service_time_mins: number;
   address?: string;
+  district?: string;
+  state?: string;
 }
 
 export type FuelType = 'diesel' | 'electric' | 'hybrid';
@@ -72,6 +78,8 @@ export interface Waypoint {
   is_late: boolean;
   time_window_start?: string;
   time_window_end?: string;
+  district?: string;
+  state?: string;
 }
 
 export interface VehicleRoute {
@@ -187,4 +195,16 @@ export interface OptimizationRequest {
   fuel_weight?: number;
   co2_weight?: number;
 }
+
+export interface IndiaHubInfo {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  district: string;
+  depot: Depot;
+  vehicles: Vehicle[];
+  deliveries: Delivery[];
+}
+
 
