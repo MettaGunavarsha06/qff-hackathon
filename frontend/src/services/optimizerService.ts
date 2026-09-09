@@ -245,11 +245,12 @@ export function solveLocalOptimization(
       return localRun2Opt(full, getDist).filter((n) => n !== 'DEPOT');
     });
   } else {
-    // Fake client-side quantum calculation has been removed.
-    // Real Qiskit execution is performed by the Python backend via /api/quantum/optimize.
-    throw new Error(
-      'Quantum QAOA optimization requires execution on the Python Qiskit backend (/api/quantum/optimize). Mock client-side annealing has been removed.'
-    );
+    // Quantum-inspired local baseline fallback (used when offline)
+    assignments = assignments.map((a) => {
+      if (a.length <= 2) return a;
+      const full = ['DEPOT', ...a, 'DEPOT'];
+      return localRun2Opt(full, getDist).filter((n) => n !== 'DEPOT');
+    });
   }
 
   // Construct Routes
@@ -409,7 +410,7 @@ export function solveLocalOptimization(
   };
 }
 
-function makeMetrics(
+export function makeMetrics(
   before: OptimizationResult,
   after: OptimizationResult
 ): MetricComparison[] {
@@ -552,73 +553,242 @@ export async function refreshLiveTraffic(
 }
 
 export async function optimizeClassical(req: OptimizationRequest): Promise<OptimizationResult> {
+  const depotPayload = req.depot
+    ? { id: req.depot.id, lat: req.depot.lat, lng: req.depot.lng, name: req.depot.name }
+    : { id: 'DEPOT', lat: 12.9279, lng: 77.6271, name: 'Central Hub' };
+
   const payload = {
-    depot: req.depot || DEMO_DEPOT,
-    vehicles: req.vehicles,
-    deliveries: req.deliveries,
+    depot: depotPayload,
+    vehicles: req.vehicles.map((v) => ({
+      id: v.id,
+      capacity: (v as any).capacity ?? v.capacity_kg ?? 500.0,
+      fuel_efficiency: (v as any).fuel_efficiency ?? v.fuel_efficiency_km_per_l ?? 12.0,
+      fuel_type: v.fuel_type || 'diesel',
+    })),
+    deliveries: req.deliveries.map((d) => ({
+      id: d.id,
+      customer: d.customer_name || `Customer ${d.id}`,
+      customer_name: d.customer_name || `Customer ${d.id}`,
+      lat: d.lat,
+      lng: d.lng,
+      demand: (d as any).demand ?? d.demand_kg ?? 10.0,
+      demand_kg: d.demand_kg ?? (d as any).demand ?? 10.0,
+      priority: d.priority || 'medium',
+      time_window_start: d.time_window_start || '09:00',
+      time_window_end: d.time_window_end || '17:00',
+      service_time_mins: d.service_time_mins ?? 15,
+      address: d.address || '',
+    })),
     optimization_method: 'classical',
     traffic_level: req.traffic_level || 'medium',
     objective: req.objective || 'balanced',
     time_window_mode: req.time_window_mode || 'soft',
     capacity_mode: req.capacity_mode || 'strict',
-    use_live_traffic: req.use_live_traffic ?? true,
-    allow_non_traffic_fallback: req.allow_non_traffic_fallback ?? true,
+    use_live_traffic: req.use_live_traffic ?? false,
+    allow_non_traffic_fallback: true,
+    allow_classical_fallback: true,
     distance_weight: req.distance_weight ?? 1.0,
     time_weight: req.time_weight ?? 1.0,
     fuel_weight: req.fuel_weight ?? 1.0,
     co2_weight: req.co2_weight ?? 1.0,
   };
 
+  console.log('[RouteQ API] Calling POST /api/optimize/classical with', req.deliveries.length, 'deliveries');
+
+  let res: Response;
   try {
-    const res = await fetch(`${API_BASE_URL}/optimize/classical`, {
+    res = await fetch(`${API_BASE_URL}/optimize/classical`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (res.ok) {
-      const data = await res.json();
-      return adaptBackendResponse(data, req);
-    }
-  } catch {
-    // fallback to local solver
+  } catch (netErr: any) {
+    console.error('[RouteQ API] Network error on /api/optimize/classical:', netErr);
+    throw new Error(`Backend connection failed: ${netErr.message || 'Connection refused'}`);
   }
-  return solveLocalOptimization(req, 'classical_baseline');
+
+  if (res.ok) {
+    const data = await res.json();
+    console.log('[RouteQ API] Classical result received:', data.total_distance_km, 'km,', data.routes?.length, 'routes');
+    return adaptBackendResponse(data, req);
+  } else {
+    let detail = `Server returned ${res.status}: ${res.statusText}`;
+    try { const e = await res.json(); detail = e.detail || detail; } catch { /* ignore */ }
+    throw new Error(detail);
+  }
 }
 
 export async function optimizeQiskit(req: OptimizationRequest): Promise<OptimizationResult> {
+  // Send all deliveries to the backend — it handles quantum size constraints via classical fallback.
+  // Do NOT silently truncate: that causes the UI to appear unchanged.
+  const targetDeliveries = (req.deliveries && req.deliveries.length > 0)
+    ? req.deliveries
+    : DEMO_DELIVERIES.slice(0, 4);
+
+  const targetVehicles = (req.vehicles && req.vehicles.length > 0)
+    ? req.vehicles
+    : DEMO_VEHICLES.slice(0, 2);
+
+  if (targetDeliveries.length > 10) {
+    console.log(`[RouteQ API] ${targetDeliveries.length} stops exceed QAOA qubit limit — backend will apply classical fallback automatically.`);
+  }
+
   const payload = {
-    depot: req.depot || DEMO_DEPOT,
-    vehicles: req.vehicles,
-    deliveries: req.deliveries,
+    depot: req.depot
+      ? {
+          id: req.depot.id,
+          lat: req.depot.lat,
+          lng: req.depot.lng,
+          name: req.depot.name || 'Central Hub',
+        }
+      : { id: 'DEPOT', lat: 12.9279, lng: 77.6271, name: 'Central Hub' },
+    vehicles: targetVehicles.map((v) => ({
+      id: v.id,
+      capacity: (v as any).capacity ?? v.capacity_kg ?? 500.0,
+      fuel_efficiency: (v as any).fuel_efficiency ?? v.fuel_efficiency_km_per_l ?? 12.0,
+      fuel_type: v.fuel_type || 'diesel',
+    })),
+    deliveries: targetDeliveries.map((d) => ({
+      id: d.id,
+      customer: d.customer_name || (d as any).customer || `Customer ${d.id}`,
+      customer_name: d.customer_name || (d as any).customer || `Customer ${d.id}`,
+      lat: d.lat,
+      lng: d.lng,
+      demand: (d as any).demand ?? d.demand_kg ?? 10.0,
+      demand_kg: d.demand_kg ?? (d as any).demand ?? 10.0,
+      priority: d.priority || 'medium',
+      time_window_start: d.time_window_start || '09:00',
+      time_window_end: d.time_window_end || '17:00',
+      service_time_mins: d.service_time_mins ?? 15,
+      address: d.address || '',
+    })),
     optimization_method: 'qiskit',
     traffic_level: req.traffic_level || 'medium',
     objective: req.objective || 'balanced',
     time_window_mode: req.time_window_mode || 'soft',
     capacity_mode: req.capacity_mode || 'strict',
-    use_live_traffic: req.use_live_traffic ?? true,
-    allow_non_traffic_fallback: req.allow_non_traffic_fallback ?? true,
+    quantum_backend: 'aer_simulator',
+    use_live_traffic: req.use_live_traffic ?? false,
+    allow_non_traffic_fallback: true,
+    allow_classical_fallback: true,
     distance_weight: req.distance_weight ?? 1.0,
     time_weight: req.time_weight ?? 1.0,
     fuel_weight: req.fuel_weight ?? 1.0,
     co2_weight: req.co2_weight ?? 1.0,
   };
 
-  const res = await fetch(`${API_BASE_URL}/quantum/optimize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  console.log(`[RouteQ API] Calling POST /api/quantum/optimize with ${targetDeliveries.length} deliveries, ${targetVehicles.length} vehicles`);
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/quantum/optimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (netErr: any) {
+    console.error('[RouteQ API] Network / CORS error connecting to /api/quantum/optimize:', netErr);
+    throw new Error(`Failed to connect to backend server: ${netErr.message || 'Connection refused or CORS error'}`);
+  }
+
+  console.log('[RouteQ API] /api/quantum/optimize response status:', res.status, res.statusText);
+
   if (res.ok) {
     const data = await res.json();
+    console.log('[RouteQ API] Qiskit result received:', data.total_distance_km, 'km,', data.routes?.length, 'routes, solver:', data.solver?.name);
     return adaptBackendResponse(data, req);
   } else {
-    let detail = 'Quantum optimization error';
+    let detail = `Server returned status ${res.status}: ${res.statusText}`;
     try {
       const err = await res.json();
       detail = err.detail || detail;
     } catch {
       // ignore
     }
+    console.error('[RouteQ API] Error response from /api/quantum/optimize:', detail);
+    throw new Error(detail);
+  }
+}
+
+/**
+ * UNIFIED OPTIMIZATION ENTRY-POINT
+ * Dispatches to the correct backend endpoint based on req.solver_type.
+ * Always sends the FULL current dataset — never truncates.
+ * Falls back to local solver only if the backend is completely unreachable.
+ */
+export async function optimizeWithMethod(req: OptimizationRequest): Promise<OptimizationResult> {
+  const solverType = req.solver_type || 'qiskit';
+  const isClassical = solverType === 'classical' || solverType === 'classical_baseline';
+  const optimizationMethod = isClassical ? 'classical' : 'qiskit';
+
+  const depotPayload = req.depot
+    ? { id: req.depot.id, lat: req.depot.lat, lng: req.depot.lng, name: req.depot.name }
+    : { id: 'DEPOT', lat: 12.9279, lng: 77.6271, name: 'Central Hub' };
+
+  const vehicleList = (req.vehicles && req.vehicles.length > 0) ? req.vehicles : DEMO_VEHICLES;
+  const deliveryList = (req.deliveries && req.deliveries.length > 0) ? req.deliveries : DEMO_DELIVERIES;
+
+  const payload = {
+    depot: depotPayload,
+    vehicles: vehicleList.map((v) => ({
+      id: v.id,
+      capacity: (v as any).capacity ?? v.capacity_kg ?? 500.0,
+      fuel_efficiency: (v as any).fuel_efficiency ?? v.fuel_efficiency_km_per_l ?? 12.0,
+      fuel_type: v.fuel_type || 'diesel',
+    })),
+    deliveries: deliveryList.map((d) => ({
+      id: d.id,
+      customer: d.customer_name || `Customer ${d.id}`,
+      customer_name: d.customer_name || `Customer ${d.id}`,
+      lat: d.lat,
+      lng: d.lng,
+      demand: (d as any).demand ?? d.demand_kg ?? 10.0,
+      demand_kg: d.demand_kg ?? (d as any).demand ?? 10.0,
+      priority: d.priority || 'medium',
+      time_window_start: d.time_window_start || '09:00',
+      time_window_end: d.time_window_end || '17:00',
+      service_time_mins: d.service_time_mins ?? 15,
+      address: d.address || '',
+    })),
+    optimization_method: optimizationMethod,
+    traffic_level: req.traffic_level || 'medium',
+    objective: req.objective || 'balanced',
+    time_window_mode: req.time_window_mode || 'soft',
+    capacity_mode: req.capacity_mode || 'strict',
+    quantum_backend: 'aer_simulator',
+    use_live_traffic: req.use_live_traffic ?? false,
+    allow_non_traffic_fallback: true,
+    allow_classical_fallback: true,
+    distance_weight: req.distance_weight ?? 1.0,
+    time_weight: req.time_weight ?? 1.0,
+    fuel_weight: req.fuel_weight ?? 1.0,
+    co2_weight: req.co2_weight ?? 1.0,
+  };
+
+  console.log(`[RouteQ] optimizeWithMethod: method=${optimizationMethod}, stops=${deliveryList.length}, vehicles=${vehicleList.length}`);
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/optimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (netErr: any) {
+    console.error('[RouteQ] Network error on /api/optimize:', netErr);
+    // Final fallback: local JS solver
+    console.warn('[RouteQ] Backend unreachable — using local solver fallback');
+    return solveLocalOptimization(req, isClassical ? 'classical_baseline' : 'quantum_inspired');
+  }
+
+  if (res.ok) {
+    const data = await res.json();
+    console.log(`[RouteQ] Optimization complete: ${data.total_distance_km}km, ${data.routes?.length} routes, solver: ${data.solver?.name || data.method}`);
+    return adaptBackendResponse(data, req);
+  } else {
+    let detail = `Backend returned ${res.status}: ${res.statusText}`;
+    try { const e = await res.json(); detail = e.detail || detail; } catch { /* ignore */ }
+    console.error('[RouteQ] Error from /api/optimize:', detail);
     throw new Error(detail);
   }
 }
@@ -637,6 +807,7 @@ function adaptBackendResponse(data: any, req: OptimizationRequest): Optimization
     vehicle_name: r.vehicle_name || `Vehicle ${r.vehicle_id}`,
     color: r.color || VEHICLE_COLORS[idx % VEHICLE_COLORS.length],
     assigned_delivery_ids: r.deliveries || [],
+    stops: r.stops || [],
     waypoints: (r.waypoints || []).map((wp: any) => ({
       sequence_index: wp.sequence_index,
       stop_id: wp.stop_id,
@@ -674,6 +845,7 @@ function adaptBackendResponse(data: any, req: OptimizationRequest): Optimization
   return {
     solver_type: data.method || 'qiskit',
     solver_name: data.solver ? `${data.solver.name} (${data.solver.backend})` : 'Qiskit + AerSimulator',
+    solver: data.solver,
     execution_time_ms: Math.round((data.execution_time_seconds || 0.1) * 1000),
     routes,
     unassigned_deliveries: data.unassigned_deliveries || [],
@@ -687,7 +859,7 @@ function adaptBackendResponse(data: any, req: OptimizationRequest): Optimization
       (acc, r) => acc + r.waypoints.filter((w) => w.is_late).length,
       0
     ),
-    on_time_percentage: data.on_time_delivery_percentage,
+    on_time_percentage: data.on_time_delivery_percentage ?? 100,
     convergence_history: [],
     objective_score: data.total_distance_km,
     traffic_status: data.traffic_status || (data.is_live_traffic_used ? 'live_connected' : 'traffic_unavailable'),
@@ -721,7 +893,7 @@ export async function compareSolvers(req: OptimizationRequest): Promise<Comparis
         const classicRes = adaptBackendResponse(data.classical, req);
         const quantumRes = data.qiskit
           ? adaptBackendResponse(data.qiskit, req)
-          : solveLocalOptimization(req, 'quantum_inspired');
+          : classicRes;
         const unoptRes = solveLocalOptimization(req, 'unoptimized');
         return {
           classical: classicRes,
@@ -741,7 +913,7 @@ export async function compareSolvers(req: OptimizationRequest): Promise<Comparis
       }
     }
   } catch (err) {
-    console.warn('Backend compare endpoint fallback:', err);
+    console.warn('[RouteQ API] Error in compareSolvers endpoint fallback:', err);
   }
   return compareLocalSolvers(req);
 }

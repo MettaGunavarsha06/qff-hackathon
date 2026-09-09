@@ -5,14 +5,28 @@ from services.qiskit_optimizer import QiskitVRPOptimizer
 
 def run_route_optimization(request: OptimizationRequestInput) -> OptimizationResponseOutput:
     """
-    Main dispatching entrypoint. Routes the optimization request
-    to either the classical baseline optimizer or the Qiskit quantum optimizer.
+    Main dispatching entrypoint with explicit fallback architecture:
+    Qiskit/quantum solver -> fallback classical solver if unavailable.
     """
     method = (request.optimization_method or "classical").lower()
 
-    if method == "qiskit":
-        optimizer = QiskitVRPOptimizer(request)
-        return optimizer.optimize()
+    if method in ("qiskit", "quantum", "qaoa"):
+        try:
+            optimizer = QiskitVRPOptimizer(request)
+            return optimizer.optimize()
+        except Exception as e:
+            allow_fb = getattr(request, "allow_classical_fallback", True)
+            if allow_fb is None:
+                allow_fb = getattr(request, "allow_non_traffic_fallback", True)
+            if allow_fb:
+                classical_opt = ClassicalOptimizer(request)
+                res = classical_opt.optimize()
+                res.solver.notes = (
+                    f"Classical Fallback Active: Qiskit quantum solver could not complete ({str(e)}). "
+                    f"Falling back to Classical Clarke-Wright + 2-Opt baseline."
+                )
+                return res
+            raise
     else:
         optimizer = ClassicalOptimizer(request)
         return optimizer.optimize()

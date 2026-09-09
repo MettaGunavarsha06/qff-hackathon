@@ -17,6 +17,8 @@ import {
   Package,
   User,
   Activity,
+  AlertCircle,
+  Cpu,
 } from 'lucide-react';
 import type {
   OptimizationResult,
@@ -34,6 +36,7 @@ interface ResultsPageProps {
   vehicles?: Vehicle[];
   optimizationResult: OptimizationResult | null;
   comparisonResult: ComparisonResult | null;
+  optimizationError?: string | null;
   onNavigateTab: (tab: any) => void;
   onRunOptimization?: () => Promise<void>;
   isOptimizing?: boolean;
@@ -56,6 +59,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   vehicles = [],
   optimizationResult,
   comparisonResult,
+  optimizationError = null,
   onNavigateTab,
   onRunOptimization,
   isOptimizing = false,
@@ -64,23 +68,37 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   const [selectedStopModal, setSelectedStopModal] = useState<Delivery | null>(null);
   const [activeStopMapId, setActiveStopMapId] = useState<string | null>(null);
 
-  // ─── 1. SENSIBLE EMPTY STATE ───────────────────────────────────────────────
+  // ─── 1. SENSIBLE EMPTY STATE OR ERROR STATE ───────────────────────────────
   if (!optimizationResult) {
     return (
       <div className="text-center py-24 px-6 rounded-3xl bg-white border border-[#E8E6DF] shadow-soft max-w-2xl mx-auto my-12 space-y-4">
-        <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#FF5B37]/10 to-[#FF4D8D]/10 border border-[#FF5B37]/20 text-[#FF5B37] mx-auto flex items-center justify-center shadow-soft-sm">
-          <Route className="w-7 h-7" />
+        <div className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center shadow-soft-sm ${
+          optimizationError
+            ? 'bg-rose-50 border border-rose-200 text-rose-600'
+            : 'bg-gradient-to-tr from-[#FF5B37]/10 to-[#FF4D8D]/10 border border-[#FF5B37]/20 text-[#FF5B37]'
+        }`}>
+          {optimizationError ? <AlertCircle className="w-7 h-7" /> : <Route className="w-7 h-7" />}
         </div>
         <div className="space-y-2">
-          <div className="text-xs font-mono font-semibold text-[#FF5B37] tracking-wider uppercase">
-            Awaiting Optimizer Execution
+          <div className={`text-xs font-mono font-semibold tracking-wider uppercase ${
+            optimizationError ? 'text-rose-600' : 'text-[#FF5B37]'
+          }`}>
+            {optimizationError ? 'Optimization Request Error' : 'Awaiting Optimizer Execution'}
           </div>
           <h3 className="font-bold text-2xl text-[#1F2024] tracking-tight">
-            NO ACTIVE DISPATCH RUN
+            {optimizationError ? 'OPTIMIZER FAILED TO EXECUTE' : 'NO ACTIVE DISPATCH RUN'}
           </h3>
           <p className="text-sm text-[#6B6D76] max-w-md mx-auto font-light leading-relaxed">
-            Optimal multi-vehicle dispatch routes have not yet been formulated for this hub. Launch the RouteQ optimizer to compute the quantum-inspired ground state.
+            {optimizationError
+              ? 'An error occurred while connecting to the optimization backend. Check the error telemetry below and retry.'
+              : 'Optimal multi-vehicle dispatch routes have not yet been formulated for this hub. Launch the RouteQ optimizer to compute the quantum-inspired ground state.'}
           </p>
+          {optimizationError && (
+            <div className="mt-3 p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200 text-left font-mono text-xs text-rose-800 max-w-lg mx-auto break-all">
+              <span className="font-bold block text-[11px] text-rose-900 mb-1">SERVER ERROR DETAILS:</span>
+              {optimizationError}
+            </div>
+          )}
         </div>
 
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -98,12 +116,12 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             {isOptimizing ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Computing Optimal Routes...</span>
+                <span>Computing Optimal Routes (Executing Qiskit QAOA)...</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span>Run Route Optimizer</span>
+                <span>{optimizationError ? 'Retry Route Optimizer' : 'Run Route Optimizer'}</span>
               </>
             )}
           </button>
@@ -230,6 +248,43 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             <Download className="w-3.5 h-3.5 text-[#6B6D76]" />
             <span>JSON Manifest</span>
           </button>
+        </div>
+      </div>
+
+      {/* ─── 1.5 SOLVER & QUANTUM TELEMETRY STRIP ─────────────────────────── */}
+      <div className="p-4 rounded-2xl bg-white border border-[#E8E6DF] shadow-soft-sm flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF5B37]/10 to-[#FF4D8D]/10 border border-[#FF5B37]/20 flex items-center justify-center text-[#FF5B37] shrink-0">
+            <Cpu className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-[#1F2024] uppercase">
+                {optimizationResult.solver?.name || 'Qiskit QAOA'}
+              </span>
+              <span className="text-[#8E909A]">&bull;</span>
+              <span className="text-[#6B6D76]">
+                {optimizationResult.solver?.backend || 'Qiskit StatevectorSampler (Local Execution)'}
+              </span>
+            </div>
+            <div className="text-[11px] text-[#8E909A] mt-0.5">
+              {optimizationResult.solver?.notes || `Algorithm: ${optimizationResult.solver?.algorithm || 'QAOA'}`}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 shrink-0 text-[11px]">
+          {optimizationResult.quantum_circuit_info && (
+            <span className="px-2.5 py-1 rounded-full bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024]">
+              {optimizationResult.quantum_circuit_info.qubits} Qubits &bull; Depth {optimizationResult.quantum_circuit_info.depth} &bull; {optimizationResult.quantum_circuit_info.shots} Shots
+            </span>
+          )}
+          <span className="px-2.5 py-1 rounded-full bg-[#F7F6F2] border border-[#E8E6DF] text-[#1F2024]">
+            Time: {optimizationResult.execution_time_ms} ms
+          </span>
+          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-[#10B981] border border-emerald-200 font-bold uppercase">
+            STATUS: {optimizationResult.solver?.status || 'OPTIMAL'}
+          </span>
         </div>
       </div>
 

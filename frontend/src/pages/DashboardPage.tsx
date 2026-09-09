@@ -99,7 +99,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             disabled={isOptimizing}
             className="btn-primary-gradient !py-1.5 !px-3.5 text-xs !font-semibold"
           >
-            <span>{isOptimizing ? 'Computing...' : 'Run Solver'}</span>
+            <span>{isOptimizing ? 'Running Route Optimizer...' : 'Run Route Optimizer'}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

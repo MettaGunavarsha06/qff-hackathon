@@ -79,6 +79,7 @@ export interface VehicleRoute {
   vehicle_name: string;
   color: string;
   assigned_delivery_ids: string[];
+  stops?: string[];
   waypoints: Waypoint[];
   total_distance_km: number;
   total_time_mins: number;
@@ -123,6 +124,13 @@ export interface QuantumCircuitInfo {
 export interface OptimizationResult {
   solver_type: string;
   solver_name: string;
+  solver?: {
+    name: string;
+    backend: string;
+    algorithm: string;
+    status: string;
+    notes?: string;
+  };
   execution_time_ms: number;
   routes: VehicleRoute[];
   unassigned_deliveries: string[];

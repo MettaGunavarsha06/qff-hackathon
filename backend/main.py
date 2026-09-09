@@ -25,7 +25,11 @@ except ImportError:
     QISKIT_AVAILABLE = False
     QISKIT_VERSION = None
 
-AER_AVAILABLE = True
+try:
+    import qiskit_aer
+    AER_AVAILABLE = True
+except ImportError:
+    AER_AVAILABLE = False
 from services.route_optimizer import run_route_optimization, run_comparison_benchmark
 from services.traffic_service import (
     get_traffic_status,
@@ -280,12 +284,26 @@ def optimize_quantum(req: OptimizationRequestInput):
 @app.post("/api/optimize", response_model=OptimizationResponseOutput)
 def optimize_generic(req: OptimizationRequestInput):
     """
-    Unified optimize endpoint. Dispatches to either Classical or Qiskit
-    based on the 'optimization_method' field in the request.
+    Unified optimize endpoint with explicit fallback architecture:
+    Qiskit quantum optimizer -> fallback Classical baseline if unavailable or problem size exceeds quantum limits.
     """
     method = (req.optimization_method or "classical").lower()
     if method in ("qiskit", "quantum", "qaoa"):
-        return optimize_quantum(req)
+        try:
+            return optimize_quantum(req)
+        except HTTPException as he:
+            # Explicit fallback if quantum simulator limit exceeded or quantum fails
+            allow_fb = getattr(req, "allow_classical_fallback", True)
+            if allow_fb is None:
+                allow_fb = getattr(req, "allow_non_traffic_fallback", True)
+            if allow_fb:
+                classical_res = optimize_classical(req)
+                classical_res.solver.notes = (
+                    f"Classical Fallback Active: Qiskit quantum solver could not complete ({he.detail}). "
+                    f"Falling back to Classical Clarke-Wright + 2-Opt baseline."
+                )
+                return classical_res
+            raise
     else:
         return optimize_classical(req)
 

@@ -140,9 +140,9 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
         <button
           onClick={handleStartOptimization}
           disabled={isOptimizing}
-          className="btn-primary-gradient !py-3 !px-7 text-xs !font-semibold group self-start md:self-auto"
+          className="btn-primary-gradient !py-3 !px-7 text-xs !font-semibold group self-start md:self-auto cursor-pointer"
         >
-          <span>{isOptimizing ? 'Solving Network...' : 'OPTIMIZE NETWORK'}</span>
+          <span>{isOptimizing ? 'Running Qiskit Optimizer...' : 'Run Route Optimizer'}</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>
@@ -398,9 +398,9 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
             <button
               onClick={handleStartOptimization}
               disabled={isOptimizing}
-              className="w-full btn-primary-gradient !py-3 text-xs text-center justify-center font-bold tracking-wide mt-2"
+              className="w-full btn-primary-gradient !py-3 text-xs text-center justify-center font-bold tracking-wide mt-2 cursor-pointer"
             >
-              <span>{isOptimizing ? 'Running Solver...' : 'OPTIMIZE NETWORK →'}</span>
+              <span>{isOptimizing ? 'Running Qiskit Optimizer...' : 'Run Route Optimizer →'}</span>
             </button>
           </div>
 

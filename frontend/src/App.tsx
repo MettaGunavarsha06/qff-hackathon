@@ -26,8 +26,12 @@ import { DEMO_DEPOT, DEMO_VEHICLES, DEMO_DELIVERIES, INDIA_HUBS } from './data/d
 import {
   checkBackendHealth,
   fetchDemoData,
+  optimizeWithMethod,
+  optimizeQiskit,
   compareSolvers,
   compareLocalSolvers,
+  solveLocalOptimization,
+  makeMetrics,
   fetchTrafficStatus,
   refreshLiveTraffic,
 } from './services/optimizerService';
@@ -45,8 +49,24 @@ export const App: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>(DEMO_VEHICLES);
   const [deliveries, setDeliveries] = useState<Delivery[]>(DEMO_DELIVERIES);
 
-  const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
-  const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null);
+  // Shared persistent optimization state (restored across tab navigation and browser refresh)
+  const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('routeq_optimization_result');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('routeq_comparison_result');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [optimizationError, setOptimizationError] = useState<string | null>(null);
 
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
@@ -61,12 +81,30 @@ export const App: React.FC = () => {
   });
   const [isRefreshingTraffic, setIsRefreshingTraffic] = useState<boolean>(false);
 
+  // Sync optimization results to sessionStorage for resilient navigation
+  useEffect(() => {
+    if (optimizationResult) {
+      try {
+        sessionStorage.setItem('routeq_optimization_result', JSON.stringify(optimizationResult));
+      } catch {
+        // ignore storage errors
+      }
+    }
+    if (comparisonResult) {
+      try {
+        sessionStorage.setItem('routeq_comparison_result', JSON.stringify(comparisonResult));
+      } catch {
+        // ignore
+      }
+    }
+  }, [optimizationResult, comparisonResult]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Check Backend, Traffic Service & Pre-solve initial routes on mount
+  // Check Backend, Traffic Service & Pre-solve initial routes on mount if not already present
   useEffect(() => {
     const initApp = async () => {
       const health = await checkBackendHealth();
@@ -82,6 +120,9 @@ export const App: React.FC = () => {
         setTrafficStatus(tr);
       }
 
+      // If already restored from sessionStorage, do not re-solve
+      if (optimizationResult) return;
+
       const initialReq: OptimizationRequest = {
         depot: DEMO_DEPOT,
         vehicles: DEMO_VEHICLES,
@@ -90,15 +131,36 @@ export const App: React.FC = () => {
         traffic_level: 'moderate',
         time_window_mode: 'soft',
         capacity_mode: 'strict',
-        solver_type: 'quantum_inspired',
+        solver_type: 'qiskit',
+        use_live_traffic: false,
+        allow_non_traffic_fallback: true,
       };
 
       try {
-        const comp = await compareSolvers(initialReq);
+        console.log('[RouteQ Init] Running initial optimization via /api/optimize...');
+        const res = await optimizeWithMethod(initialReq);
+        setOptimizationResult(res);
+        setOptimizationError(null);
+
+        const unopt = solveLocalOptimization(initialReq, 'unoptimized');
+        const comp: ComparisonResult = {
+          classical: res,
+          quantum_inspired: res,
+          improvements_over_classical: makeMetrics(res, res),
+          improvements_over_unoptimized: makeMetrics(unopt, res),
+          unoptimized_summary: {
+            total_distance_km: unopt.total_distance_km,
+            total_time_mins: unopt.total_time_mins,
+            total_fuel_l: unopt.total_fuel_l,
+            total_co2_kg: unopt.total_co2_kg,
+            late_deliveries_count: unopt.late_deliveries_count,
+            fleet_utilization_pct: unopt.fleet_utilization_pct,
+          },
+          summary_analysis: `Initial optimization completed. Solver: ${res.solver?.name || res.solver_type}. Total distance: ${res.total_distance_km} km.`,
+        };
         setComparisonResult(comp);
-        setOptimizationResult(comp.quantum_inspired);
       } catch (err) {
-        console.warn('Initial route solve falling back to local solver:', err);
+        console.warn('[RouteQ Init] Initial solve failed, using local fallback:', err);
         const fallback = compareLocalSolvers(initialReq);
         setComparisonResult(fallback);
         setOptimizationResult(fallback.quantum_inspired);
@@ -116,10 +178,23 @@ export const App: React.FC = () => {
   };
 
   // Handler: Run Optimization Sequence
+  // Uses the FULL current depot/vehicles/deliveries from state.
+  // Respects solver_type from the OptimizationPage UI.
+  // Clears previous result immediately so the map shows a loading/empty state.
   const handleRunOptimization = async (req?: OptimizationRequest) => {
     setIsOptimizing(true);
+    setOptimizationError(null);
     setShowOptimizationModal(true);
 
+    // ─── Capture BEFORE baseline for savings comparison ───────────────────
+    const baselineResult = optimizationResult;
+
+    // ─── CRITICAL: Clear old result so map + metrics reset immediately ────
+    setOptimizationResult(null);
+    // Also clear sessionStorage so stale data doesn't persist on error
+    try { sessionStorage.removeItem('routeq_optimization_result'); } catch { /* ignore */ }
+
+    // ─── Build the optimization request from current app state ────────────
     const optimizationReq: OptimizationRequest = req || {
       depot,
       vehicles,
@@ -128,48 +203,86 @@ export const App: React.FC = () => {
       traffic_level: 'moderate',
       time_window_mode: 'soft',
       capacity_mode: 'strict',
-      solver_type: 'quantum_inspired',
+      solver_type: 'qiskit',
+      use_live_traffic: false,
+      allow_non_traffic_fallback: true,
     };
 
+    const solverLabel = optimizationReq.solver_type === 'classical'
+      ? 'Classical Clarke-Wright'
+      : 'Qiskit QAOA';
+
     try {
-      const comp = await compareSolvers(optimizationReq);
+      console.log(`[RouteQ] Running ${solverLabel} optimizer — ${optimizationReq.deliveries.length} stops, ${optimizationReq.vehicles.length} vehicles`);
+
+      // ─── Call unified backend endpoint (respects solver_type) ──────────
+      const res = await optimizeWithMethod(optimizationReq);
+
+      console.log(`[RouteQ] Optimization done: ${res.total_distance_km}km, ${res.routes.length} routes, solver: ${res.solver?.name || res.solver_type}`);
+
+      setOptimizationResult(res);
+      setOptimizationError(null);
+
+      // ─── Compute before/after improvements ─────────────────────────────
+      const unopt = baselineResult || solveLocalOptimization(optimizationReq, 'unoptimized');
+      const comp: ComparisonResult = {
+        classical: res,
+        quantum_inspired: res,
+        improvements_over_classical: makeMetrics(unopt, res),
+        improvements_over_unoptimized: makeMetrics(unopt, res),
+        unoptimized_summary: {
+          total_distance_km: unopt.total_distance_km,
+          total_time_mins: unopt.total_time_mins,
+          total_fuel_l: unopt.total_fuel_l,
+          total_co2_kg: unopt.total_co2_kg,
+          late_deliveries_count: unopt.late_deliveries_count,
+          fleet_utilization_pct: unopt.fleet_utilization_pct,
+        },
+        summary_analysis: `${solverLabel} optimization completed. ${res.routes.length} routes, ${res.total_distance_km} km total. Solver: ${res.solver?.name || res.solver_type}. Execution: ${res.execution_time_ms}ms.`,
+      };
       setComparisonResult(comp);
-      setOptimizationResult(comp.quantum_inspired);
-      showToast('Optimization complete. Ground state routes computed.');
-    } catch (err) {
-      console.warn('Backend optimization error, applying robust local solver fallback:', err);
-      const fallbackComp = compareLocalSolvers(optimizationReq);
-      setComparisonResult(fallbackComp);
-      setOptimizationResult(fallbackComp.quantum_inspired);
-      showToast('Optimization complete (Local heuristic & 2-Opt solver).');
+
+      showToast(`✓ Optimization complete: ${res.routes.length} routes · ${res.total_distance_km} km · ${res.solver?.name || solverLabel}`);
+      setCurrentTab('routes');
+    } catch (err: any) {
+      console.error('[RouteQ] Optimization failed:', err);
+      const errMsg = err?.message || 'Failed to execute optimization';
+      setOptimizationError(errMsg);
+      // Restore previous result so the page doesn't stay blank
+      setOptimizationResult(baselineResult);
+      showToast('Optimization error: ' + errMsg);
+      setCurrentTab('routes');
     } finally {
       setIsOptimizing(false);
+      setShowOptimizationModal(false);
     }
   };
 
-  // Handler: Load Demo Data (Bengaluru 25 stops)
+  // Handler: Load Demo Data (Bengaluru 25 stops) then run real optimization
   const handleLoadDemo = () => {
     setDepot(DEMO_DEPOT);
     setVehicles(DEMO_VEHICLES);
     setDeliveries(DEMO_DELIVERIES);
     setSelectedHubKey('bengaluru');
-    const demoReq: OptimizationRequest = {
-      depot: DEMO_DEPOT,
-      vehicles: DEMO_VEHICLES,
-      deliveries: DEMO_DELIVERIES,
-      objective: 'balanced',
-      traffic_level: 'moderate',
-      time_window_mode: 'soft',
-      capacity_mode: 'strict',
-      solver_type: 'quantum_inspired',
-    };
-    const demoComp = compareLocalSolvers(demoReq);
-    setComparisonResult(demoComp);
-    setOptimizationResult(demoComp.quantum_inspired);
-    showToast('Loaded 25 Bengaluru benchmark delivery stops (India).');
+    showToast('Loaded 25 Bengaluru benchmark stops — running optimization...');
+    // Trigger real backend optimization with the demo data immediately
+    setTimeout(() => {
+      handleRunOptimization({
+        depot: DEMO_DEPOT,
+        vehicles: DEMO_VEHICLES,
+        deliveries: DEMO_DELIVERIES,
+        objective: 'balanced',
+        traffic_level: 'moderate',
+        time_window_mode: 'soft',
+        capacity_mode: 'strict',
+        solver_type: 'qiskit',
+        use_live_traffic: false,
+        allow_non_traffic_fallback: true,
+      });
+    }, 50);
   };
 
-  // Handler: Select Specific India Hub
+  // Handler: Select Specific India Hub — loads data & triggers real backend optimization
   const handleSelectHub = (hubKey: string) => {
     const hub = INDIA_HUBS[hubKey];
     if (hub) {
@@ -177,22 +290,22 @@ export const App: React.FC = () => {
       setVehicles(hub.vehicles);
       setDeliveries(hub.deliveries);
       setSelectedHubKey(hubKey);
-      
-      // Immediately calculate valid route data for the selected hub
-      const hubReq: OptimizationRequest = {
-        depot: hub.depot,
-        vehicles: hub.vehicles,
-        deliveries: hub.deliveries,
-        objective: 'balanced',
-        traffic_level: 'moderate',
-        time_window_mode: 'soft',
-        capacity_mode: 'strict',
-        solver_type: 'quantum_inspired',
-      };
-      const initialHubComp = compareLocalSolvers(hubReq);
-      setComparisonResult(initialHubComp);
-      setOptimizationResult(initialHubComp.quantum_inspired);
-      showToast(`Loaded & optimized ${hub.name} (${hub.deliveries.length} stops, ${hub.city}, India).`);
+      showToast(`Loading ${hub.name} (${hub.deliveries.length} stops) — optimizing...`);
+      // Trigger real backend optimization with hub data
+      setTimeout(() => {
+        handleRunOptimization({
+          depot: hub.depot,
+          vehicles: hub.vehicles,
+          deliveries: hub.deliveries,
+          objective: 'balanced',
+          traffic_level: 'moderate',
+          time_window_mode: 'soft',
+          capacity_mode: 'strict',
+          solver_type: 'qiskit',
+          use_live_traffic: false,
+          allow_non_traffic_fallback: true,
+        });
+      }, 50);
     }
   };
 
@@ -379,6 +492,7 @@ export const App: React.FC = () => {
                       vehicles={vehicles}
                       optimizationResult={optimizationResult}
                       comparisonResult={comparisonResult}
+                      optimizationError={optimizationError}
                       onNavigateTab={setCurrentTab}
                       onRunOptimization={handleRunOptimization}
                       isOptimizing={isOptimizing}

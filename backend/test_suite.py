@@ -9,6 +9,7 @@ from models.schemas import (
 from utils.distance import haversine_distance, calculate_travel_time
 from services.classical_optimizer import ClassicalOptimizer
 from services.qiskit_optimizer import QiskitVRPOptimizer
+from services.route_optimizer import run_route_optimization
 
 class TestRouteQBackend(unittest.TestCase):
 
@@ -122,6 +123,27 @@ class TestRouteQBackend(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             opt.optimize()
         self.assertIn("due to qubit statevector simulation space", str(ctx.exception))
+
+    def test_05_explicit_classical_fallback(self):
+        """Test explicit Qiskit -> Classical fallback when quantum size limit is exceeded."""
+        large_deliveries = self.deliveries_small * 3  # 12 deliveries
+        for idx, d in enumerate(large_deliveries):
+            large_deliveries[idx] = DeliveryInput(
+                id=f"D{idx+1}", customer=f"Cust {idx+1}", lat=d.lat, lng=d.lng, demand=5.0
+            )
+
+        req = OptimizationRequestInput(
+            depot=self.depot,
+            vehicles=self.vehicles,
+            deliveries=large_deliveries,
+            optimization_method="qiskit",
+            allow_classical_fallback=True,
+        )
+        res = run_route_optimization(req)
+        self.assertEqual(res.status, "success")
+        self.assertEqual(res.method, "classical")
+        self.assertIn("Classical Fallback Active", res.solver.notes)
+        self.assertGreater(len(res.routes), 0)
 
 if __name__ == "__main__":
     unittest.main()

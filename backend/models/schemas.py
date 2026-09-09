@@ -59,6 +59,7 @@ class OptimizationRequestInput(BaseModel):
     quantum_backend: Optional[str] = "aer_simulator"
     use_live_traffic: Optional[bool] = True
     allow_non_traffic_fallback: Optional[bool] = True
+    allow_classical_fallback: Optional[bool] = True
     distance_weight: Optional[float] = 1.0
     time_weight: Optional[float] = 1.0
     fuel_weight: Optional[float] = 1.0
