@@ -27,6 +27,7 @@ import {
   checkBackendHealth,
   fetchDemoData,
   compareSolvers,
+  compareLocalSolvers,
   fetchTrafficStatus,
   refreshLiveTraffic,
 } from './services/optimizerService';
@@ -97,7 +98,10 @@ export const App: React.FC = () => {
         setComparisonResult(comp);
         setOptimizationResult(comp.quantum_inspired);
       } catch (err) {
-        console.error('Initial route solve error:', err);
+        console.warn('Initial route solve falling back to local solver:', err);
+        const fallback = compareLocalSolvers(initialReq);
+        setComparisonResult(fallback);
+        setOptimizationResult(fallback.quantum_inspired);
       }
     };
 
@@ -133,8 +137,11 @@ export const App: React.FC = () => {
       setOptimizationResult(comp.quantum_inspired);
       showToast('Optimization complete. Ground state routes computed.');
     } catch (err) {
-      console.error('Optimization error:', err);
-      showToast('Optimization fallback solution applied.');
+      console.warn('Backend optimization error, applying robust local solver fallback:', err);
+      const fallbackComp = compareLocalSolvers(optimizationReq);
+      setComparisonResult(fallbackComp);
+      setOptimizationResult(fallbackComp.quantum_inspired);
+      showToast('Optimization complete (Local heuristic & 2-Opt solver).');
     } finally {
       setIsOptimizing(false);
     }
@@ -146,6 +153,19 @@ export const App: React.FC = () => {
     setVehicles(DEMO_VEHICLES);
     setDeliveries(DEMO_DELIVERIES);
     setSelectedHubKey('bengaluru');
+    const demoReq: OptimizationRequest = {
+      depot: DEMO_DEPOT,
+      vehicles: DEMO_VEHICLES,
+      deliveries: DEMO_DELIVERIES,
+      objective: 'balanced',
+      traffic_level: 'moderate',
+      time_window_mode: 'soft',
+      capacity_mode: 'strict',
+      solver_type: 'quantum_inspired',
+    };
+    const demoComp = compareLocalSolvers(demoReq);
+    setComparisonResult(demoComp);
+    setOptimizationResult(demoComp.quantum_inspired);
     showToast('Loaded 25 Bengaluru benchmark delivery stops (India).');
   };
 
@@ -157,8 +177,22 @@ export const App: React.FC = () => {
       setVehicles(hub.vehicles);
       setDeliveries(hub.deliveries);
       setSelectedHubKey(hubKey);
-      setOptimizationResult(null);
-      showToast(`Loaded ${hub.name} (${hub.deliveries.length} stops, ${hub.city}, India).`);
+      
+      // Immediately calculate valid route data for the selected hub
+      const hubReq: OptimizationRequest = {
+        depot: hub.depot,
+        vehicles: hub.vehicles,
+        deliveries: hub.deliveries,
+        objective: 'balanced',
+        traffic_level: 'moderate',
+        time_window_mode: 'soft',
+        capacity_mode: 'strict',
+        solver_type: 'quantum_inspired',
+      };
+      const initialHubComp = compareLocalSolvers(hubReq);
+      setComparisonResult(initialHubComp);
+      setOptimizationResult(initialHubComp.quantum_inspired);
+      showToast(`Loaded & optimized ${hub.name} (${hub.deliveries.length} stops, ${hub.city}, India).`);
     }
   };
 
@@ -342,9 +376,12 @@ export const App: React.FC = () => {
                     <ResultsPage
                       depot={depot}
                       deliveries={deliveries}
+                      vehicles={vehicles}
                       optimizationResult={optimizationResult}
                       comparisonResult={comparisonResult}
                       onNavigateTab={setCurrentTab}
+                      onRunOptimization={handleRunOptimization}
+                      isOptimizing={isOptimizing}
                     />
                   )}
 

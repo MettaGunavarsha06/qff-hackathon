@@ -45,6 +45,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
   optimizationResult,
   isOptimizing,
   onRunOptimization,
+  onNavigateTab,
   trafficStatus,
   onRefreshTraffic,
   isRefreshingTraffic,
@@ -73,6 +74,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
       allow_non_traffic_fallback: allowNonTrafficFallback,
     };
     await onRunOptimization(req);
+    onNavigateTab('routes');
   };
 
   const objectivesList: {

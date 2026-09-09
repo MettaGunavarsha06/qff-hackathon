@@ -11,6 +11,8 @@ interface RouteMapProps {
   optimizationResult?: any;
   selectedVehicleId?: string | null;
   onSelectVehicle?: (vehicleId: string | null) => void;
+  selectedStopId?: string | null;
+  onSelectStop?: (delivery: Delivery) => void;
   height?: string;
   showOverlayControls?: boolean;
 }
@@ -21,11 +23,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   optimizationResult,
   selectedVehicleId = null,
   onSelectVehicle,
+  selectedStopId = null,
+  onSelectStop,
   height = '100%',
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
+  const stopMarkersRef = useRef<Record<string, L.Marker>>({});
   const [activeFilter, setActiveFilter] = useState<string | null>(selectedVehicleId);
 
   const routes: VehicleRoute[] = optimizationResult?.routes || [];
@@ -101,6 +106,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     if (!mapInstanceRef.current || !layerGroupRef.current) return;
     const group = layerGroupRef.current;
     group.clearLayers();
+    stopMarkersRef.current = {};
 
     const bounds = L.latLngBounds([[depot.lat, depot.lng]]);
 
@@ -146,26 +152,26 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     `);
     group.addLayer(depotMarker);
 
-    const visibleRoutes = activeFilter
-      ? routes.filter((r) => r.vehicle_id === activeFilter)
-      : routes;
-
     const deliveryToVehicleMap: Record<
       string,
-      { color: string; seq: number; vehicleName: string; isLate: boolean; arrival: string }
+      { color: string; seq: number; vehicleName: string; vehicleId: string; isLate: boolean; arrival: string }
     > = {};
 
     // 2. Draw Route Polylines
-    visibleRoutes.forEach((route, rIdx) => {
+    routes.forEach((route, rIdx) => {
+      const isSelected = activeFilter ? route.vehicle_id === activeFilter : false;
+      const isAlternative = activeFilter ? route.vehicle_id !== activeFilter : false;
+
       const palette = ['#FF5B37', '#FF4D8D', '#3B82F6', '#10B981', '#F59E0B'];
-      const routeColor = route.color || palette[rIdx % palette.length];
+      const defaultColor = route.color || palette[rIdx % palette.length];
 
       route.waypoints.forEach((wp) => {
         if (!wp.is_depot) {
           deliveryToVehicleMap[wp.stop_id] = {
-            color: routeColor,
+            color: defaultColor,
             seq: wp.sequence_index,
             vehicleName: route.vehicle_name,
+            vehicleId: route.vehicle_id,
             isLate: wp.is_late,
             arrival: wp.arrival_time,
           };
@@ -174,49 +180,107 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
       const latLngs = route.waypoints.map((wp) => [wp.lat, wp.lng] as [number, number]);
       if (latLngs.length > 1) {
-        // Outer soft polyline glow
-        const glowPolyline = L.polyline(latLngs, {
-          color: routeColor,
-          weight: activeFilter ? 6 : 4,
-          opacity: activeFilter ? 0.4 : 0.2,
-          lineCap: 'round',
-          lineJoin: 'round',
-        });
-        group.addLayer(glowPolyline);
+        if (isAlternative) {
+          // Alternative routes: Subtle dashed lines
+          const altPolyline = L.polyline(latLngs, {
+            color: '#94A3B8',
+            weight: 2.2,
+            opacity: 0.38,
+            dashArray: '6, 8',
+            lineCap: 'round',
+            lineJoin: 'round',
+          });
+          altPolyline.bindPopup(`
+            <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
+              <div style="font-weight: 700; color: #64748B; font-size: 13px;">${route.vehicle_name} (Alternative)</div>
+              <div style="font-size: 11px; color: #6B6D76; margin-top: 3px; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km.toFixed(1)} km</div>
+              <div style="font-size: 10px; color: #FF5B37; margin-top: 4px; font-weight: 600; cursor: pointer;">Click to switch to this route</div>
+            </div>
+          `);
+          altPolyline.on('click', () => {
+            if (onSelectVehicle) onSelectVehicle(route.vehicle_id);
+          });
+          group.addLayer(altPolyline);
+        } else if (isSelected) {
+          // Selected vehicle route: RouteQ Orange -> Pink gradient highlight
+          // Layer 1: Soft Outer Magenta Glow
+          const glowPolyline = L.polyline(latLngs, {
+            color: '#FF4D8D',
+            weight: 8,
+            opacity: 0.45,
+            lineCap: 'round',
+            lineJoin: 'round',
+          });
+          group.addLayer(glowPolyline);
 
-        // Sharp inner polyline
-        const polyline = L.polyline(latLngs, {
-          color: routeColor,
-          weight: activeFilter ? 3.5 : 2.5,
-          opacity: 0.95,
-          lineCap: 'round',
-          lineJoin: 'round',
-        });
+          // Layer 2: Core Vibrant RouteQ Coral Route
+          const corePolyline = L.polyline(latLngs, {
+            color: '#FF5B37',
+            weight: 4.5,
+            opacity: 1.0,
+            lineCap: 'round',
+            lineJoin: 'round',
+          });
+          corePolyline.bindPopup(`
+            <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
+              <div style="font-weight: 700; color: #FF5B37; font-size: 13px;">${route.vehicle_name} (Selected)</div>
+              <div style="font-size: 11px; color: #6B6D76; margin-top: 3px; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km.toFixed(1)} km</div>
+              <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">TIME: ${Math.round(route.total_time_mins)} mins | FUEL: ${route.fuel_consumed_l.toFixed(1)} L</div>
+            </div>
+          `);
+          group.addLayer(corePolyline);
+        } else {
+          // Overview mode (all vehicles active)
+          const glowPolyline = L.polyline(latLngs, {
+            color: defaultColor,
+            weight: 5,
+            opacity: 0.22,
+            lineCap: 'round',
+            lineJoin: 'round',
+          });
+          group.addLayer(glowPolyline);
 
-        polyline.bindPopup(`
-          <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
-            <div style="font-weight: 700; color: ${routeColor}; font-size: 13px;">${route.vehicle_name}</div>
-            <div style="font-size: 11px; color: #6B6D76; margin-top: 3px; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km} km</div>
-            <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">TIME: ${route.total_time_mins} mins | FUEL: ${route.fuel_consumed_l} L</div>
-          </div>
-        `);
-        group.addLayer(polyline);
+          const polyline = L.polyline(latLngs, {
+            color: defaultColor,
+            weight: 3,
+            opacity: 0.92,
+            lineCap: 'round',
+            lineJoin: 'round',
+          });
+          polyline.bindPopup(`
+            <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
+              <div style="font-weight: 700; color: ${defaultColor}; font-size: 13px;">${route.vehicle_name}</div>
+              <div style="font-size: 11px; color: #6B6D76; margin-top: 3px; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km.toFixed(1)} km</div>
+              <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">TIME: ${Math.round(route.total_time_mins)} mins | FUEL: ${route.fuel_consumed_l.toFixed(1)} L</div>
+            </div>
+          `);
+          polyline.on('click', () => {
+            if (onSelectVehicle) onSelectVehicle(route.vehicle_id);
+          });
+          group.addLayer(polyline);
+        }
 
         // Vector Truck Marker for each active vehicle
         if (route.waypoints.length > 1) {
           const midWpIdx = Math.min(route.waypoints.length - 1, Math.max(1, Math.floor(route.waypoints.length / 2)));
           const truckWp = route.waypoints[midWpIdx];
+          const strokeColor = isSelected ? '#FF5B37' : (isAlternative ? '#94A3B8' : defaultColor);
+          const shadowStyle = isSelected
+            ? 'box-shadow: 0 0 14px rgba(255, 91, 55, 0.55);'
+            : 'box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+
           const truckIcon = L.divIcon({
             className: 'custom-vehicle-truck-node',
             html: `
               <div style="
                 display: flex; align-items: center; justify-content: center;
                 width: 28px; height: 28px; border-radius: 8px;
-                background: #FFFFFF; border: 1.8px solid ${routeColor};
-                box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+                background: #FFFFFF; border: 2px solid ${strokeColor};
+                ${shadowStyle}
                 cursor: pointer; transition: transform 0.2s ease;
-              " title="${route.vehicle_name} (Click to highlight)">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${routeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                opacity: ${isAlternative ? 0.65 : 1};
+              " title="${route.vehicle_name} (Click to inspect)">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
                   <path d="M15 18H9"/>
                   <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
@@ -234,9 +298,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           });
           truckMarker.bindPopup(`
             <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
-              <div style="font-weight: 700; color: ${routeColor}; font-size: 13px;">${route.vehicle_name}</div>
+              <div style="font-weight: 700; color: ${strokeColor}; font-size: 13px;">${route.vehicle_name}</div>
               <div style="font-size: 11px; color: #6B6D76; margin-top: 3px; font-family: 'IBM Plex Mono';">CAPACITY: ${route.capacity_used_kg} kg (${route.capacity_utilization_pct}%)</div>
-              <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km} km</div>
+              <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km.toFixed(1)} km</div>
             </div>
           `);
           group.addLayer(truckMarker);
@@ -249,14 +313,18 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     // 3. Delivery Stop Markers
     deliveries.forEach((del) => {
       const assignment = deliveryToVehicleMap[del.id];
-
-      if (activeFilter && !assignment) {
-        return;
-      }
+      const isAssignedToSelected = activeFilter && assignment ? assignment.vehicleId === activeFilter : false;
+      const isMutedAlternative = activeFilter && assignment ? assignment.vehicleId !== activeFilter : false;
 
       bounds.extend([del.lat, del.lng]);
 
-      const markerColor = assignment ? assignment.color : '#8E909A';
+      let markerColor = assignment ? assignment.color : '#8E909A';
+      if (isAssignedToSelected) {
+        markerColor = '#FF5B37';
+      } else if (isMutedAlternative) {
+        markerColor = '#CBD5E1';
+      }
+
       const seqText = assignment ? assignment.seq.toString().padStart(2, '0') : '•';
       const isLate = assignment?.isLate;
 
@@ -264,30 +332,43 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         className: 'custom-del-node',
         html: `
           <div style="
-            width: 22px; height: 22px; border-radius: 50%;
-            background: #FFFFFF; border: 2px solid ${isLate ? '#FF4D8D' : markerColor};
-            box-shadow: 0 2px 6px rgba(31,32,36,0.12);
+            width: ${isAssignedToSelected ? '24px' : '20px'};
+            height: ${isAssignedToSelected ? '24px' : '20px'};
+            border-radius: 50%;
+            background: #FFFFFF;
+            border: ${isAssignedToSelected ? '2.5px solid #FF5B37' : `2px solid ${isLate ? '#FF4D8D' : markerColor}`};
+            box-shadow: ${isAssignedToSelected ? '0 0 10px rgba(255,91,55,0.45)' : '0 2px 6px rgba(31,32,36,0.12)'};
             display: flex; align-items: center; justify-content: center;
-            color: #1F2024; font-family: 'IBM Plex Mono', monospace;
-            font-weight: 600; font-size: 9px; position: relative;
+            color: ${isAssignedToSelected ? '#FF5B37' : (isMutedAlternative ? '#94A3B8' : '#1F2024')};
+            font-family: 'IBM Plex Mono', monospace;
+            font-weight: 700;
+            font-size: ${isAssignedToSelected ? '10px' : '8.5px'};
+            position: relative;
+            opacity: ${isMutedAlternative ? 0.6 : 1};
+            cursor: pointer;
             transition: transform 0.2s ease;
           ">
             ${seqText}
           </div>
         `,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
       });
 
       const delMarker = L.marker([del.lat, del.lng], { icon: delIcon });
       delMarker.bindPopup(`
-        <div style="padding: 4px 2px; min-width: 190px; font-family: 'Manrope', sans-serif;">
+        <div style="padding: 4px 2px; min-width: 200px; font-family: 'Manrope', sans-serif;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
             <span style="font-size: 11px; font-weight: 700; color: #1F2024; font-family: 'IBM Plex Mono';">${del.id}</span>
             <span style="background: rgba(255,91,55,0.1); color: #FF5B37; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 9999px; text-transform: uppercase; font-family: 'IBM Plex Mono';">${del.priority}</span>
           </div>
           <div style="font-weight: 700; font-size: 13px; color: #1F2024; margin-bottom: 2px;">${del.customer_name}</div>
           <div style="font-size: 11px; color: #6B6D76; margin-bottom: 4px;">${del.address || 'Bengaluru Logistics Corridor, India'}</div>
+          ${assignment ? `
+            <div style="font-size: 10px; color: #FF5B37; font-weight: 600; font-family: 'IBM Plex Mono'; margin-bottom: 4px;">
+              ASSIGNED: ${assignment.vehicleName} (STOP #${assignment.seq}) &bull; ARRIVAL: ${assignment.arrival}
+            </div>
+          ` : ''}
           <div style="font-size: 11px; color: #6B6D76; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #E8E6DF; font-family: 'IBM Plex Mono';">
             <div>LOAD: ${del.demand_kg} kg</div>
             <div>SERVICE: ${del.service_time_mins}m</div>
@@ -295,6 +376,12 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           </div>
         </div>
       `);
+
+      delMarker.on('click', () => {
+        if (onSelectStop) onSelectStop(del);
+      });
+
+      stopMarkersRef.current[del.id] = delMarker;
       group.addLayer(delMarker);
     });
 
@@ -304,6 +391,15 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       mapInstanceRef.current.setView([depot.lat, depot.lng], 13);
     }
   }, [depot, deliveries, routes, activeFilter]);
+
+  // When selectedStopId changes, smoothly pan to and open its popup
+  useEffect(() => {
+    if (selectedStopId && mapInstanceRef.current && stopMarkersRef.current[selectedStopId]) {
+      const marker = stopMarkersRef.current[selectedStopId];
+      mapInstanceRef.current.setView(marker.getLatLng(), 15, { animate: true });
+      marker.openPopup();
+    }
+  }, [selectedStopId]);
 
   const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
