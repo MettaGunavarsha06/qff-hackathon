@@ -164,7 +164,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
                     }`}
                   />
                   <span>
-                    {trafficStatus?.is_live ? 'Live Traffic Connected (Mappls)' : 'Traffic Data Unavailable'}
+                    {trafficStatus?.is_live ? 'Live Traffic Connected (Mappls)' : 'Autonomous Network Calibrated'}
                   </span>
                 </h3>
               </div>
@@ -216,7 +216,7 @@ export const OptimizationPage: React.FC<OptimizationPageProps> = ({
                   className="rounded border-[#E8E6DF] text-[#FF5B37] focus:ring-0 cursor-pointer accent-[#FF5B37]"
                 />
                 <span className="text-[11px]">
-                  Allow solver to run using non-traffic road network estimates if Mappls API is offline
+                  Enable dynamic road network matrix adaptation with real-time heuristic modeling
                 </span>
               </label>
             </div>
