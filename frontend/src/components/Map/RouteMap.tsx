@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Depot, Delivery, VehicleRoute, Vehicle } from '../../types';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Key, X, Check, MapPin } from 'lucide-react';
+import { GoogleRouteMap } from './GoogleRouteMap';
 
 interface RouteMapProps {
   depot: Depot;
@@ -20,6 +21,7 @@ interface RouteMapProps {
 export const RouteMap: React.FC<RouteMapProps> = ({
   depot,
   deliveries,
+  vehicles,
   optimizationResult,
   selectedVehicleId = null,
   onSelectVehicle,
@@ -32,6 +34,23 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
   const stopMarkersRef = useRef<Record<string, L.Marker>>({});
   const [activeFilter, setActiveFilter] = useState<string | null>(selectedVehicleId);
+
+  // Map Provider State: 'leaflet' | 'google'
+  const [mapProvider, setMapProvider] = useState<'leaflet' | 'google'>(() => {
+    return (localStorage.getItem('routeq_map_provider') as 'leaflet' | 'google') || 'leaflet';
+  });
+
+  // Google Maps API Key state
+  const [apiKey, setApiKey] = useState<string>(() => {
+    return (
+      localStorage.getItem('routeq_gmaps_api_key') ||
+      (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) ||
+      ''
+    );
+  });
+  const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
+  const [tempKey, setTempKey] = useState<string>(apiKey);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
   const routes: VehicleRoute[] = optimizationResult?.routes || [];
 
@@ -414,64 +433,226 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     }
   };
 
+  const handleSaveKey = () => {
+    const trimmed = tempKey.trim();
+    setApiKey(trimmed);
+    localStorage.setItem('routeq_gmaps_api_key', trimmed);
+    setSaveSuccess(true);
+    setTimeout(() => {
+      setSaveSuccess(false);
+      setShowKeyModal(false);
+    }, 800);
+  };
+
   return (
     <div
       className="relative w-full h-full rounded-2xl overflow-hidden border border-[#E8E6DF] bg-[#F2F1EC] shadow-soft-sm"
       style={{ minHeight: '480px' }}
     >
-      {/* Top Left: India Hub Badge */}
-      <div className="absolute top-3.5 left-3.5 z-[1000] flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#E8E6DF] shadow-sm pointer-events-none">
-        <span className="text-sm leading-none select-none">🇮🇳</span>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] font-bold text-[#1F2024] tracking-wide">
-            INDIA LOGISTICS GRID
-          </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-          <span className="text-[10px] text-[#6B6D76] font-mono truncate max-w-[140px]">
-            {depot.name}
-          </span>
+      {/* If Google Maps provider is active, render GoogleRouteMap */}
+      {mapProvider === 'google' ? (
+        <GoogleRouteMap
+          depot={depot}
+          deliveries={deliveries}
+          vehicles={vehicles}
+          optimizationResult={optimizationResult}
+          selectedVehicleId={selectedVehicleId}
+          onSelectVehicle={onSelectVehicle}
+          selectedStopId={selectedStopId}
+          onSelectStop={onSelectStop}
+          apiKey={apiKey}
+          onOpenKeyModal={() => {
+            setTempKey(apiKey);
+            setShowKeyModal(true);
+          }}
+        />
+      ) : (
+        <>
+          {/* Top Left: India Hub Badge */}
+          <div className="absolute top-3.5 left-3.5 z-[1000] flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#E8E6DF] shadow-sm pointer-events-none">
+            <span className="text-sm leading-none select-none">🇮🇳</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] font-bold text-[#1F2024] tracking-wide">
+                INDIA LOGISTICS GRID
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+              <span className="text-[10px] text-[#6B6D76] font-mono truncate max-w-[140px]">
+                {depot.name}
+              </span>
+            </div>
+          </div>
+
+          {/* Top Right: Minimal Zoom Controls */}
+          <div className="absolute top-3.5 right-3.5 z-[1000] flex flex-col gap-1.5">
+            <button
+              onClick={handleZoomIn}
+              title="Zoom In"
+              className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleZoomOut}
+              title="Zoom Out"
+              className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleResetBounds}
+              title="Recenter"
+              className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Bottom Minimal Status Readout */}
+          <div className="absolute bottom-3.5 left-3.5 z-[1000] hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#E8E6DF] font-mono text-[10px] text-[#6B6D76] shadow-sm">
+            <div className="flex items-center gap-1.5 text-[#1F2024] font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+              <span>HUB: {depot.id}</span>
+            </div>
+            <span className="text-[#E8E6DF]">|</span>
+            <div>STOPS: {deliveries.length}</div>
+            <span className="text-[#E8E6DF]">|</span>
+            <div>ROUTES: {routes.length || 'STANDBY'}</div>
+          </div>
+
+          {/* Leaflet Canvas Container */}
+          <div ref={mapContainerRef} className="w-full h-full min-h-[480px]" />
+        </>
+      )}
+
+      {/* Floating Map Engine Switcher & Google API Key Config (Pinned Top Center / Right) */}
+      <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-[1001] flex items-center gap-1.5 p-1 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E8E6DF] shadow-soft-sm font-mono text-[10px]">
+        <button
+          onClick={() => {
+            setMapProvider('leaflet');
+            localStorage.setItem('routeq_map_provider', 'leaflet');
+          }}
+          className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+            mapProvider === 'leaflet'
+              ? 'bg-[#1F2024] text-white shadow-xs'
+              : 'text-[#6B6D76] hover:text-[#1F2024]'
+          }`}
+          title="Switch to Leaflet (OpenStreetMap / CartoDB raster tiles)"
+        >
+          LEAFLET
+        </button>
+        <button
+          onClick={() => {
+            if (!apiKey) {
+              setTempKey(apiKey);
+              setShowKeyModal(true);
+            }
+            setMapProvider('google');
+            localStorage.setItem('routeq_map_provider', 'google');
+          }}
+          className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            mapProvider === 'google'
+              ? 'bg-[#1F2024] text-white shadow-xs'
+              : 'text-[#6B6D76] hover:text-[#1F2024]'
+          }`}
+          title="Switch to Google Maps (Real-Time Traffic, Satellite & Roadmaps)"
+        >
+          <span>GOOGLE MAPS</span>
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              apiKey ? 'bg-[#34A853]' : 'bg-[#F59E0B] animate-pulse'
+            }`}
+          />
+        </button>
+
+        <button
+          onClick={() => {
+            setTempKey(apiKey);
+            setShowKeyModal(true);
+          }}
+          title="Configure Google Maps API Key"
+          className="p-1.5 rounded-xl text-[#6B6D76] hover:text-[#FF5B37] hover:bg-[#F7F6F2] transition-colors cursor-pointer"
+        >
+          <Key className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Google Maps API Key Configuration Modal */}
+      {showKeyModal && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 font-sans">
+          <div className="bg-white rounded-3xl border border-[#E8E6DF] shadow-soft-xl max-w-md w-full p-6 space-y-5 text-[#1F2024] relative animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowKeyModal(false)}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-[#F7F6F2] text-[#6B6D76] transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-bold text-[#FF5B37] uppercase">
+                  MAP PROVIDER &bull; GOOGLE MAPS
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-[#1F2024]">Configure API Key</h3>
+              <p className="text-xs text-[#6B6D76] leading-relaxed">
+                Provide your Google Maps JavaScript API key to enable live traffic layers, satellite imagery, and high-fidelity routing cartography.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-mono text-[#6B6D76] block">
+                GOOGLE MAPS JAVASCRIPT API KEY
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={tempKey}
+                  onChange={(e) => setTempKey(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8E6DF] bg-[#FAF9F6] font-mono text-xs text-[#1F2024] focus:outline-none focus:border-[#FF5B37] focus:bg-white transition-all pr-10"
+                />
+                <Key className="w-4 h-4 text-[#8E909A] absolute right-3 top-3 pointer-events-none" />
+              </div>
+              <p className="text-[10px] text-[#8E909A] font-mono">
+                Saved securely in local browser storage or configured via <code className="bg-[#F2F1EC] px-1 py-0.5 rounded text-[#1F2024]">VITE_GOOGLE_MAPS_API_KEY</code> in <code className="bg-[#F2F1EC] px-1 py-0.5 rounded text-[#1F2024]">.env</code>.
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between border-t border-[#E8E6DF]">
+              <a
+                href="https://console.cloud.google.com/google/maps-apis/credentials"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-mono text-[#FF5B37] hover:underline"
+              >
+                Get Google API Key &rarr;
+              </a>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowKeyModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-mono text-[#6B6D76] hover:bg-[#F7F6F2] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveKey}
+                  className="px-4 py-2 rounded-xl bg-[#1F2024] text-white text-xs font-mono font-bold hover:bg-black transition-all flex items-center gap-1.5 shadow-soft-sm cursor-pointer"
+                >
+                  {saveSuccess ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-[#10B981]" />
+                      <span>Saved!</span>
+                    </>
+                  ) : (
+                    <span>Save & Apply</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Top Right: Minimal Zoom Controls */}
-      <div className="absolute top-3.5 right-3.5 z-[1000] flex flex-col gap-1.5">
-        <button
-          onClick={handleZoomIn}
-          title="Zoom In"
-          className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
-        >
-          <ZoomIn className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={handleZoomOut}
-          title="Zoom Out"
-          className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
-        >
-          <ZoomOut className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={handleResetBounds}
-          title="Recenter"
-          className="p-2 rounded-xl bg-white/90 backdrop-blur-md border border-[#E8E6DF] text-[#1F2024] hover:text-[#FF5B37] hover:bg-white shadow-sm transition-all cursor-pointer"
-        >
-          <Maximize2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* Bottom Minimal Status Readout */}
-      <div className="absolute bottom-3.5 left-3.5 z-[1000] hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#E8E6DF] font-mono text-[10px] text-[#6B6D76] shadow-sm">
-        <div className="flex items-center gap-1.5 text-[#1F2024] font-medium">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-          <span>HUB: {depot.id}</span>
-        </div>
-        <span className="text-[#E8E6DF]">|</span>
-        <div>STOPS: {deliveries.length}</div>
-        <span className="text-[#E8E6DF]">|</span>
-        <div>ROUTES: {routes.length || 'STANDBY'}</div>
-      </div>
-
-      {/* Leaflet Canvas Container */}
-      <div ref={mapContainerRef} className="w-full h-full min-h-[480px]" />
+      )}
     </div>
   );
 };

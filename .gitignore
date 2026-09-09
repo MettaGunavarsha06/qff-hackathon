@@ -55,3 +55,6 @@ lerna-debug.log*
 *.sw?
 .DS_Store
 Thumbs.db
+
+# Submodules / External Repositories
+qiskit-materials/
