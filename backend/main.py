@@ -264,14 +264,7 @@ def optimize_quantum(req: OptimizationRequestInput):
     if allow_fb is None:
         allow_fb = True
 
-    if len(req.deliveries) > 10 and allow_fb:
-        classical_res = optimize_classical(req)
-        classical_res.solver.notes = (
-            f"Classical Heuristic Baseline: Instance has {len(req.deliveries)} deliveries "
-            f"(exceeds quantum statevector simulation limit of 10 qubits). "
-            f"Optimized via Classical Clarke-Wright + 2-Opt."
-        )
-        return classical_res
+    # Multi-cluster Qiskit QAOA execution handled inside QuantumVRPOptimizer for any dataset size
 
     try:
         _last_optimization_status["status"] = "running"
@@ -352,16 +345,8 @@ def optimize_generic(req: OptimizationRequestInput):
     Unified optimize endpoint with explicit fallback architecture:
     Qiskit quantum optimizer -> fallback Classical baseline if unavailable or problem size exceeds quantum limits.
     """
-    method = (req.optimization_method or "classical").lower()
+    method = (req.optimization_method or "qiskit").lower()
     if method in ("qiskit", "quantum", "qaoa"):
-        if len(req.deliveries) > 10:
-            classical_res = optimize_classical(req)
-            classical_res.solver.notes = (
-                f"Classical Heuristic Baseline: Instance has {len(req.deliveries)} deliveries "
-                f"(exceeds quantum statevector simulation limit of 10 qubits). "
-                f"Optimized via Classical Clarke-Wright + 2-Opt."
-            )
-            return classical_res
         try:
             return optimize_quantum(req)
         except (HTTPException, Exception) as he:

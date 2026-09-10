@@ -73,7 +73,7 @@ export const PerformanceStats: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="w-full py-12 border-y border-[#E8E6DF] grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 select-none"
+      className="w-full py-12 border-y border-[#E8E6DF]/30 grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 select-none"
     >
       {STATS_DATA.map((item, idx) => (
         <div key={item.label} className="space-y-2">

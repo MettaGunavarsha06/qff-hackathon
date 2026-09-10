@@ -14,15 +14,16 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
   children,
   className = '',
   delay = 0,
-  duration = 0.65,
-  distance = 32,
+  duration = 0.7,
+  distance = 40,
   amount = 0.15,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, amount });
+  // Do NOT use once: true - re-triggers animation whenever entering viewport from DOWN or UP
+  const isInView = useInView(ref, { amount, margin: '-10% 0px -10% 0px' });
   const shouldReduceMotion = useReducedMotion();
 
-  // Accessibility: immediately render without motion if user prefers reduced motion
+  // Accessibility: immediately render static layout if user prefers reduced motion
   if (shouldReduceMotion) {
     return <div className={className}>{children}</div>;
   }
@@ -31,14 +32,12 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
     hidden: {
       opacity: 0,
       y: distance,
-      filter: 'blur(6px)',
-      scale: 0.98,
+      filter: 'blur(5px)',
     },
     visible: {
       opacity: 1,
       y: 0,
       filter: 'blur(0px)',
-      scale: 1,
       transition: {
         duration,
         delay,

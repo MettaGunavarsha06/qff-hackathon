@@ -95,11 +95,11 @@ export const OptimizationModal: React.FC<OptimizationModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-gradient-to-tr from-[#FF5B37] to-[#FF4D8D]" />
               <h3 className="font-bold text-sm tracking-wide text-[#1F2024]">
-                {isCompleted ? 'OPTIMIZATION COMPLETE' : 'QUANTUM HYBRID SOLVER'}
+                {isCompleted ? 'OPTIMIZATION COMPLETE' : 'OPTIMIZING ROUTES...'}
               </h3>
             </div>
             <p className="font-mono text-xs text-[#6B6D76]">
-              {isCompleted ? 'Optimal ground-state routes computed' : 'Executing QAOA / Clarke-Wright solver pipeline'}
+              {isCompleted ? 'Optimal dispatch routes computed' : 'Calculating optimal vehicle routes'}
             </p>
           </div>
 

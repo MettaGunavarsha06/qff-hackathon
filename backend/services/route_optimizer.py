@@ -8,7 +8,7 @@ def run_route_optimization(request: OptimizationRequestInput) -> OptimizationRes
     Main dispatching entrypoint with explicit fallback architecture:
     Qiskit/quantum solver -> fallback classical solver if unavailable.
     """
-    method = (request.optimization_method or "classical").lower()
+    method = (request.optimization_method or "qiskit").lower()
 
     if method in ("qiskit", "quantum", "qaoa"):
         try:

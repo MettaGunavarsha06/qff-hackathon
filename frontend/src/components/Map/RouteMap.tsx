@@ -909,11 +909,6 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         </div>
       </div>
 
-      {/* Top Center: Place Search Bar (Nominatim) */}
-      <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-[1001] w-[260px] sm:w-[320px] md:w-[380px]">
-        <SearchBox onSelectPlace={handleSearchResult} />
-      </div>
-
       {/* Top Right: Layer Switcher, Location & Navigation Controls */}
       <div className="absolute top-3.5 right-3.5 z-[1000] flex items-start gap-2">
         <LayerControl

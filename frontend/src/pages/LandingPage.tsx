@@ -120,14 +120,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
             })}
           </div>
 
-          {/* Right Action: Launch Optimizer */}
-          <MotionButton
-            onClick={onLaunchOptimizer}
-            className="btn-primary-gradient !py-2 !px-4 !text-xs font-semibold group cursor-pointer"
-          >
-            <span>Launch Optimizer</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200" />
-          </MotionButton>
+          {/* Right Action: Clean spacing */}
         </nav>
       </motion.header>
 
@@ -220,7 +213,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
       </section>
 
       {/* ─── SECTION 02: THE PROBLEM ─────────────────────────────────────────── */}
-      <section id="problem" className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-[#E8E6DF]">
+      <section id="problem" className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-[#E8E6DF]/30">
         <ScrollReveal className="space-y-12">
           
           <div className="max-w-2xl space-y-3 text-left">
@@ -276,7 +269,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
       </section>
 
       {/* ─── SECTION 03: HOW IT WORKS ────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-[#E8E6DF]">
+      <section id="how-it-works" className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-[#E8E6DF]/30">
         <ScrollReveal className="space-y-12">
           
           <div className="max-w-2xl space-y-3 text-left">
@@ -364,7 +357,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
       </section>
 
       {/* ─── SECTION 04: PERFORMANCE (EDITORIAL STATISTICS) ──────────────────── */}
-      <section id="performance" className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-[#E8E6DF]">
+      <section id="performance" className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-[#E8E6DF]/30">
         <ScrollReveal className="space-y-10 text-left">
           
           <div className="max-w-2xl space-y-3">
@@ -427,7 +420,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
       </section>
 
       {/* ─── MINIMAL EDITORIAL FOOTER ────────────────────────────────────────── */}
-      <footer className="py-12 border-t border-[#E8E6DF] px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[#8E909A]">
+      <footer className="py-12 border-t border-[#E8E6DF]/30 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[#8E909A]">
         <FadeIn direction="none" distance={0} duration={0.6}>
           <div className="flex items-center gap-2">
             <span className="font-bold text-[#111322]">ROUTEQ</span>

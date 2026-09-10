@@ -149,41 +149,91 @@ class QuantumVRPOptimizer:
             raise ValueError("No vehicles provided for quantum optimization.")
 
         num_deliveries = len(self.deliveries)
-        if num_deliveries > MAX_QUANTUM_DELIVERIES:
-            raise ValueError(
-                f"Quantum demonstration currently supports routing instances up to {MAX_QUANTUM_DELIVERIES} deliveries "
-                f"due to qubit statevector simulation space (2^N). Provided: {num_deliveries} deliveries. "
-                f"Please load the Quantum Demo or reduce delivery stops."
-            )
-
-        # 1. Build cost matrix
-        nodes, cost_matrix = build_vrp_cost_matrix(
-            depot=self.depot,
-            deliveries=self.deliveries,
-            objective=self.objective,
-            traffic_level=self.traffic_level,
-            distance_matrix=self.distance_matrix,
-            time_matrix=self.time_matrix,
-            distance_weight=float(getattr(self.request, "distance_weight", 1.0) or 1.0),
-            time_weight=float(getattr(self.request, "time_weight", 1.0) or 1.0),
-            fuel_weight=float(getattr(self.request, "fuel_weight", 1.0) or 1.0),
-            co2_weight=float(getattr(self.request, "co2_weight", 1.0) or 1.0),
-        )
-
-        # 2. Execute genuine Qiskit QAOA Circuit
         shots = 1024
         p_layers = 1
-        qiskit_result: QiskitExecutionResult = execute_qiskit_qaoa_routing(
-            cost_matrix=cost_matrix,
-            shots=shots,
-            p_layers=p_layers,
-            gamma=0.52,
-            beta=0.38,
-        )
 
-        # 3. Map Qiskit optimal sequence back to delivery IDs
-        optimal_perm_indices = qiskit_result.optimal_sequence_indices
-        ordered_delivery_ids = [nodes[idx] for idx in optimal_perm_indices if idx < len(nodes)]
+        if num_deliveries <= MAX_QUANTUM_DELIVERIES:
+            # 1. Build cost matrix for single QAOA circuit
+            nodes, cost_matrix = build_vrp_cost_matrix(
+                depot=self.depot,
+                deliveries=self.deliveries,
+                objective=self.objective,
+                traffic_level=self.traffic_level,
+                distance_matrix=self.distance_matrix,
+                time_matrix=self.time_matrix,
+                distance_weight=float(getattr(self.request, "distance_weight", 1.0) or 1.0),
+                time_weight=float(getattr(self.request, "time_weight", 1.0) or 1.0),
+                fuel_weight=float(getattr(self.request, "fuel_weight", 1.0) or 1.0),
+                co2_weight=float(getattr(self.request, "co2_weight", 1.0) or 1.0),
+            )
+
+            # 2. Execute genuine Qiskit QAOA Circuit on StatevectorSampler / AerSimulator
+            qiskit_result: QiskitExecutionResult = execute_qiskit_qaoa_routing(
+                cost_matrix=cost_matrix,
+                shots=shots,
+                p_layers=p_layers,
+                gamma=0.52,
+                beta=0.38,
+            )
+            optimal_perm_indices = qiskit_result.optimal_sequence_indices
+            ordered_delivery_ids = [nodes[idx] for idx in optimal_perm_indices if idx < len(nodes)]
+        else:
+            # 1. Multi-Cluster QAOA Quantum Circuit Solver for > 10 delivery stops
+            # Partitions stops into sub-clusters of <= 8 stops each, executing Qiskit QAOA circuits per cluster
+            ordered_delivery_ids = []
+            chunk_size = 8
+            delivery_chunks = [self.deliveries[i:i + chunk_size] for i in range(0, num_deliveries, chunk_size)]
+
+            total_qubits = 0
+            total_depth = 0
+            merged_counts: Dict[str, int] = {}
+            last_diagram = ""
+            backend_name = "Qiskit StatevectorSampler (Multi-Cluster QAOA)"
+
+            for chunk in delivery_chunks:
+                nodes_chunk, cost_matrix_chunk = build_vrp_cost_matrix(
+                    depot=self.depot,
+                    deliveries=chunk,
+                    objective=self.objective,
+                    traffic_level=self.traffic_level,
+                    distance_matrix=self.distance_matrix,
+                    time_matrix=self.time_matrix,
+                    distance_weight=float(getattr(self.request, "distance_weight", 1.0) or 1.0),
+                    time_weight=float(getattr(self.request, "time_weight", 1.0) or 1.0),
+                    fuel_weight=float(getattr(self.request, "fuel_weight", 1.0) or 1.0),
+                    co2_weight=float(getattr(self.request, "co2_weight", 1.0) or 1.0),
+                )
+                chunk_res = execute_qiskit_qaoa_routing(
+                    cost_matrix=cost_matrix_chunk,
+                    shots=shots,
+                    p_layers=p_layers,
+                    gamma=0.52,
+                    beta=0.38,
+                )
+                total_qubits += chunk_res.qubits
+                total_depth = max(total_depth, chunk_res.depth)
+                merged_counts.update(chunk_res.counts)
+                last_diagram = chunk_res.circuit_diagram
+                backend_name = chunk_res.backend_name
+
+                chunk_ordered_ids = [nodes_chunk[idx] for idx in chunk_res.optimal_sequence_indices if idx < len(nodes_chunk)]
+                ordered_delivery_ids.extend(chunk_ordered_ids)
+
+            qiskit_result = QiskitExecutionResult(
+                qubits=total_qubits,
+                depth=total_depth,
+                gate_counts={"qaoa_circuit_clusters": len(delivery_chunks)},
+                shots=shots,
+                counts=merged_counts,
+                optimal_bitstring="qaoa_multi_cluster",
+                optimal_sequence_indices=[],
+                gamma=0.52,
+                beta=0.38,
+                p_layers=p_layers,
+                backend_name=backend_name,
+                circuit_diagram=last_diagram,
+                execution_time_seconds=0.0,
+            )
 
         # 4. Multi-Vehicle Fleet Capacity & Stop Partitioning
         num_vehicles = len(self.vehicles)
