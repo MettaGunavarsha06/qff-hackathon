@@ -98,7 +98,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
               { id: 'how-it-works', label: 'How it works' },
               { id: 'performance', label: 'Impact' },
               { id: 'quantum', label: 'Technology' },
-              { id: 'team', label: 'Team 60' },
+              { id: 'team', label: '60Frames' },
             ].map((link) => {
               const isActive = activeSection === link.id;
               return (
@@ -421,7 +421,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
         </ScrollReveal>
       </section>
 
-      {/* ─── SECTION 07: MADE BY TEAM 60 ─────────────────────────────────────── */}
+      {/* ─── SECTION 07: MADE BY 60FRAMES ───────────────────────────────────── */}
       <TeamSection />
 
       {/* ─── MINIMAL EDITORIAL FOOTER ────────────────────────────────────────── */}
@@ -435,7 +435,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
         </FadeIn>
         <FadeIn direction="none" distance={0} duration={0.6} delay={0.1}>
           <div>
-            Made by <span className="font-semibold text-[#111322]">Team 60</span> &bull; Python Qiskit + FastAPI + React 19
+            Made by <span className="font-semibold text-[#111322]">60Frames</span>
           </div>
         </FadeIn>
       </footer>
