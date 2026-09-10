@@ -225,7 +225,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-[#10B981] border border-emerald-200 font-mono text-[10.5px] font-bold tracking-wide">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
-              <span>OPTIMIZED &bull; {optimizationResult.solver_type?.toUpperCase() || 'QISKIT QUBO'}</span>
+              <span>OPTIMIZED &bull; {optimizationResult.solver?.name?.toUpperCase() || optimizationResult.solver_type?.toUpperCase() || 'QISKIT QAOA'}</span>
             </span>
 
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F7F6F2] text-[#6B6D76] border border-[#E8E6DF] font-mono text-[10.5px]">
