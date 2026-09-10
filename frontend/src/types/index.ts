@@ -98,6 +98,7 @@ export interface VehicleRoute {
   co2_emissions_kg: number;
   deliveries_count: number;
   on_time_rate_pct: number;
+  geometry?: [number, number][]; // Street road network coordinates [lat, lng][]
 }
 
 export interface ConvergencePoint {

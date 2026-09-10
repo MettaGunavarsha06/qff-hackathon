@@ -43,6 +43,8 @@ interface ResultsPageProps {
   onRunOptimization?: () => Promise<void>;
   isOptimizing?: boolean;
   optimizationProgress?: OptimizationProgressState;
+  currentObjective?: string;
+  onSelectObjective?: (obj: any) => void;
 }
 
 const smoothEase = [0.22, 1, 0.36, 1] as const;
@@ -67,6 +69,8 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   onRunOptimization,
   isOptimizing = false,
   optimizationProgress,
+  currentObjective = 'balanced',
+  onSelectObjective,
 }) => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedStopModal, setSelectedStopModal] = useState<Delivery | null>(null);
@@ -355,6 +359,42 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             )}
           </div>
         </div>
+
+        {/* Objective Quick Switcher Toolbar */}
+        {onSelectObjective && (
+          <div className="p-3 rounded-2xl bg-white border border-[#E8E6DF] shadow-soft-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 font-mono text-xs font-semibold text-[#1F2024]">
+              <Sparkles className="w-4 h-4 text-[#FF5B37]" />
+              <span>OPTIMIZATION OBJECTIVE:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { id: 'balanced', label: 'Balanced (Multi-Objective)' },
+                { id: 'min_distance', label: 'Min Distance (Tight Loops)' },
+                { id: 'min_travel_time', label: 'Min Travel Time (Zero Late)' },
+                { id: 'min_fuel', label: 'Min Fuel (Mass Shedding)' },
+                { id: 'min_co2', label: 'Min CO₂ (EV First)' },
+              ].map((obj) => {
+                const isActive = (currentObjective || 'balanced').toLowerCase().includes(obj.id.replace('min_', ''));
+                return (
+                  <button
+                    key={obj.id}
+                    onClick={() => onSelectObjective(obj.id)}
+                    disabled={isOptimizing}
+                    className={`px-3 py-1.5 rounded-xl font-mono text-xs font-semibold transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D] text-white shadow-soft'
+                        : 'bg-[#F7F6F2] text-[#6B6D76] hover:text-[#1F2024] hover:bg-[#EAE8E0] border border-[#E8E6DF]'
+                    }`}
+                  >
+                    {isActive && <CheckCircle2 className="w-3.5 h-3.5" />}
+                    <span>{obj.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="h-[480px] sm:h-[540px] rounded-3xl overflow-hidden border border-[#E8E6DF] bg-white shadow-soft relative">
           <RouteMap

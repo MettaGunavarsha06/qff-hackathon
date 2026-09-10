@@ -87,7 +87,20 @@ export const App: React.FC = () => {
   });
   const [isRefreshingTraffic, setIsRefreshingTraffic] = useState<boolean>(false);
 
-  // Staged non-blocking optimization progress (8-15s controlled execution)
+  const [optimizationSettings, setOptimizationSettings] = useState<OptimizationRequest>({
+    depot: DEMO_DEPOT,
+    vehicles: DEMO_VEHICLES,
+    deliveries: DEMO_DELIVERIES,
+    objective: 'balanced',
+    traffic_level: 'moderate',
+    time_window_mode: 'soft',
+    capacity_mode: 'strict',
+    solver_type: 'qiskit',
+    use_live_traffic: false,
+    allow_non_traffic_fallback: true,
+  });
+
+  // Staged non-blocking optimization progress
   const [optimizationProgress, setOptimizationProgress] = useState<OptimizationProgressState>({
     isRunning: false,
     stage: 'Idle',
@@ -114,7 +127,7 @@ export const App: React.FC = () => {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   // Check Backend, Traffic Service & Pre-solve initial routes on mount if not already present
@@ -190,7 +203,7 @@ export const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // Handler: Realistic Staged Optimization Sequence (8–15s, Non-Blocking, Map & Scroll Active)
+  // Handler: Staged Optimization Sequence (Fast & Responsive, Map & Scroll Active)
   const handleRunOptimization = async (req?: OptimizationRequest) => {
     if (isOptimizing) return; // Prevent duplicate concurrent runs
 
@@ -201,33 +214,37 @@ export const App: React.FC = () => {
     // Capture baseline for comparison
     const baselineResult = optimizationResult;
 
-    // Build the request
-    const optimizationReq: OptimizationRequest = req || {
-      depot,
-      vehicles,
-      deliveries,
-      objective: 'balanced',
-      traffic_level: 'moderate',
-      time_window_mode: 'soft',
-      capacity_mode: 'strict',
-      solver_type: 'qiskit',
-      use_live_traffic: false,
-      allow_non_traffic_fallback: true,
+    // Build the request preserving user options
+    const effectiveVehicles = req?.vehicles && req.vehicles.length > 0
+      ? req.vehicles
+      : (optimizationSettings.vehicles && optimizationSettings.vehicles.length > 0 ? optimizationSettings.vehicles : vehicles);
+
+    const optimizationReq: OptimizationRequest = {
+      ...optimizationSettings,
+      ...(req || {}),
+      depot: req?.depot || depot,
+      vehicles: effectiveVehicles,
+      deliveries: req?.deliveries || deliveries,
+      objective: req?.objective || optimizationSettings.objective || 'balanced',
+      traffic_level: req?.traffic_level || optimizationSettings.traffic_level || 'moderate',
+      solver_type: req?.solver_type || optimizationSettings.solver_type || 'qiskit',
+      time_window_mode: req?.time_window_mode || optimizationSettings.time_window_mode || 'soft',
+      capacity_mode: req?.capacity_mode || optimizationSettings.capacity_mode || 'strict',
     };
+
+    setOptimizationSettings(optimizationReq);
 
     const solverLabel =
       optimizationReq.solver_type === 'classical' ? 'Classical Clarke-Wright' : 'Qiskit QAOA';
 
-    // Stages configured to run across ~11.5 seconds total
+    // Fast, responsive progression (~1.8s total)
     const STAGES = [
-      { stage: 'Initializing optimizer...', targetPct: 10, durationMs: 1200 },
-      { stage: 'Loading route data...', targetPct: 20, durationMs: 1200 },
-      { stage: 'Analyzing road network...', targetPct: 35, durationMs: 1400 },
-      { stage: 'Analyzing traffic conditions...', targetPct: 50, durationMs: 1500 },
-      { stage: 'Calculating route alternatives...', targetPct: 65, durationMs: 1600 },
-      { stage: 'Comparing routes...', targetPct: 80, durationMs: 1400 },
-      { stage: 'Optimizing dispatch...', targetPct: 90, durationMs: 1400 },
-      { stage: 'Final validation...', targetPct: 100, durationMs: 1300 },
+      { stage: 'Initializing optimizer...', targetPct: 15, durationMs: 250 },
+      { stage: 'Loading route data...', targetPct: 35, durationMs: 250 },
+      { stage: 'Analyzing road network & traffic...', targetPct: 55, durationMs: 300 },
+      { stage: 'Calculating route alternatives...', targetPct: 75, durationMs: 300 },
+      { stage: 'Optimizing dispatch itineraries...', targetPct: 90, durationMs: 250 },
+      { stage: 'Final validation...', targetPct: 100, durationMs: 200 },
     ];
 
     setOptimizationProgress({
@@ -633,6 +650,13 @@ export const App: React.FC = () => {
                       onRunOptimization={handleRunOptimization}
                       isOptimizing={isOptimizing}
                       optimizationProgress={optimizationProgress}
+                      currentObjective={optimizationSettings.objective || 'balanced'}
+                      onSelectObjective={(newObj) => {
+                        handleRunOptimization({
+                          ...optimizationSettings,
+                          objective: newObj,
+                        });
+                      }}
                     />
                   )}
 

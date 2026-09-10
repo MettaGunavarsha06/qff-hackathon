@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Depot, Delivery, VehicleRoute, Vehicle } from '../../types';
 import { MAP_LAYERS } from '../../config/mapProviders';
-import { calculateDirections } from '../../services/routing';
+import { calculateDirections, calculateMultiStopRoute } from '../../services/routing';
 import type { TravelMode, RouteResult } from '../../services/routing';
 import type { GeocodingResult } from '../../services/geocoding';
 import { LocationButton } from './LocationButton';
@@ -73,6 +73,44 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const [isRouting, setIsRouting] = useState<boolean>(false);
 
   const routes: VehicleRoute[] = optimizationResult?.routes || [];
+  const [roadGeometries, setRoadGeometries] = useState<Record<string, [number, number][]>>({});
+
+  // Asynchronously resolve street/road network geometries for each active vehicle route
+  useEffect(() => {
+    if (!routes || routes.length === 0) return;
+    let isCancelled = false;
+
+    routes.forEach((route) => {
+      // If the route object already has road geometry attached, use it directly
+      if (route.geometry && route.geometry.length > 1) {
+        setRoadGeometries((prev) => ({
+          ...prev,
+          [route.vehicle_id]: route.geometry!,
+        }));
+        return;
+      }
+
+      if (route.waypoints && route.waypoints.length > 1) {
+        const coords = route.waypoints.map((wp) => ({ lat: wp.lat, lng: wp.lng }));
+        calculateMultiStopRoute(coords, 'driving')
+          .then((resolved) => {
+            if (!isCancelled && resolved && resolved.length > 0) {
+              setRoadGeometries((prev) => ({
+                ...prev,
+                [route.vehicle_id]: resolved,
+              }));
+            }
+          })
+          .catch((err) => {
+            console.warn('[RouteMap] Could not resolve road network for', route.vehicle_id, err);
+          });
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [routes]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -550,12 +588,19 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       });
 
       const latLngs = route.waypoints.map((wp) => [wp.lat, wp.lng] as [number, number]);
-      if (latLngs.length > 1) {
+      // Use real road network geometry coordinates following the actual streets
+      const roadCoords = (roadGeometries[route.vehicle_id] && roadGeometries[route.vehicle_id].length > 1)
+        ? roadGeometries[route.vehicle_id]
+        : (route.geometry && route.geometry.length > 1)
+          ? route.geometry
+          : latLngs;
+
+      if (roadCoords.length > 1) {
         if (isAlternative) {
-          const altPolyline = L.polyline(latLngs, {
+          const altPolyline = L.polyline(roadCoords, {
             color: '#94A3B8',
-            weight: 2.2,
-            opacity: 0.38,
+            weight: 2.5,
+            opacity: 0.42,
             dashArray: '6, 8',
             lineCap: 'round',
             lineJoin: 'round',
@@ -572,7 +617,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           });
           group.addLayer(altPolyline);
         } else if (isSelected) {
-          const glowLine = L.polyline(latLngs, {
+          const glowLine = L.polyline(roadCoords, {
             color: '#FF4D8D',
             weight: 9,
             opacity: 0.35,
@@ -581,9 +626,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           });
           group.addLayer(glowLine);
 
-          const coreLine = L.polyline(latLngs, {
+          const coreLine = L.polyline(roadCoords, {
             color: '#FF5B37',
-            weight: 4.5,
+            weight: 4.8,
             opacity: 1.0,
             lineCap: 'round',
             lineJoin: 'round',
@@ -597,19 +642,19 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           `);
           group.addLayer(coreLine);
         } else {
-          const glowLine = L.polyline(latLngs, {
+          const glowLine = L.polyline(roadCoords, {
             color: defaultColor,
             weight: 6,
-            opacity: 0.18,
+            opacity: 0.20,
             lineCap: 'round',
             lineJoin: 'round',
           });
           group.addLayer(glowLine);
 
-          const polyline = L.polyline(latLngs, {
+          const polyline = L.polyline(roadCoords, {
             color: defaultColor,
-            weight: 3.5,
-            opacity: 0.9,
+            weight: 3.8,
+            opacity: 0.92,
             lineCap: 'round',
             lineJoin: 'round',
           });
@@ -626,10 +671,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           group.addLayer(polyline);
         }
 
-        // Truck Vector Marker
-        if (route.waypoints.length > 1) {
-          const midWpIdx = Math.min(route.waypoints.length - 1, Math.max(1, Math.floor(route.waypoints.length / 2)));
-          const truckWp = route.waypoints[midWpIdx];
+        // Truck Vector Marker placed along the road geometry
+        if (roadCoords.length > 1) {
+          const midIdx = Math.min(roadCoords.length - 1, Math.max(1, Math.floor(roadCoords.length / 2)));
+          const truckWp = { lat: roadCoords[midIdx][0], lng: roadCoords[midIdx][1] };
           const strokeColor = isSelected ? '#FF5B37' : (isAlternative ? '#94A3B8' : defaultColor);
 
           const truckIcon = L.divIcon({
@@ -669,7 +714,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           group.addLayer(truckMarker);
         }
 
-        latLngs.forEach((coord) => bounds.extend(coord));
+        roadCoords.forEach((coord) => bounds.extend(coord));
       }
     });
 
