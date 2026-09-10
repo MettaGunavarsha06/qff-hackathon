@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Sparkles, Crown } from 'lucide-react';
+import { Sparkles, Crown } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 import { StaggerContainer, StaggerItem, smoothEase } from './AnimationPrimitives';
 
@@ -9,7 +9,7 @@ export interface TeamMember {
   name: string;
   role: string;
   contribution: string;
-  image?: string | null;
+  image: string;
   isLeader?: boolean;
 }
 
@@ -18,8 +18,8 @@ export const TEAM_MEMBERS: TeamMember[] = [
     id: 'maruthi',
     name: 'G. Maruthi',
     role: 'Team Leader • Research & Integration',
-    contribution: 'Research, system integration, project coordination, and connecting the optimization components with the overall RouteQ application.',
-    image: null,
+    contribution: 'Research, system integration, project coordination, and connecting the optimization components with the RouteQ application.',
+    image: '/team/maruthi.jpg',
     isLeader: true,
   },
   {
@@ -27,35 +27,28 @@ export const TEAM_MEMBERS: TeamMember[] = [
     name: 'Manohar',
     role: 'Frontend & UI',
     contribution: 'Web interface, UI design, user interactions, animations, and route visualization.',
-    image: null,
+    image: '/team/manohar.jpg',
   },
   {
     id: 'ganesh',
     name: 'Y. Ganesh',
     role: 'Backend & API',
     contribution: 'Backend services, API development, optimizer integration, data processing, and communication between the frontend and optimization engine.',
-    image: null,
+    image: '/team/ganesh.jpg',
   },
   {
     id: 'gunavarsha',
     name: 'M. Gunavarsha',
     role: 'Quantum Optimization',
     contribution: 'Qiskit integration, QAOA implementation, quantum optimization workflow, and quantum-inspired routing logic.',
-    image: null,
+    image: '/team/gunavarsha.jpg',
   },
   {
     id: 'charan',
     name: 'M. Charan Prasad',
     role: 'Bug Testing & Quality Assurance',
-    contribution: 'Testing the application, identifying bugs, validating functionality, checking optimization behavior, and helping ensure the application works reliably.',
-    image: null,
-  },
-  {
-    id: 'ajay',
-    name: 'L. Ajay Kumar',
-    role: 'Bug Testing & Quality Assurance',
-    contribution: 'Application testing, bug identification, UI/functionality verification, edge-case testing, and final quality checks.',
-    image: null,
+    contribution: 'Application testing, bug identification, functionality validation, optimization testing, and reliability checks.',
+    image: '/team/charan.jpg',
   },
 ];
 
@@ -126,43 +119,20 @@ const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
       >
         {/* Team Leader Badge */}
         {member.isLeader && (
-          <div className="absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D] text-white text-[10px] font-mono font-bold tracking-wider uppercase shadow-sm">
+          <div className="absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D] text-white text-[10px] font-mono font-bold tracking-wider uppercase shadow-md">
             <Crown className="w-3 h-3 text-white" />
             <span>TEAM LEADER</span>
           </div>
         )}
 
-        {/* Photo Container / Placeholder */}
+        {/* Photo Container */}
         <div className="space-y-4">
-          <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gradient-to-br from-[#F7F6F2] via-[#E8E6DF]/40 to-[#FF5B37]/5 border border-[#E8E6DF] flex items-center justify-center">
-            {member.image ? (
-              <img
-                src={member.image}
-                alt={member.name}
-                className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.05]"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-2 p-4 text-center select-none">
-                <div
-                  className={`w-12 h-12 rounded-2xl bg-white border shadow-soft-sm flex items-center justify-center transition-all duration-300 ${
-                    isHovered
-                      ? 'text-[#FF5B37] border-[#FF5B37]/40 scale-[1.05]'
-                      : member.isLeader
-                      ? 'text-[#FF5B37] border-[#FF5B37]/30'
-                      : 'text-[#8E909A] border-[#E8E6DF]'
-                  }`}
-                >
-                  <User className="w-6 h-6" />
-                </div>
-                <span
-                  className={`text-[10.5px] font-mono font-semibold uppercase tracking-wider transition-colors duration-300 ${
-                    isHovered ? 'text-[#FF5B37]' : 'text-[#8E909A]'
-                  }`}
-                >
-                  PHOTO PLACEHOLDER
-                </span>
-              </div>
-            )}
+          <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden bg-[#F7F6F2] border border-[#E8E6DF] flex items-center justify-center">
+            <img
+              src={member.image}
+              alt={member.name}
+              className="w-full h-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-[1.05]"
+            />
           </div>
 
           {/* Member Information */}
@@ -223,9 +193,9 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ members = TEAM_MEMBERS
           </p>
         </ScrollReveal>
 
-        {/* ─── 2. 3 × 2 RESPONSIVE TEAM CARDS GRID (STAGGERED ANIMATION) ───────── */}
+        {/* ─── 2. RESPONSIVE TEAM CARDS GRID (STAGGERED ANIMATION) ───────── */}
         <StaggerContainer
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 sm:gap-6"
           staggerDelay={0.1}
           viewportOnce={false}
           viewportAmount={0.12}
