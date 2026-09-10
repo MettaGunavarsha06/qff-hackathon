@@ -14,6 +14,7 @@ import { ScrollReveal } from '../components/Landing/ScrollReveal';
 import { ProblemNetwork } from '../components/Landing/ProblemNetwork';
 import { PerformanceStats } from '../components/Landing/PerformanceStats';
 import { QuantumWorkflow } from '../components/Landing/QuantumWorkflow';
+import { TeamSection } from '../components/Landing/TeamSection';
 import {
   AnimatedHeading,
   FadeIn,
@@ -34,7 +35,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
 
   // Active section indication for navbar on scroll
   useEffect(() => {
-    const sectionIds = ['problem', 'how-it-works', 'performance', 'quantum'];
+    const sectionIds = ['problem', 'how-it-works', 'performance', 'quantum', 'team'];
     const handleScroll = () => {
       const scrollPosition = window.scrollY + 220;
       for (let i = sectionIds.length - 1; i >= 0; i--) {
@@ -97,6 +98,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
               { id: 'how-it-works', label: 'How it works' },
               { id: 'performance', label: 'Impact' },
               { id: 'quantum', label: 'Technology' },
+              { id: 'team', label: 'Team 60' },
             ].map((link) => {
               const isActive = activeSection === link.id;
               return (
@@ -419,18 +421,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
         </ScrollReveal>
       </section>
 
+      {/* ─── SECTION 07: MADE BY TEAM 60 ─────────────────────────────────────── */}
+      <TeamSection />
+
       {/* ─── MINIMAL EDITORIAL FOOTER ────────────────────────────────────────── */}
       <footer className="py-12 border-t border-[#E8E6DF]/30 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[#8E909A]">
         <FadeIn direction="none" distance={0} duration={0.6}>
           <div className="flex items-center gap-2">
             <span className="font-bold text-[#111322]">ROUTEQ</span>
             <span>&bull;</span>
-            <span>Python Qiskit 2.5 + FastAPI + React 19</span>
+            <span>Intelligent Last-Mile Delivery & Vehicle Routing</span>
           </div>
         </FadeIn>
         <FadeIn direction="none" distance={0} duration={0.6} delay={0.1}>
           <div>
-            Hackathon Use Case 04 &bull; Last-Mile Vehicle Routing Optimization
+            Made by <span className="font-semibold text-[#111322]">Team 60</span> &bull; Python Qiskit + FastAPI + React 19
           </div>
         </FadeIn>
       </footer>
