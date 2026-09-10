@@ -79,19 +79,19 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
     }
   });
 
-  // Per-member photo fine-tuning states (Scale, Position X, Position Y)
-  const [photoScale, setPhotoScale] = useState<number>(() => {
+  // Per-member photo fine-tuning states (Zoom: 0.5x -> 2.0x, default 1.0x)
+  const [zoom, setZoom] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`routeq_scale_${member.id}`);
-      return saved ? Number(saved) : 110;
+      const saved = localStorage.getItem(`routeq_zoom_${member.id}`);
+      return saved ? Number(saved) : 1.0;
     } catch {
-      return 110;
+      return 1.0;
     }
   });
 
   const [offsetX, setOffsetX] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`routeq_offset_x_${member.id}`);
+      const saved = localStorage.getItem(`routeq_shift_x_${member.id}`);
       return saved ? Number(saved) : 0;
     } catch {
       return 0;
@@ -100,7 +100,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
 
   const [offsetY, setOffsetY] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`routeq_offset_y_${member.id}`);
+      const saved = localStorage.getItem(`routeq_shift_y_${member.id}`);
       return saved ? Number(saved) : 0;
     } catch {
       return 0;
@@ -145,8 +145,15 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
       const result = event.target?.result as string;
       if (result) {
         setCurrentImage(result);
+        // Reset zoom & shift when a new photo is uploaded so the FULL photo is visible
+        setZoom(1.0);
+        setOffsetX(0);
+        setOffsetY(0);
         try {
           localStorage.setItem(`routeq_photo_${member.id}`, result);
+          localStorage.setItem(`routeq_zoom_${member.id}`, '1.0');
+          localStorage.setItem(`routeq_shift_x_${member.id}`, '0');
+          localStorage.setItem(`routeq_shift_y_${member.id}`, '0');
         } catch (err) {
           console.warn('[RouteQ Team] Could not persist uploaded image to localStorage:', err);
         }
@@ -155,16 +162,16 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
     reader.readAsDataURL(file);
   };
 
-  // Reset photo zoom and position to default
+  // Reset photo zoom and position to default (Full Original Photo Visible)
   const handleResetControls = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setPhotoScale(110);
+    setZoom(1.0);
     setOffsetX(0);
     setOffsetY(0);
     try {
-      localStorage.removeItem(`routeq_scale_${member.id}`);
-      localStorage.removeItem(`routeq_offset_x_${member.id}`);
-      localStorage.removeItem(`routeq_offset_y_${member.id}`);
+      localStorage.removeItem(`routeq_zoom_${member.id}`);
+      localStorage.removeItem(`routeq_shift_x_${member.id}`);
+      localStorage.removeItem(`routeq_shift_y_${member.id}`);
     } catch {
       // ignore
     }
@@ -213,15 +220,15 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
         )}
 
         <div className="space-y-3">
-          {/* Photo Frame Container (Strictly Fixed Height & Clipped Overflow) */}
+          {/* Photo Frame Container (Fixed Compact Viewport & Clipped Overflow) */}
           <div className="relative w-full h-40 sm:h-44 rounded-xl overflow-hidden bg-[#F7F6F2] border border-[#E8E6DF] flex items-center justify-center">
             <img
               src={currentImage}
               alt={member.name}
               style={{
-                transform: `scale(${isHovered ? (photoScale / 100) * 1.04 : photoScale / 100}) translate(${offsetX}px, ${offsetY}px)`,
+                transform: `translate(${offsetX}px, ${offsetY}px) scale(${isHovered ? zoom * 1.03 : zoom})`,
               }}
-              className="w-full h-full object-cover object-top transition-transform duration-300 ease-out"
+              className="max-w-full max-h-full object-contain transition-transform duration-300 ease-out"
             />
 
             {/* In Edit Mode: Overlay Upload / Change Photo Button inside photo container */}
@@ -273,31 +280,31 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
             onClick={(e) => e.stopPropagation()}
             className="pt-3 mt-3 border-t border-[#E8E6DF] space-y-2 text-[10px] font-mono text-[#8E909A] select-none animate-in fade-in duration-200"
           >
-            {/* Scale Control */}
+            {/* Zoom Slider Control (0.5x -> 2.0x, Default 1.0x) */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 text-[#6B6D76]">
                 <ZoomIn className="w-3 h-3 text-[#FF5B37]" />
-                <span>Zoom Scale</span>
+                <span>Zoom</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <input
                   type="range"
-                  min="100"
-                  max="150"
-                  step="1"
-                  value={photoScale}
+                  min="0.5"
+                  max="2.0"
+                  step="0.05"
+                  value={zoom}
                   onChange={(e) => {
                     const val = Number(e.target.value);
-                    setPhotoScale(val);
-                    try { localStorage.setItem(`routeq_scale_${member.id}`, String(val)); } catch {}
+                    setZoom(val);
+                    try { localStorage.setItem(`routeq_zoom_${member.id}`, String(val)); } catch {}
                   }}
                   className="w-16 h-1 bg-[#E8E6DF] accent-[#FF5B37] rounded-lg cursor-pointer"
                 />
-                <span className="w-7 text-right font-semibold text-[#FF5B37]">{photoScale}%</span>
+                <span className="w-8 text-right font-semibold text-[#FF5B37]">{zoom.toFixed(2)}x</span>
               </div>
             </div>
 
-            {/* Horizontal Position X Control */}
+            {/* Shift X Control (-100px -> +100px) */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 text-[#6B6D76]">
                 <MoveHorizontal className="w-3 h-3 text-[#FF5B37]" />
@@ -306,22 +313,22 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
               <div className="flex items-center gap-1.5">
                 <input
                   type="range"
-                  min="-40"
-                  max="40"
+                  min="-100"
+                  max="100"
                   step="1"
                   value={offsetX}
                   onChange={(e) => {
                     const val = Number(e.target.value);
                     setOffsetX(val);
-                    try { localStorage.setItem(`routeq_offset_x_${member.id}`, String(val)); } catch {}
+                    try { localStorage.setItem(`routeq_shift_x_${member.id}`, String(val)); } catch {}
                   }}
                   className="w-16 h-1 bg-[#E8E6DF] accent-[#FF5B37] rounded-lg cursor-pointer"
                 />
-                <span className="w-7 text-right font-semibold text-[#FF5B37]">{offsetX}px</span>
+                <span className="w-8 text-right font-semibold text-[#FF5B37]">{offsetX}px</span>
               </div>
             </div>
 
-            {/* Vertical Position Y Control */}
+            {/* Shift Y Control (-100px -> +100px) */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 text-[#6B6D76]">
                 <MoveVertical className="w-3 h-3 text-[#FF5B37]" />
@@ -330,18 +337,18 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
               <div className="flex items-center gap-1.5">
                 <input
                   type="range"
-                  min="-40"
-                  max="40"
+                  min="-100"
+                  max="100"
                   step="1"
                   value={offsetY}
                   onChange={(e) => {
                     const val = Number(e.target.value);
                     setOffsetY(val);
-                    try { localStorage.setItem(`routeq_offset_y_${member.id}`, String(val)); } catch {}
+                    try { localStorage.setItem(`routeq_shift_y_${member.id}`, String(val)); } catch {}
                   }}
                   className="w-16 h-1 bg-[#E8E6DF] accent-[#FF5B37] rounded-lg cursor-pointer"
                 />
-                <span className="w-7 text-right font-semibold text-[#FF5B37]">{offsetY}px</span>
+                <span className="w-8 text-right font-semibold text-[#FF5B37]">{offsetY}px</span>
               </div>
             </div>
 
