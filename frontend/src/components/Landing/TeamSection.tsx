@@ -180,7 +180,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
 
   return (
     <div style={{ perspective: 1000 }} className="h-full">
-      {/* Hidden File Picker Input */}
+      {/* Hidden File Picker Input (Active only in internal edit mode) */}
       <input
         ref={fileInputRef}
         type="file"
@@ -233,7 +233,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
               className="max-w-full max-h-full object-contain transition-transform duration-300 ease-out"
             />
 
-            {/* In Edit Mode: Overlay Upload / Change Photo Button inside photo container */}
+            {/* In Internal Edit Mode: Overlay Upload / Change Photo Button */}
             {isEditMode && (
               <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 p-3 opacity-90 transition-opacity">
                 <button
@@ -286,13 +286,13 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
           </motion.div>
         </div>
 
-        {/* Photo Edit Controls (Visible ONLY in Edit Mode to keep normal cards clean & compact) */}
+        {/* Internal Photo Edit Controls (Active ONLY when internal edit mode is enabled) */}
         {isEditMode && (
           <div
             onClick={(e) => e.stopPropagation()}
             className="pt-3 mt-3 border-t border-[#E8E6DF] space-y-2 text-[10px] font-mono text-[#8E909A] select-none animate-in fade-in duration-200"
           >
-            {/* Zoom Slider Control (0.5x -> 2.0x, Default 1.0x) */}
+            {/* Zoom Slider Control */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 text-[#6B6D76]">
                 <ZoomIn className="w-3 h-3 text-[#FF5B37]" />
@@ -316,7 +316,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
               </div>
             </div>
 
-            {/* Shift X Control (-100px -> +100px) */}
+            {/* Shift X Control */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 text-[#6B6D76]">
                 <MoveHorizontal className="w-3 h-3 text-[#FF5B37]" />
@@ -340,7 +340,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
               </div>
             </div>
 
-            {/* Shift Y Control (-100px -> +100px) */}
+            {/* Shift Y Control */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 text-[#6B6D76]">
                 <MoveVertical className="w-3 h-3 text-[#FF5B37]" />
@@ -386,33 +386,37 @@ interface TeamSectionProps {
 }
 
 export const TeamSection: React.FC<TeamSectionProps> = ({ members = TEAM_MEMBERS }) => {
-  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  // Internal edit mode (hidden from visible UI; accessible via ?editPhotos=true or Shift+E)
+  const [isEditMode, setIsEditMode] = useState<boolean>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('editPhotos') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Secret internal shortcut for team: Pressing Shift + E toggles edit controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+        if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+        setIsEditMode((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <section id="team" className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto border-t border-[#E8E6DF]/30">
       <div className="space-y-12">
         
-        {/* ─── 1. SECTION HEADER (SCROLL REVEAL BLUR-TO-CLEAR & EDIT TOGGLE) ──── */}
+        {/* ─── 1. SECTION HEADER (CLEAN FINAL PRESENTATION MODE) ──────────────── */}
         <ScrollReveal className="text-center space-y-4 max-w-2xl mx-auto" distance={40} duration={0.7}>
-          <div className="flex items-center justify-center gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#E8E6DF] text-[11px] font-mono text-[#FF5B37] shadow-soft-sm">
-              <Sparkles className="w-3 h-3" />
-              <span className="font-semibold uppercase tracking-wider">PROJECT CREDITS</span>
-            </div>
-
-            {/* Edit Photos Mode Toggle Button */}
-            <button
-              onClick={() => setIsEditMode(!isEditMode)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold transition-all duration-200 cursor-pointer shadow-soft-sm ${
-                isEditMode
-                  ? 'bg-[#111322] text-white border border-[#111322]'
-                  : 'bg-white text-[#FF5B37] border border-[#E8E6DF] hover:border-[#FF5B37]/40'
-              }`}
-              title="Toggle Photo Upload & Position Fine-Tuning Controls"
-            >
-              <Sliders className="w-3 h-3" />
-              <span>{isEditMode ? 'Done Editing' : 'Edit Photos'}</span>
-            </button>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-[#E8E6DF] text-[11px] font-mono text-[#FF5B37] shadow-soft-sm">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="font-semibold uppercase tracking-wider">PROJECT CREDITS</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#111322] leading-tight font-sans">
