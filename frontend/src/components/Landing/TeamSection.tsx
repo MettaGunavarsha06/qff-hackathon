@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Crown, Upload, Sliders, RotateCcw, ZoomIn, MoveHorizontal, MoveVertical } from 'lucide-react';
+import { Sparkles, Crown, Upload, Sliders, RotateCcw, ZoomIn, MoveHorizontal, MoveVertical, RefreshCw } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 import { StaggerContainer, StaggerItem, smoothEase } from './AnimationPrimitives';
 
@@ -69,7 +69,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
   const [rotateY, setRotateY] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Per-member photo URL state (supports direct upload DataURL or disk path)
+  // Per-member photo URL state (supports direct upload DataURL or default disk path)
   const [currentImage, setCurrentImage] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(`routeq_photo_${member.id}`);
@@ -145,7 +145,6 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
       const result = event.target?.result as string;
       if (result) {
         setCurrentImage(result);
-        // Reset zoom & shift when a new photo is uploaded so the FULL photo is visible
         setZoom(1.0);
         setOffsetX(0);
         setOffsetY(0);
@@ -162,13 +161,15 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
     reader.readAsDataURL(file);
   };
 
-  // Reset photo zoom and position to default (Full Original Photo Visible)
+  // Reset photo zoom, position, and image to default original
   const handleResetControls = (e: React.MouseEvent) => {
     e.stopPropagation();
     setZoom(1.0);
     setOffsetX(0);
     setOffsetY(0);
+    setCurrentImage(member.image);
     try {
+      localStorage.removeItem(`routeq_photo_${member.id}`);
       localStorage.removeItem(`routeq_zoom_${member.id}`);
       localStorage.removeItem(`routeq_shift_x_${member.id}`);
       localStorage.removeItem(`routeq_shift_y_${member.id}`);
@@ -225,6 +226,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
             <img
               src={currentImage}
               alt={member.name}
+              onError={() => setCurrentImage(member.image)}
               style={{
                 transform: `translate(${offsetX}px, ${offsetY}px) scale(${isHovered ? zoom * 1.03 : zoom})`,
               }}
@@ -233,7 +235,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
 
             {/* In Edit Mode: Overlay Upload / Change Photo Button inside photo container */}
             {isEditMode && (
-              <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center p-3 opacity-90 transition-opacity">
+              <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 p-3 opacity-90 transition-opacity">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -244,6 +246,16 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
                   <Upload className="w-3 h-3" />
                   <span>{currentImage !== member.image ? 'Change Photo' : 'Upload Photo'}</span>
                 </button>
+
+                {currentImage !== member.image && (
+                  <button
+                    onClick={handleResetControls}
+                    className="px-2.5 py-1 rounded-md bg-white/80 text-[#6B6D76] text-[10px] font-mono font-semibold hover:bg-white hover:text-[#111322] transition-colors shadow-sm flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    <span>Restore Original</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -359,7 +371,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#F7F6F2] hover:bg-[#E8E6DF] text-[#6B6D76] hover:text-[#111322] text-[9.5px] font-mono transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-2.5 h-2.5" />
-                <span>Reset</span>
+                <span>Reset All</span>
               </button>
             </div>
           </div>
