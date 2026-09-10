@@ -566,13 +566,26 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       { color: string; seq: number; vehicleName: string; vehicleId: string; isLate: boolean; arrival: string }
     > = {};
 
+    // Stable, visually distinct per-vehicle color palette
+    // Ordered so that even the first 5 routes are immediately distinguishable at a glance.
+    const ROUTE_PALETTE = [
+      '#2E8B57', // Route 1 – Forest Green
+      '#2563EB', // Route 2 – Royal Blue
+      '#DC2626', // Route 3 – Vivid Red
+      '#F59E0B', // Route 4 – Amber Orange
+      '#7C3AED', // Route 5 – Deep Purple
+      '#0891B2', // Route 6 – Cyan Teal
+      '#D97706', // Route 7 – Warm Gold
+      '#DB2777', // Route 8 – Hot Pink
+    ];
+
     // Render Routes
     routes.forEach((route, rIdx) => {
       const isSelected = selectedVehicleId ? route.vehicle_id === selectedVehicleId : false;
       const isAlternative = selectedVehicleId ? route.vehicle_id !== selectedVehicleId : false;
 
-      const palette = ['#FF5B37', '#FF4D8D', '#3B82F6', '#10B981', '#F59E0B'];
-      const defaultColor = route.color || palette[rIdx % palette.length];
+      // Stable index-based color — never random, never shifts on re-render
+      const defaultColor = route.color || ROUTE_PALETTE[rIdx % ROUTE_PALETTE.length];
 
       route.waypoints.forEach((wp) => {
         if (!wp.is_depot) {
@@ -617,25 +630,26 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           });
           group.addLayer(altPolyline);
         } else if (isSelected) {
+          // Glow halo uses the vehicle's own color so it stays consistent
           const glowLine = L.polyline(roadCoords, {
-            color: '#FF4D8D',
-            weight: 9,
-            opacity: 0.35,
+            color: defaultColor,
+            weight: 10,
+            opacity: 0.30,
             lineCap: 'round',
             lineJoin: 'round',
           });
           group.addLayer(glowLine);
 
           const coreLine = L.polyline(roadCoords, {
-            color: '#FF5B37',
-            weight: 4.8,
+            color: defaultColor,
+            weight: 5,
             opacity: 1.0,
             lineCap: 'round',
             lineJoin: 'round',
           });
           coreLine.bindPopup(`
             <div style="padding: 4px 2px; font-family: 'Manrope', sans-serif;">
-              <div style="font-weight: 700; color: #FF5B37; font-size: 13px;">${route.vehicle_name} (Active Focus)</div>
+              <div style="font-weight: 700; color: ${defaultColor}; font-size: 13px;">${route.vehicle_name} (Active Focus)</div>
               <div style="font-size: 11px; color: #6B6D76; margin-top: 3px; font-family: 'IBM Plex Mono';">STOPS: ${route.deliveries_count} | DIST: ${route.total_distance_km.toFixed(1)} km</div>
               <div style="font-size: 11px; color: #6B6D76; font-family: 'IBM Plex Mono';">TIME: ${Math.round(route.total_time_mins)} mins | FUEL: ${route.fuel_consumed_l.toFixed(1)} L</div>
             </div>
