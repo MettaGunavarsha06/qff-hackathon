@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Sparkles, Crown } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
@@ -59,6 +59,142 @@ export const TEAM_MEMBERS: TeamMember[] = [
   },
 ];
 
+interface TeamCardProps {
+  member: TeamMember;
+}
+
+const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
+  const [rotateX, setRotateX] = useState(0);
+  const [rotateY, setRotateY] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Disable 3D tilt on touch/mobile devices
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    if (!cardRef.current) return;
+
+    const rect = cardRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const mouseX = e.clientX - centerX;
+    const mouseY = e.clientY - centerY;
+
+    // Subtle 3D tilt max ±3deg
+    const rY = (mouseX / (rect.width / 2)) * 3;
+    const rX = -(mouseY / (rect.height / 2)) * 3;
+
+    setRotateX(rX);
+    setRotateY(rY);
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setRotateX(0);
+    setRotateY(0);
+  };
+
+  return (
+    <div style={{ perspective: 1000 }}>
+      <motion.div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        animate={{
+          y: isHovered ? -12 : 0,
+          scale: isHovered ? 1.02 : 1,
+          rotateX: isHovered ? rotateX : 0,
+          rotateY: isHovered ? rotateY : 0,
+        }}
+        transition={{
+          duration: 0.35,
+          ease: smoothEase,
+        }}
+        className={`group relative bg-white border rounded-3xl p-5 transition-shadow duration-300 flex flex-col justify-between h-full cursor-pointer ${
+          isHovered
+            ? 'shadow-[0_20px_45px_rgba(0,0,0,0.12)] border-[#FF5B37]/50'
+            : member.isLeader
+            ? 'border-[#FF5B37]/40 ring-1 ring-[#FF5B37]/20 shadow-md'
+            : 'border-[#E8E6DF] shadow-soft'
+        }`}
+      >
+        {/* Team Leader Badge */}
+        {member.isLeader && (
+          <div className="absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D] text-white text-[10px] font-mono font-bold tracking-wider uppercase shadow-sm">
+            <Crown className="w-3 h-3 text-white" />
+            <span>TEAM LEADER</span>
+          </div>
+        )}
+
+        {/* Photo Container / Placeholder */}
+        <div className="space-y-4">
+          <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gradient-to-br from-[#F7F6F2] via-[#E8E6DF]/40 to-[#FF5B37]/5 border border-[#E8E6DF] flex items-center justify-center">
+            {member.image ? (
+              <img
+                src={member.image}
+                alt={member.name}
+                className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.05]"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 p-4 text-center select-none">
+                <div
+                  className={`w-12 h-12 rounded-2xl bg-white border shadow-soft-sm flex items-center justify-center transition-all duration-300 ${
+                    isHovered
+                      ? 'text-[#FF5B37] border-[#FF5B37]/40 scale-[1.05]'
+                      : member.isLeader
+                      ? 'text-[#FF5B37] border-[#FF5B37]/30'
+                      : 'text-[#8E909A] border-[#E8E6DF]'
+                  }`}
+                >
+                  <User className="w-6 h-6" />
+                </div>
+                <span
+                  className={`text-[10.5px] font-mono font-semibold uppercase tracking-wider transition-colors duration-300 ${
+                    isHovered ? 'text-[#FF5B37]' : 'text-[#8E909A]'
+                  }`}
+                >
+                  PHOTO PLACEHOLDER
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Member Information */}
+          <motion.div
+            animate={{ y: isHovered ? -2 : 0 }}
+            transition={{ duration: 0.3, ease: smoothEase }}
+            className="space-y-1"
+          >
+            <h3 className="font-semibold text-base sm:text-lg text-[#111322] group-hover:text-[#FF5B37] transition-colors duration-200">
+              {member.name}
+            </h3>
+            <div className="text-xs font-mono font-semibold text-[#FF5B37]">
+              {member.role}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Contribution Description */}
+        <motion.div
+          animate={{ y: isHovered ? -2 : 0 }}
+          transition={{ duration: 0.3, ease: smoothEase }}
+          className="pt-4 mt-4 border-t border-[#E8E6DF]/60"
+        >
+          <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
+            {member.contribution}
+          </p>
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+};
+
 interface TeamSectionProps {
   members?: TeamMember[];
 }
@@ -96,65 +232,7 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ members = TEAM_MEMBERS
         >
           {members.map((member) => (
             <StaggerItem key={member.id} distance={40} duration={0.7}>
-              <motion.div
-                whileHover={{ y: -4, transition: { duration: 0.25, ease: smoothEase } }}
-                className={`group relative bg-white border rounded-3xl p-5 shadow-soft hover:shadow-xl transition-all duration-300 flex flex-col justify-between h-full ${
-                  member.isLeader
-                    ? 'border-[#FF5B37]/40 ring-1 ring-[#FF5B37]/20 shadow-md'
-                    : 'border-[#E8E6DF] hover:border-[#FF5B37]/30'
-                }`}
-              >
-                {/* Team Leader Badge */}
-                {member.isLeader && (
-                  <div className="absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#FF5B37] to-[#FF4D8D] text-white text-[10px] font-mono font-bold tracking-wider uppercase shadow-sm">
-                    <Crown className="w-3 h-3 text-white" />
-                    <span>TEAM LEADER</span>
-                  </div>
-                )}
-
-                {/* Photo Container / Placeholder */}
-                <div className="space-y-4">
-                  <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gradient-to-br from-[#F7F6F2] via-[#E8E6DF]/40 to-[#FF5B37]/5 border border-[#E8E6DF] flex items-center justify-center">
-                    {member.image ? (
-                      <img
-                        src={member.image}
-                        alt={member.name}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center gap-2 p-4 text-center select-none">
-                        <div className={`w-12 h-12 rounded-2xl bg-white border shadow-soft-sm flex items-center justify-center transition-colors duration-300 ${
-                          member.isLeader
-                            ? 'text-[#FF5B37] border-[#FF5B37]/30'
-                            : 'text-[#8E909A] border-[#E8E6DF] group-hover:text-[#FF5B37] group-hover:border-[#FF5B37]/30'
-                        }`}>
-                          <User className="w-6 h-6" />
-                        </div>
-                        <span className="text-[10.5px] font-mono font-semibold uppercase tracking-wider text-[#8E909A] group-hover:text-[#6B6D76] transition-colors duration-300">
-                          PHOTO PLACEHOLDER
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Member Information */}
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-base sm:text-lg text-[#111322] group-hover:text-[#FF5B37] transition-colors duration-200">
-                      {member.name}
-                    </h3>
-                    <div className="text-xs font-mono font-semibold text-[#FF5B37]">
-                      {member.role}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contribution Description */}
-                <div className="pt-4 mt-4 border-t border-[#E8E6DF]/60">
-                  <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
-                    {member.contribution}
-                  </p>
-                </div>
-              </motion.div>
+              <TeamCard member={member} />
             </StaggerItem>
           ))}
         </StaggerContainer>
