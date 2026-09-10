@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Crown, ZoomIn } from 'lucide-react';
+import { Sparkles, Crown, Upload, Sliders, RotateCcw, ZoomIn, MoveHorizontal, MoveVertical } from 'lucide-react';
 import { ScrollReveal } from './ScrollReveal';
 import { StaggerContainer, StaggerItem, smoothEase } from './AnimationPrimitives';
 
@@ -61,12 +61,25 @@ export const TEAM_MEMBERS: TeamMember[] = [
 
 interface TeamCardProps {
   member: TeamMember;
+  isEditMode: boolean;
 }
 
-const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
+const TeamCard: React.FC<TeamCardProps> = ({ member, isEditMode }) => {
   const [rotateX, setRotateX] = useState(0);
   const [rotateY, setRotateY] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+
+  // Per-member photo URL state (supports direct upload DataURL or disk path)
+  const [currentImage, setCurrentImage] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(`routeq_photo_${member.id}`);
+      return saved || member.image;
+    } catch {
+      return member.image;
+    }
+  });
+
+  // Per-member photo fine-tuning states (Scale, Position X, Position Y)
   const [photoScale, setPhotoScale] = useState<number>(() => {
     try {
       const saved = localStorage.getItem(`routeq_scale_${member.id}`);
@@ -76,10 +89,28 @@ const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
     }
   });
 
+  const [offsetX, setOffsetX] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`routeq_offset_x_${member.id}`);
+      return saved ? Number(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const [offsetY, setOffsetY] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`routeq_offset_y_${member.id}`);
+      return saved ? Number(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
   const cardRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Disable 3D tilt on touch/mobile devices
     if (window.matchMedia('(pointer: coarse)').matches) return;
     if (!cardRef.current) return;
 
@@ -90,7 +121,6 @@ const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
     const mouseX = e.clientX - centerX;
     const mouseY = e.clientY - centerY;
 
-    // Subtle 3D tilt max ±3deg
     const rY = (mouseX / (rect.width / 2)) * 3;
     const rX = -(mouseY / (rect.height / 2)) * 3;
 
@@ -98,22 +128,43 @@ const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
     setRotateY(rY);
   };
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
-
+  const handleMouseEnter = () => setIsHovered(true);
   const handleMouseLeave = () => {
     setIsHovered(false);
     setRotateX(0);
     setRotateY(0);
   };
 
-  const handleScaleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Direct Computer File Upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setCurrentImage(result);
+        try {
+          localStorage.setItem(`routeq_photo_${member.id}`, result);
+        } catch (err) {
+          console.warn('[RouteQ Team] Could not persist uploaded image to localStorage:', err);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Reset photo zoom and position to default
+  const handleResetControls = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const val = Number(e.target.value);
-    setPhotoScale(val);
+    setPhotoScale(110);
+    setOffsetX(0);
+    setOffsetY(0);
     try {
-      localStorage.setItem(`routeq_scale_${member.id}`, String(val));
+      localStorage.removeItem(`routeq_scale_${member.id}`);
+      localStorage.removeItem(`routeq_offset_x_${member.id}`);
+      localStorage.removeItem(`routeq_offset_y_${member.id}`);
     } catch {
       // ignore
     }
@@ -121,6 +172,15 @@ const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
 
   return (
     <div style={{ perspective: 1000 }} className="h-full">
+      {/* Hidden File Picker Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
       <motion.div
         ref={cardRef}
         onMouseMove={handleMouseMove}
@@ -153,16 +213,32 @@ const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
         )}
 
         <div className="space-y-3">
-          {/* Photo Frame Container (Fixed Compact Aspect & Clipped Overflow) */}
+          {/* Photo Frame Container (Strictly Fixed Height & Clipped Overflow) */}
           <div className="relative w-full h-40 sm:h-44 rounded-xl overflow-hidden bg-[#F7F6F2] border border-[#E8E6DF] flex items-center justify-center">
             <img
-              src={member.image}
+              src={currentImage}
               alt={member.name}
               style={{
-                transform: `scale(${isHovered ? (photoScale / 100) * 1.04 : photoScale / 100})`,
+                transform: `scale(${isHovered ? (photoScale / 100) * 1.04 : photoScale / 100}) translate(${offsetX}px, ${offsetY}px)`,
               }}
-              className="w-full h-full object-cover object-top transition-transform duration-500 ease-out"
+              className="w-full h-full object-cover object-top transition-transform duration-300 ease-out"
             />
+
+            {/* In Edit Mode: Overlay Upload / Change Photo Button inside photo container */}
+            {isEditMode && (
+              <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center p-3 opacity-90 transition-opacity">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white text-[#111322] text-[11px] font-mono font-bold hover:bg-[#FF5B37] hover:text-white transition-colors shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Upload className="w-3 h-3" />
+                  <span>{currentImage !== member.image ? 'Change Photo' : 'Upload Photo'}</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Member Information */}
@@ -191,29 +267,96 @@ const TeamCard: React.FC<TeamCardProps> = ({ member }) => {
           </motion.div>
         </div>
 
-        {/* Photo Scale Slider Control (Changes ONLY image zoom inside fixed frame) */}
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="pt-3 mt-3 border-t border-[#E8E6DF]/50 flex items-center justify-between text-[10px] font-mono text-[#8E909A] select-none"
-        >
-          <div className="flex items-center gap-1 text-[#6B6D76]">
-            <ZoomIn className="w-3 h-3 text-[#FF5B37]" />
-            <span>Photo Scale</span>
+        {/* Photo Edit Controls (Visible ONLY in Edit Mode to keep normal cards clean & compact) */}
+        {isEditMode && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="pt-3 mt-3 border-t border-[#E8E6DF] space-y-2 text-[10px] font-mono text-[#8E909A] select-none animate-in fade-in duration-200"
+          >
+            {/* Scale Control */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1 text-[#6B6D76]">
+                <ZoomIn className="w-3 h-3 text-[#FF5B37]" />
+                <span>Zoom Scale</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="range"
+                  min="100"
+                  max="150"
+                  step="1"
+                  value={photoScale}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setPhotoScale(val);
+                    try { localStorage.setItem(`routeq_scale_${member.id}`, String(val)); } catch {}
+                  }}
+                  className="w-16 h-1 bg-[#E8E6DF] accent-[#FF5B37] rounded-lg cursor-pointer"
+                />
+                <span className="w-7 text-right font-semibold text-[#FF5B37]">{photoScale}%</span>
+              </div>
+            </div>
+
+            {/* Horizontal Position X Control */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1 text-[#6B6D76]">
+                <MoveHorizontal className="w-3 h-3 text-[#FF5B37]" />
+                <span>Shift X</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="range"
+                  min="-40"
+                  max="40"
+                  step="1"
+                  value={offsetX}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setOffsetX(val);
+                    try { localStorage.setItem(`routeq_offset_x_${member.id}`, String(val)); } catch {}
+                  }}
+                  className="w-16 h-1 bg-[#E8E6DF] accent-[#FF5B37] rounded-lg cursor-pointer"
+                />
+                <span className="w-7 text-right font-semibold text-[#FF5B37]">{offsetX}px</span>
+              </div>
+            </div>
+
+            {/* Vertical Position Y Control */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1 text-[#6B6D76]">
+                <MoveVertical className="w-3 h-3 text-[#FF5B37]" />
+                <span>Shift Y</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="range"
+                  min="-40"
+                  max="40"
+                  step="1"
+                  value={offsetY}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setOffsetY(val);
+                    try { localStorage.setItem(`routeq_offset_y_${member.id}`, String(val)); } catch {}
+                  }}
+                  className="w-16 h-1 bg-[#E8E6DF] accent-[#FF5B37] rounded-lg cursor-pointer"
+                />
+                <span className="w-7 text-right font-semibold text-[#FF5B37]">{offsetY}px</span>
+              </div>
+            </div>
+
+            {/* Reset Button */}
+            <div className="pt-1 flex justify-end">
+              <button
+                onClick={handleResetControls}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#F7F6F2] hover:bg-[#E8E6DF] text-[#6B6D76] hover:text-[#111322] text-[9.5px] font-mono transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                <span>Reset</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <input
-              type="range"
-              min="100"
-              max="150"
-              step="1"
-              value={photoScale}
-              onChange={handleScaleChange}
-              className="w-16 h-1 bg-[#E8E6DF] accent-[#FF5B37] rounded-lg cursor-pointer"
-              title="Adjust photo crop zoom"
-            />
-            <span className="w-7 text-right font-semibold text-[#FF5B37]">{photoScale}%</span>
-          </div>
-        </div>
+        )}
       </motion.div>
     </div>
   );
@@ -224,15 +367,33 @@ interface TeamSectionProps {
 }
 
 export const TeamSection: React.FC<TeamSectionProps> = ({ members = TEAM_MEMBERS }) => {
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+
   return (
     <section id="team" className="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto border-t border-[#E8E6DF]/30">
       <div className="space-y-12">
         
-        {/* ─── 1. SECTION HEADER (SCROLL REVEAL BLUR-TO-CLEAR) ────────────────── */}
-        <ScrollReveal className="text-center space-y-3 max-w-2xl mx-auto" distance={40} duration={0.7}>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#E8E6DF] text-[11px] font-mono text-[#FF5B37] shadow-soft-sm">
-            <Sparkles className="w-3 h-3" />
-            <span className="font-semibold uppercase tracking-wider">PROJECT CREDITS</span>
+        {/* ─── 1. SECTION HEADER (SCROLL REVEAL BLUR-TO-CLEAR & EDIT TOGGLE) ──── */}
+        <ScrollReveal className="text-center space-y-4 max-w-2xl mx-auto" distance={40} duration={0.7}>
+          <div className="flex items-center justify-center gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#E8E6DF] text-[11px] font-mono text-[#FF5B37] shadow-soft-sm">
+              <Sparkles className="w-3 h-3" />
+              <span className="font-semibold uppercase tracking-wider">PROJECT CREDITS</span>
+            </div>
+
+            {/* Edit Photos Mode Toggle Button */}
+            <button
+              onClick={() => setIsEditMode(!isEditMode)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold transition-all duration-200 cursor-pointer shadow-soft-sm ${
+                isEditMode
+                  ? 'bg-[#111322] text-white border border-[#111322]'
+                  : 'bg-white text-[#FF5B37] border border-[#E8E6DF] hover:border-[#FF5B37]/40'
+              }`}
+              title="Toggle Photo Upload & Position Fine-Tuning Controls"
+            >
+              <Sliders className="w-3 h-3" />
+              <span>{isEditMode ? 'Done Editing' : 'Edit Photos'}</span>
+            </button>
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#111322] leading-tight font-sans">
@@ -256,7 +417,7 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ members = TEAM_MEMBERS
         >
           {members.map((member) => (
             <StaggerItem key={member.id} distance={40} duration={0.7}>
-              <TeamCard member={member} />
+              <TeamCard member={member} isEditMode={isEditMode} />
             </StaggerItem>
           ))}
         </StaggerContainer>
