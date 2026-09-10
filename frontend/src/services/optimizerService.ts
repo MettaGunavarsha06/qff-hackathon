@@ -284,7 +284,7 @@ export function solveLocalOptimization(
           else if (rJ[rJ.length - 1] === p.j && rI[0] === p.i) merged = [...rJ, ...rI];
           else if (rI[rI.length - 1] === p.i && rJ[rJ.length - 1] === p.j)
             merged = [...rI, ...[...rJ].reverse()];
-          else if (rI[0] === p.i && rJ[0] === p.j) merged = [[...rI].reverse(), ...rJ];
+          else if (rI[0] === p.i && rJ[0] === p.j) merged = [...[...rI].reverse(), ...rJ];
 
           if (merged) {
             routes[idxI] = merged;

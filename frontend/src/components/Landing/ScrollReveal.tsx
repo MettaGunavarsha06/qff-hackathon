@@ -1,59 +1,38 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import React, { useRef } from 'react';
+import { motion, useInView, useReducedMotion } from 'framer-motion';
 
 interface ScrollRevealProps {
   children: React.ReactNode;
   className?: string;
   delay?: number;
+  duration?: number;
+  distance?: number;
+  amount?: number;
 }
 
 export const ScrollReveal: React.FC<ScrollRevealProps> = ({
   children,
   className = '',
   delay = 0,
+  duration = 0.65,
+  distance = 32,
+  amount = 0.15,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { margin: '-10% 0px -10% 0px', amount: 0.25 });
-  const [scrollDirection, setScrollDirection] = useState<'down' | 'up'>('down');
-  const lastScrollY = useRef(0);
+  const isInView = useInView(ref, { once: true, amount });
+  const shouldReduceMotion = useReducedMotion();
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY > lastScrollY.current) {
-        setScrollDirection('down');
-      } else if (currentScrollY < lastScrollY.current) {
-        setScrollDirection('up');
-      }
-      lastScrollY.current = currentScrollY;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Check prefers-reduced-motion
-  const prefersReducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  if (prefersReducedMotion) {
+  // Accessibility: immediately render without motion if user prefers reduced motion
+  if (shouldReduceMotion) {
     return <div className={className}>{children}</div>;
   }
 
-  // Smooth pop variants
   const variants = {
-    hiddenDown: {
+    hidden: {
       opacity: 0,
-      y: 60,
+      y: distance,
       filter: 'blur(6px)',
-      scale: 0.96,
-    },
-    hiddenUp: {
-      opacity: 0,
-      y: -60,
-      filter: 'blur(6px)',
-      scale: 0.96,
+      scale: 0.98,
     },
     visible: {
       opacity: 1,
@@ -61,21 +40,19 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
       filter: 'blur(0px)',
       scale: 1,
       transition: {
-        duration: 0.75,
+        duration,
         delay,
-        ease: [0.22, 1, 0.36, 1] as const, // pop -> settle
+        ease: [0.22, 1, 0.36, 1] as const,
       },
     },
   };
-
-  const initialVariant = scrollDirection === 'down' ? 'hiddenDown' : 'hiddenUp';
 
   return (
     <motion.div
       ref={ref}
       variants={variants}
-      initial={initialVariant}
-      animate={isInView ? 'visible' : initialVariant}
+      initial="hidden"
+      animate={isInView ? 'visible' : 'hidden'}
       className={className}
     >
       {children}

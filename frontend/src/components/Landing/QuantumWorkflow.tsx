@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { ArrowRight, Cpu, Layers, GitBranch, Atom, CheckCircle2, Shield } from 'lucide-react';
 
 interface Stage {
@@ -93,12 +94,14 @@ export const QuantumWorkflow: React.FC = () => {
       {/* ─── 6-STAGE WORKFLOW PIPELINE ────────────────────────────────────── */}
       <div className="py-10 space-y-8 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {STAGES.map((st, idx) => {
+          {STAGES.map((st) => {
             const Icon = st.icon;
             const isSelected = activeStage === st.id;
             return (
-              <div
+              <motion.div
                 key={st.id}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setActiveStage(st.id)}
                 className={`p-4 rounded-2xl border transition-all cursor-pointer text-left space-y-2.5 ${
                   isSelected
@@ -110,7 +113,7 @@ export const QuantumWorkflow: React.FC = () => {
                   <span className="font-mono text-[11px] text-[#FF5B37] font-semibold">
                     {st.step}
                   </span>
-                  <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-[#FF5B37]' : 'text-[#8E909A]'}`} />
+                  <Icon className={`w-3.5 h-3.5 transition-colors duration-200 ${isSelected ? 'text-[#FF5B37]' : 'text-[#8E909A]'}`} />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-white tracking-wide">
@@ -120,7 +123,7 @@ export const QuantumWorkflow: React.FC = () => {
                     {st.subtitle}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -129,7 +132,13 @@ export const QuantumWorkflow: React.FC = () => {
         {(() => {
           const stage = STAGES.find((s) => s.id === activeStage) || STAGES[2];
           return (
-            <div className="p-6 rounded-2xl bg-white/[0.04] border border-white/10 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            <motion.div
+              key={stage.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="p-6 rounded-2xl bg-white/[0.04] border border-white/10 grid grid-cols-1 md:grid-cols-12 gap-6 items-center"
+            >
               <div className="md:col-span-8 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-mono text-[#FF5B37]">
                   <span>STAGE {stage.step}</span>
@@ -157,7 +166,7 @@ export const QuantumWorkflow: React.FC = () => {
                 {stage.id === 'route' && <div>Manifest: Depot → Stops → Depot</div>}
                 <div className="text-[10px] text-[#10B981]">Status: Verified Active</div>
               </div>
-            </div>
+            </motion.div>
           );
         })()}
       </div>

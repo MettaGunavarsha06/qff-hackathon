@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { AnimatedTruck } from './AnimatedTruck';
 import { DeliveryNode } from './DeliveryNode';
 import { GlassPanel } from './GlassPanel';
 import { Gauge } from 'lucide-react';
+import { smoothEase } from './AnimationPrimitives';
 
 interface StopPoint {
   id: string;
@@ -55,6 +57,7 @@ const ALT_ROUTE_2 = `
 `;
 
 export const HeroRouteVisualization: React.FC = () => {
+  const shouldReduceMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
   const truckRef = useRef<SVGGElement>(null);
@@ -168,8 +171,11 @@ export const HeroRouteVisualization: React.FC = () => {
   }, []);
 
   return (
-    <div
+    <motion.div
       ref={containerRef}
+      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.97, filter: 'blur(8px)' }}
+      animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+      transition={{ duration: 0.8, delay: 0.4, ease: smoothEase }}
       className="relative w-full h-[380px] sm:h-[460px] lg:h-[500px] rounded-3xl overflow-hidden border border-[#E8E6DF] bg-[#F7F6F2] shadow-[0_12px_40px_rgba(0,0,0,0.04)] select-none"
     >
       {/* ─── SVG CANVAS (Subtle City Map + Route + Animated Truck) ───────── */}
@@ -279,19 +285,21 @@ export const HeroRouteVisualization: React.FC = () => {
         />
 
         {/* ─── 3. OPTIMIZED ROUTE PATH (The Exact Motion Path) ─────────────── */}
-        {/* Soft Outer Glow */}
-        <path
+        {/* Soft Outer Glow - Animated Path Length Drawing */}
+        <motion.path
           d={OPTIMIZED_ROUTE_PATH}
           fill="none"
           stroke="url(#routeGlowGrad)"
           strokeWidth="8"
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity="0.38"
+          initial={shouldReduceMotion ? { pathLength: 1, opacity: 0.38 } : { pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 0.38 }}
+          transition={{ duration: 1.5, delay: 0.5, ease: smoothEase }}
         />
 
         {/* Core Vibrant Line (The exact reference for truck motion) */}
-        <path
+        <motion.path
           ref={pathRef}
           d={OPTIMIZED_ROUTE_PATH}
           fill="none"
@@ -299,45 +307,93 @@ export const HeroRouteVisualization: React.FC = () => {
           strokeWidth="2.8"
           strokeLinecap="round"
           strokeLinejoin="round"
+          initial={shouldReduceMotion ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{ duration: 1.5, delay: 0.5, ease: smoothEase }}
         />
 
         {/* Inner Brighter Core */}
-        <path
+        <motion.path
           d={OPTIMIZED_ROUTE_PATH}
           fill="none"
           stroke="#FFFFFF"
           strokeWidth="0.8"
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity="0.8"
+          initial={shouldReduceMotion ? { pathLength: 1, opacity: 0.8 } : { pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 0.8 }}
+          transition={{ duration: 1.5, delay: 0.5, ease: smoothEase }}
         />
 
-        {/* ─── 4. DELIVERY STOPS (Map Markers with Pulse) ─────────────────── */}
-        {STOPS.map((stop) => (
-          <DeliveryNode
-            key={stop.id}
-            id={stop.id}
-            label={stop.label}
-            x={stop.x}
-            y={stop.y}
-            isDepot={stop.isDepot}
-            isActive={activeStopId === stop.id}
+        {/* Subtle, unobtrusive pulsing energy flow along the route */}
+        {!shouldReduceMotion && (
+          <motion.path
+            d={OPTIMIZED_ROUTE_PATH}
+            fill="none"
+            stroke="#FFFFFF"
+            strokeWidth="1.4"
+            strokeDasharray="10 32"
+            strokeLinecap="round"
+            initial={{ opacity: 0, strokeDashoffset: 0 }}
+            animate={{
+              opacity: [0.2, 0.6, 0.2],
+              strokeDashoffset: -320,
+            }}
+            transition={{
+              opacity: { duration: 3.5, repeat: Infinity, ease: 'easeInOut' },
+              strokeDashoffset: { duration: 14, repeat: Infinity, ease: 'linear' },
+              delay: 2.0,
+            }}
           />
+        )}
+
+        {/* ─── 4. DELIVERY STOPS (Map Markers with Staggered Entrance) ──────── */}
+        {STOPS.map((stop, idx) => (
+          <motion.g
+            key={stop.id}
+            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.7 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{
+              duration: 0.4,
+              delay: 0.65 + idx * 0.08,
+              ease: smoothEase,
+            }}
+          >
+            <DeliveryNode
+              id={stop.id}
+              label={stop.label}
+              x={stop.x}
+              y={stop.y}
+              isDepot={stop.isDepot}
+              isActive={activeStopId === stop.id}
+            />
+          </motion.g>
         ))}
 
         {/* ─── 5. ANIMATED DELIVERY TRUCK (Direct Motion Along SVG Path) ─────── */}
-        <AnimatedTruck
-          ref={truckRef}
-          x={120}
-          y={260}
-          angle={-45}
-          scale={0.95}
-        />
+        <motion.g
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 1.1 }}
+        >
+          <AnimatedTruck
+            ref={truckRef}
+            x={120}
+            y={260}
+            angle={-45}
+            scale={0.95}
+          />
+        </motion.g>
       </svg>
 
       {/* ─── FLOATING GLASS HUD PANELS (Selective Glassmorphism) ──────────── */}
       {/* Top Left: Optimization Engine Status */}
-      <div className="absolute top-4 left-4 z-20 pointer-events-none">
+      <motion.div
+        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.8, ease: smoothEase }}
+        className="absolute top-4 left-4 z-20 pointer-events-none"
+      >
         <GlassPanel glow className="flex items-center gap-3 !py-2.5 !px-3.5">
           <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
           <div className="flex flex-col">
@@ -349,10 +405,15 @@ export const HeroRouteVisualization: React.FC = () => {
             </span>
           </div>
         </GlassPanel>
-      </div>
+      </motion.div>
 
       {/* Top Right: Active Route Telemetry */}
-      <div className="absolute top-4 right-4 z-20 pointer-events-none">
+      <motion.div
+        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.9, ease: smoothEase }}
+        className="absolute top-4 right-4 z-20 pointer-events-none"
+      >
         <GlassPanel className="flex items-center gap-4 !py-2.5 !px-4">
           <div className="flex items-center gap-1.5 text-[#FF5B37]">
             <Gauge className="w-3.5 h-3.5" />
@@ -368,10 +429,15 @@ export const HeroRouteVisualization: React.FC = () => {
             <span className="text-[#FF5B37] font-bold">1H 48M</span>
           </div>
         </GlassPanel>
-      </div>
+      </motion.div>
 
       {/* Bottom Right: Live Vehicle Telemetry */}
-      <div className="absolute bottom-4 right-4 z-20 pointer-events-none hidden sm:block">
+      <motion.div
+        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 1.0, ease: smoothEase }}
+        className="absolute bottom-4 right-4 z-20 pointer-events-none hidden sm:block"
+      >
         <GlassPanel className="flex items-center gap-3 !py-2 !px-3.5">
           <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#FF5B37] to-[#FF4D8D] flex items-center justify-center text-white text-[9px] font-bold">
             01
@@ -381,7 +447,7 @@ export const HeroRouteVisualization: React.FC = () => {
             <span className="text-[#6B6D76]">SPEED: 38 KM/H &bull; SLA 100%</span>
           </div>
         </GlassPanel>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

@@ -1,31 +1,57 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowRight,
   Sparkles,
   Layers,
   Cpu,
   Navigation,
-  Clock,
-  Fuel,
-  Leaf,
-  Shield,
   CheckCircle2,
   Atom,
-  ChevronDown,
-  Compass,
-  Zap,
 } from 'lucide-react';
 import { HeroRouteVisualization } from '../components/Landing/HeroRouteVisualization';
 import { ScrollReveal } from '../components/Landing/ScrollReveal';
 import { ProblemNetwork } from '../components/Landing/ProblemNetwork';
 import { PerformanceStats } from '../components/Landing/PerformanceStats';
 import { QuantumWorkflow } from '../components/Landing/QuantumWorkflow';
+import {
+  AnimatedHeading,
+  FadeIn,
+  StaggerContainer,
+  StaggerItem,
+  MotionButton,
+  MotionCard,
+  smoothEase,
+} from '../components/Landing/AnimationPrimitives';
 
 interface LandingPageProps {
   onLaunchOptimizer: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) => {
+  const shouldReduceMotion = useReducedMotion();
+  const [activeSection, setActiveSection] = useState<string>('');
+
+  // Active section indication for navbar on scroll
+  useEffect(() => {
+    const sectionIds = ['problem', 'how-it-works', 'performance', 'quantum'];
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 220;
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const el = document.getElementById(sectionIds[i]);
+        if (el && el.offsetTop <= scrollPosition) {
+          setActiveSection(sectionIds[i]);
+          return;
+        }
+      }
+      setActiveSection('');
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
     if (el) {
@@ -37,9 +63,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
     <div className="relative min-h-screen bg-[#F7F6F2] text-[#1F2024] font-sans overflow-x-hidden selection:bg-[#FF5B37]/20 selection:text-[#111322]">
       
       {/* ─── FLOATING TRANSLUCENT GLASS NAVIGATION BAR ───────────────────────── */}
-      <header className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+      <motion.header
+        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.65, ease: smoothEase }}
+        className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none"
+      >
         <nav
-          className="w-full max-w-5xl h-14 rounded-full px-5 flex items-center justify-between pointer-events-auto shadow-[0_8px_30px_rgba(0,0,0,0.05)] border border-white/80"
+          className="w-full max-w-5xl h-14 rounded-full px-5 flex items-center justify-between pointer-events-auto shadow-[0_8px_30px_rgba(0,0,0,0.05)] border border-white/80 transition-shadow duration-300"
           style={{
             background: 'rgba(255, 255, 255, 0.72)',
             backdropFilter: 'blur(20px)',
@@ -51,7 +82,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="flex items-center gap-2 cursor-pointer select-none group"
           >
-            <div className="w-7 h-7 rounded-full bg-[#111322] flex items-center justify-center text-white font-bold text-xs tracking-wider">
+            <div className="w-7 h-7 rounded-full bg-[#111322] flex items-center justify-center text-white font-bold text-xs tracking-wider transition-transform duration-200 group-hover:scale-105">
               Q
             </div>
             <span className="font-bold text-sm tracking-wider text-[#111322] font-mono">
@@ -59,44 +90,46 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
             </span>
           </div>
 
-          {/* Center Links (Smooth Scroll) */}
+          {/* Center Links (Smooth Scroll & Active Section Indication) */}
           <div className="hidden md:flex items-center gap-7 text-xs font-mono text-[#6B6D76]">
-            <button
-              onClick={() => scrollToSection('problem')}
-              className="hover:text-[#111322] transition-colors cursor-pointer"
-            >
-              Product
-            </button>
-            <button
-              onClick={() => scrollToSection('how-it-works')}
-              className="hover:text-[#111322] transition-colors cursor-pointer"
-            >
-              How it works
-            </button>
-            <button
-              onClick={() => scrollToSection('performance')}
-              className="hover:text-[#111322] transition-colors cursor-pointer"
-            >
-              Impact
-            </button>
-            <button
-              onClick={() => scrollToSection('quantum')}
-              className="hover:text-[#111322] transition-colors cursor-pointer"
-            >
-              Technology
-            </button>
+            {[
+              { id: 'problem', label: 'Product' },
+              { id: 'how-it-works', label: 'How it works' },
+              { id: 'performance', label: 'Impact' },
+              { id: 'quantum', label: 'Technology' },
+            ].map((link) => {
+              const isActive = activeSection === link.id;
+              return (
+                <button
+                  key={link.id}
+                  onClick={() => scrollToSection(link.id)}
+                  className={`relative py-1 transition-colors duration-200 cursor-pointer ${
+                    isActive ? 'text-[#111322] font-semibold' : 'hover:text-[#111322]'
+                  }`}
+                >
+                  {link.label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="landingNavIndicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF5B37] rounded-full"
+                      transition={{ duration: 0.25, ease: smoothEase }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* Right Action: Launch Optimizer */}
-          <button
+          <MotionButton
             onClick={onLaunchOptimizer}
             className="btn-primary-gradient !py-2 !px-4 !text-xs font-semibold group cursor-pointer"
           >
             <span>Launch Optimizer</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </button>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200" />
+          </MotionButton>
         </nav>
-      </header>
+      </motion.header>
 
       {/* ─── SECTION 01: HERO ────────────────────────────────────────────────── */}
       <section className="relative pt-32 sm:pt-40 pb-20 sm:pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -105,50 +138,63 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
           {/* Left Column: Spacious Hero Typography */}
           <div className="lg:col-span-6 space-y-6 sm:space-y-8 text-left">
             
-            {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-[#E8E6DF] shadow-xs text-xs font-mono text-[#FF5B37]">
+            {/* Eyebrow Badge */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.1, ease: smoothEase }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-[#E8E6DF] shadow-xs text-xs font-mono text-[#FF5B37]"
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF5B37] animate-pulse" />
               <span className="font-semibold tracking-wider uppercase">
                 SMARTER ROUTES. CLEANER CITIES.
               </span>
-            </div>
+            </motion.div>
 
-            {/* Main Heading (Approximately font-weight 600, elegant, readable) */}
-            <h1 className="text-4xl sm:text-6xl xl:text-7xl font-semibold tracking-tight text-[#111322] leading-[1.08]">
-              THE SHORTEST<br />
-              PATH BETWEEN<br />
-              DEMAND AND<br />
-              <span className="bg-gradient-to-r from-[#FF5B37] via-[#FF7A3D] to-[#FF4D8D] bg-clip-text text-transparent">
-                DELIVERY.
-              </span>
-            </h1>
+            {/* Main Heading (Each line animated individually inside overflow-hidden container) */}
+            <AnimatedHeading className="text-4xl sm:text-6xl xl:text-7xl font-semibold tracking-tight text-[#111322] leading-[1.08]" />
 
-            {/* Description */}
-            <p className="text-base sm:text-lg text-[#6B6D76] font-light max-w-lg leading-relaxed">
+            {/* Description (Fades and moves upward following main heading) */}
+            <motion.p
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, delay: 0.68, ease: smoothEase }}
+              className="text-base sm:text-lg text-[#6B6D76] font-light max-w-lg leading-relaxed"
+            >
               Quantum-inspired optimization for modern last-mile fleets.
-            </p>
+            </motion.p>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <button
+            {/* Action Buttons (Staggered entrance + interactive micro-animations) */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, delay: 0.85, ease: smoothEase }}
+              className="flex flex-wrap items-center gap-4 pt-2"
+            >
+              <MotionButton
                 onClick={onLaunchOptimizer}
                 className="btn-primary-gradient !py-3.5 !px-7 text-xs sm:text-sm font-semibold group cursor-pointer shadow-lg"
               >
                 <span>Launch Optimizer</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
+              </MotionButton>
 
-              <button
+              <MotionButton
                 onClick={() => scrollToSection('quantum')}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white border border-[#E8E6DF] text-xs sm:text-sm font-semibold text-[#111322] hover:bg-[#FAF9F6] hover:border-[#D6D4CC] shadow-xs transition-all cursor-pointer"
               >
                 <Atom className="w-4 h-4 text-[#FF5B37]" />
                 <span>Explore Technology</span>
-              </button>
-            </div>
+              </MotionButton>
+            </motion.div>
 
-            {/* Subtle Capability Highlights */}
-            <div className="pt-4 flex items-center gap-6 text-xs font-mono text-[#6B6D76]">
+            {/* Capability Highlights (Subtle Staggered Entrance) */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1.05, ease: smoothEase }}
+              className="pt-4 flex items-center gap-6 text-xs font-mono text-[#6B6D76]"
+            >
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
                 <span>IBM Qiskit 2.5</span>
@@ -161,11 +207,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
                 <span>5 Indian Hubs</span>
               </div>
-            </div>
+            </motion.div>
 
           </div>
 
-          {/* Right Column: MAIN VISUAL (Realistic Route Map & Moving Truck) */}
+          {/* Right Column: MAIN VISUAL (Animated Route Map & Moving Truck) */}
           <div className="lg:col-span-6 w-full">
             <HeroRouteVisualization />
           </div>
@@ -193,32 +239,38 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
           {/* Interactive Network Visualization */}
           <ProblemNetwork />
 
-          {/* Editorial Key Drivers */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            <div className="p-6 rounded-2xl bg-white border border-[#E8E6DF] shadow-xs space-y-2">
-              <div className="text-xs font-mono font-bold text-[#FF5B37]">01 / SUPER-EXPONENTIAL</div>
-              <h4 className="font-bold text-base text-[#111322]">Combinatorial Explosion</h4>
-              <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
-                Routing N stops across K vehicles scales as N! &bull; C(N+K-1, K-1). Exhaustive brute-force search becomes mathematically intractable within seconds.
-              </p>
-            </div>
+          {/* Editorial Key Drivers (Staggered Cards with Micro-Interactions) */}
+          <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left" staggerDelay={0.1}>
+            <StaggerItem>
+              <MotionCard className="p-6 rounded-2xl bg-white border border-[#E8E6DF] shadow-xs space-y-2 h-full">
+                <div className="text-xs font-mono font-bold text-[#FF5B37]">01 / SUPER-EXPONENTIAL</div>
+                <h4 className="font-bold text-base text-[#111322]">Combinatorial Explosion</h4>
+                <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
+                  Routing N stops across K vehicles scales as N! &bull; C(N+K-1, K-1). Exhaustive brute-force search becomes mathematically intractable within seconds.
+                </p>
+              </MotionCard>
+            </StaggerItem>
 
-            <div className="p-6 rounded-2xl bg-white border border-[#E8E6DF] shadow-xs space-y-2">
-              <div className="text-xs font-mono font-bold text-[#FF5B37]">02 / URBAN DYNAMICS</div>
-              <h4 className="font-bold text-base text-[#111322]">Unpredictable Congestion</h4>
-              <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
-                Fixed Euclidean distances fail in dense urban grids. Mappls live traffic multipliers penalize slow arterial roads and stop-and-go fuel burns.
-              </p>
-            </div>
+            <StaggerItem>
+              <MotionCard className="p-6 rounded-2xl bg-white border border-[#E8E6DF] shadow-xs space-y-2 h-full">
+                <div className="text-xs font-mono font-bold text-[#FF5B37]">02 / URBAN DYNAMICS</div>
+                <h4 className="font-bold text-base text-[#111322]">Unpredictable Congestion</h4>
+                <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
+                  Fixed Euclidean distances fail in dense urban grids. Mappls live traffic multipliers penalize slow arterial roads and stop-and-go fuel burns.
+                </p>
+              </MotionCard>
+            </StaggerItem>
 
-            <div className="p-6 rounded-2xl bg-white border border-[#E8E6DF] shadow-xs space-y-2">
-              <div className="text-xs font-mono font-bold text-[#FF5B37]">03 / TIGHT WINDOWS</div>
-              <h4 className="font-bold text-base text-[#111322]">Rigid SLA Commitments</h4>
-              <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
-                Arrivals outside scheduled 60-minute delivery slots damage customer satisfaction and trigger costly re-dispatch attempts.
-              </p>
-            </div>
-          </div>
+            <StaggerItem>
+              <MotionCard className="p-6 rounded-2xl bg-white border border-[#E8E6DF] shadow-xs space-y-2 h-full">
+                <div className="text-xs font-mono font-bold text-[#FF5B37]">03 / TIGHT WINDOWS</div>
+                <h4 className="font-bold text-base text-[#111322]">Rigid SLA Commitments</h4>
+                <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
+                  Arrivals outside scheduled 60-minute delivery slots damage customer satisfaction and trigger costly re-dispatch attempts.
+                </p>
+              </MotionCard>
+            </StaggerItem>
+          </StaggerContainer>
 
         </ScrollReveal>
       </section>
@@ -242,8 +294,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
             </p>
           </div>
 
-          {/* 5-Step Flow */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-left">
+          {/* 5-Step Flow (Staggered Cards) */}
+          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-left" staggerDelay={0.08}>
             {[
               {
                 step: '01',
@@ -280,34 +332,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
                 desc: 'Decoding ground-state bitstrings into conflict-free, turn-by-turn physical vehicle routes.',
                 icon: CheckCircle2,
               },
-            ].map((st, idx) => {
+            ].map((st) => {
               const Icon = st.icon;
               return (
-                <div
-                  key={st.step}
-                  className="p-6 rounded-2xl bg-white border border-[#E8E6DF] shadow-xs space-y-3 relative group hover:border-[#FF5B37]/40 transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-[#FF5B37]">
-                      {st.step}
-                    </span>
-                    <Icon className="w-4 h-4 text-[#6B6D76] group-hover:text-[#FF5B37] transition-colors" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-[#111322] tracking-wide">
-                      {st.title}
-                    </h4>
-                    <div className="text-[11px] font-mono text-[#6B6D76] mt-0.5">
-                      {st.subtitle}
+                <StaggerItem key={st.step}>
+                  <MotionCard className="p-6 rounded-2xl bg-white border border-[#E8E6DF] shadow-xs space-y-3 relative group hover:border-[#FF5B37]/40 transition-all h-full">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-[#FF5B37]">
+                        {st.step}
+                      </span>
+                      <Icon className="w-4 h-4 text-[#6B6D76] group-hover:text-[#FF5B37] transition-colors duration-200" />
                     </div>
-                  </div>
-                  <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
-                    {st.desc}
-                  </p>
-                </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-[#111322] tracking-wide">
+                        {st.title}
+                      </h4>
+                      <div className="text-[11px] font-mono text-[#6B6D76] mt-0.5">
+                        {st.subtitle}
+                      </div>
+                    </div>
+                    <p className="text-xs text-[#6B6D76] font-light leading-relaxed">
+                      {st.desc}
+                    </p>
+                  </MotionCard>
+                </StaggerItem>
               );
             })}
-          </div>
+          </StaggerContainer>
 
         </ScrollReveal>
       </section>
@@ -363,13 +414,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
           </p>
 
           <div className="pt-4 flex justify-center">
-            <button
+            <MotionButton
               onClick={onLaunchOptimizer}
               className="btn-primary-gradient !py-4 !px-9 text-sm sm:text-base font-semibold group cursor-pointer shadow-xl"
             >
               <span>Launch Optimizer</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
+            </MotionButton>
           </div>
 
         </ScrollReveal>
@@ -377,16 +428,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchOptimizer }) =
 
       {/* ─── MINIMAL EDITORIAL FOOTER ────────────────────────────────────────── */}
       <footer className="py-12 border-t border-[#E8E6DF] px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[#8E909A]">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-[#111322]">ROUTEQ</span>
-          <span>&bull;</span>
-          <span>Python Qiskit 2.5 + FastAPI + React 19</span>
-        </div>
-        <div>
-          Hackathon Use Case 04 &bull; Last-Mile Vehicle Routing Optimization
-        </div>
+        <FadeIn direction="none" distance={0} duration={0.6}>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-[#111322]">ROUTEQ</span>
+            <span>&bull;</span>
+            <span>Python Qiskit 2.5 + FastAPI + React 19</span>
+          </div>
+        </FadeIn>
+        <FadeIn direction="none" distance={0} duration={0.6} delay={0.1}>
+          <div>
+            Hackathon Use Case 04 &bull; Last-Mile Vehicle Routing Optimization
+          </div>
+        </FadeIn>
       </footer>
 
     </div>
   );
 };
+
+export default LandingPage;

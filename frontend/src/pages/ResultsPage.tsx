@@ -76,17 +76,15 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   if (!optimizationResult) {
     return (
       <div className="text-center py-24 px-6 rounded-3xl bg-white border border-[#E8E6DF] shadow-soft max-w-2xl mx-auto my-12 space-y-4">
-        <div className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center shadow-soft-sm ${
-          optimizationError
-            ? 'bg-rose-50 border border-rose-200 text-rose-600'
-            : 'bg-gradient-to-tr from-[#FF5B37]/10 to-[#FF4D8D]/10 border border-[#FF5B37]/20 text-[#FF5B37]'
-        }`}>
+        <div className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center shadow-soft-sm ${optimizationError
+          ? 'bg-rose-50 border border-rose-200 text-rose-600'
+          : 'bg-gradient-to-tr from-[#FF5B37]/10 to-[#FF4D8D]/10 border border-[#FF5B37]/20 text-[#FF5B37]'
+          }`}>
           {optimizationError ? <AlertCircle className="w-7 h-7" /> : <Route className="w-7 h-7" />}
         </div>
         <div className="space-y-2">
-          <div className={`text-xs font-mono font-semibold tracking-wider uppercase ${
-            optimizationError ? 'text-rose-600' : 'text-[#FF5B37]'
-          }`}>
+          <div className={`text-xs font-mono font-semibold tracking-wider uppercase ${optimizationError ? 'text-rose-600' : 'text-[#FF5B37]'
+            }`}>
             {optimizationError ? 'Optimization Request Error' : 'Awaiting Optimizer Execution'}
           </div>
           <h3 className="font-bold text-2xl text-[#1F2024] tracking-tight">
@@ -144,7 +142,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
 
   // ─── 2. ACTIVE OPTIMIZATION DATA BINDINGS ─────────────────────────────────
   const routes = optimizationResult.routes || [];
-  
+
   // Default to first vehicle if none selected for detail view, or selected vehicle
   const selectedRoute: VehicleRoute | undefined = selectedVehicleId
     ? routes.find((r) => r.vehicle_id === selectedVehicleId)
@@ -220,7 +218,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
 
   return (
     <div className="space-y-8 pb-24 text-[#1F2024] max-w-6xl mx-auto pt-4 px-4 sm:px-6">
-      
+
       {/* ─── 1. HEADER (OPTIMIZED DISPATCH ROUTES & STATUS) ────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-baseline justify-between gap-5 pb-5 border-b border-[#E8E6DF]">
         <div className="space-y-1.5">
@@ -410,11 +408,10 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                   setSelectedVehicleId(isSelected ? null : route.vehicle_id);
                   setActiveStopMapId(null);
                 }}
-                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${
-                  isSelected
-                    ? 'bg-white border-[#FF5B37] shadow-soft ring-2 ring-[#FF5B37]/30'
-                    : 'bg-white border-[#E8E6DF] hover:border-[#D6D4CC] shadow-soft-sm hover:shadow-soft'
-                }`}
+                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${isSelected
+                  ? 'bg-white border-[#FF5B37] shadow-soft ring-2 ring-[#FF5B37]/30'
+                  : 'bg-white border-[#E8E6DF] hover:border-[#D6D4CC] shadow-soft-sm hover:shadow-soft'
+                  }`}
               >
                 {/* RouteQ Active Gradient Indicator Bar */}
                 {isSelected && (
@@ -458,7 +455,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       {/* ─── 5. DETAILED ROUTE & VEHICLE MANIFEST PANEL ─────────────────────── */}
       {selectedRoute && (
         <div className="p-6 sm:p-8 rounded-3xl bg-white border border-[#E8E6DF] shadow-soft space-y-7">
-          
+
           {/* Manifest Top Header Bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#E8E6DF]">
             <div className="flex items-start gap-4">
@@ -558,24 +555,22 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                         handleSelectDeliveryStop(wp.stop_id);
                       }
                     }}
-                    className={`p-4 rounded-2xl border text-xs font-mono transition-all cursor-pointer space-y-2 ${
-                      isSelectedOnMap
-                        ? 'bg-white border-[#FF5B37] ring-2 ring-[#FF5B37]/30 shadow-soft'
-                        : isDepot
+                    className={`p-4 rounded-2xl border text-xs font-mono transition-all cursor-pointer space-y-2 ${isSelectedOnMap
+                      ? 'bg-white border-[#FF5B37] ring-2 ring-[#FF5B37]/30 shadow-soft'
+                      : isDepot
                         ? 'bg-[#F2F1EC] border-[#E8E6DF] text-[#1F2024]'
                         : 'bg-[#FAF9F6] hover:bg-white border-[#E8E6DF] hover:border-[#D6D4CC] shadow-soft-sm'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] ${
-                            isDepot
-                              ? 'bg-[#1F2024] text-white'
-                              : isLate
+                          className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] ${isDepot
+                            ? 'bg-[#1F2024] text-white'
+                            : isLate
                               ? 'bg-[#FF4D8D] text-white'
                               : 'bg-[#FF5B37] text-white'
-                          }`}
+                            }`}
                         >
                           {isDepot ? '★' : wp.sequence_index}
                         </span>
